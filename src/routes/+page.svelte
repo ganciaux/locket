@@ -1,2 +1,9 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<script lang="ts">
+	import { lock } from '$lib/auth/session.svelte';
+</script>
+
+<h1>Locket</h1>
+<p>Aucune fiche pour l'instant.</p>
+
+<p><a href="/parametres">Paramètres</a></p>
+<p><button class="link" onclick={lock}>Verrouiller</button></p>
