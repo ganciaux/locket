@@ -1,6 +1,9 @@
 {
 	"name": "locket",
 	"private": true,
+	"engines": {
+		"node": ">=24.12"
+	},
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
@@ -14,14 +17,17 @@
 		"emulators": "firebase emulators:start --project demo-locket"
 	},
 	"devDependencies": {
+		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"@vite-pwa/sveltekit": "^1.1.0",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.3.0",
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@vite-pwa/sveltekit": "^1.1.0",
 		"vitest": "^5.0.5"
+	},
+	"dependencies": {
+		"firebase": "^13.1.0"
 	}
 }
