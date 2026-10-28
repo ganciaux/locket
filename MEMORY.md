@@ -38,7 +38,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 
 ## Émulateurs
 
-- `firebase-tools` n'est pas une dépendance du projet : `npm i -g firebase-tools` ou `npx firebase-tools emulators:start --project demo-locket`.
+- `firebase-tools` est en `devDependencies` : `npm run emulators` suffit, sans installation globale (Java requis pour Firestore).
 - L'émulateur n'envoie pas d'email : en mode émulateur, la page « Mot de passe oublié » affiche le lien vers `/action`
   (lu via l'API REST de l'émulateur). Ne pas utiliser le lien de l'émulateur, qui mène à sa propre page.
 
