@@ -35,12 +35,14 @@
 }
 
 /*
- * Fond : l'illustration du livre en fondu sur base-200. Calque fixe plutôt que `background-attachment: fixed`,
+ * Fond : l'illustration du livre en fondu sur base-200. daisyUI peint le fond sur <html> via `--root-bg` :
+ * un fond sur <body> recouvrirait le calque. Calque fixe plutôt que `background-attachment: fixed`,
  * ignoré par Safari iOS ; z-index -1 le place sous le contenu, cartes et barre restant opaques.
  */
 @layer base {
-	body {
-		@apply bg-base-200;
+	:root,
+	[data-theme] {
+		--root-bg: var(--color-base-200);
 	}
 
 	body::before {

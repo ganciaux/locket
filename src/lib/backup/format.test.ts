@@ -56,6 +56,6 @@ describe('sauvegarde', () => {
 	});
 
 	it('nomme le fichier avec la date', () => {
-		expect(backupFileName(new Date('2026-10-29T12:00:00Z'))).toBe('locket-sauvegarde-2026-10-29.json');
+		expect(backupFileName(new Date('2026-10-29T12:00:00Z'))).toBe('stash-sauvegarde-2026-10-29.json');
 	});
 });

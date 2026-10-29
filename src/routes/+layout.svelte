@@ -22,19 +22,19 @@
 
 <svelte:head>
 	<link rel="icon" type="image/png" href="/favicon-48x48.png" />
-	<title>Wanted Archive</title>
+	<title>Stash</title>
 </svelte:head>
 
 {#snippet brand()}
 	<img src="/logo-256.png" alt="" class="size-8" />
-	<span>Wanted Archive</span>
+	<span>Stash</span>
 {/snippet}
 
 <!-- Pages de connexion : une carte centrée. -->
 {#snippet authShell(content: Snippet)}
 	<div class="grid min-h-dvh place-items-center p-4">
 		<div class="w-full max-w-sm">
-			<img src="/logo-256.png" alt="Wanted Archive" title="Wanted Archive" class="mx-auto mb-4 size-24 drop-shadow-md" />
+			<img src="/logo-256.png" alt="Stash" title="Stash" class="mx-auto mb-4 size-24 drop-shadow-md" />
 			<div class="card bg-base-100 shadow-xl">
 				<div class="card-body gap-4">{@render content()}</div>
 			</div>

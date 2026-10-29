@@ -13,8 +13,8 @@ export default defineConfig({
 			registerType: 'prompt', // pas de rechargement surprise : il effacerait la DEK en pleine saisie
 			kit: { adapterFallback: 'index.html', spa: true },
 			manifest: {
-				name: 'Wanted Archive',
-				short_name: 'Wanted Archive',
+				name: 'Stash',
+				short_name: 'Stash',
 				description: 'Vos fiches chiffrées de bout en bout.',
 				lang: 'fr',
 				start_url: '/',

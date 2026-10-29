@@ -12,7 +12,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Clé de récupération | 256 bits aléatoires, base32 par groupes de 4, HKDF (`locket/recovery`) | Assez d'entropie pour se passer de PBKDF2 |
 | AAD | `"<entryId>/<champ>"` sur chaque chiffré | Empêche de déplacer un chiffré vers une autre fiche ou un autre champ |
 | Session | DEK en mémoire seulement → écran « Déverrouiller » à chaque ouverture (session Firebase conservée) | Pas de clé au repos sur l'appareil |
-| Sauvegarde | Fichier JSON `locket-sauvegarde-AAAA-MM-JJ.json` : documents tels quels (chiffrés, base64), trousseau (2 copies emballées de la DEK), catalogue de tags ; images facultatives. Pas d'export en clair (refusé le 2026-10-29) | Le plan Spark n'a pas de sauvegarde Firestore ; le fichier est illisible sans mot de passe ou clé de récupération |
+| Sauvegarde | Fichier JSON `stash-sauvegarde-AAAA-MM-JJ.json` : documents tels quels (chiffrés, base64), trousseau (2 copies emballées de la DEK), catalogue de tags ; images facultatives. Pas d'export en clair (refusé le 2026-10-29) | Le plan Spark n'a pas de sauvegarde Firestore ; le fichier est illisible sans mot de passe ou clé de récupération |
 | Restauration | Même DEK : remplace / complète par id, ne supprime rien, tags fusionnés. DEK différente (compte recréé, décidé le 2026-10-29) : compte **vide** obligatoire, mot de passe actuel vérifié avant toute écriture, ancienne DEK déballée par l'ancien mot de passe (même email) ou l'ancienne clé de récupération, puis adoptée ; **l'ancienne clé de récupération redevient la bonne** (choix utilisateur). Ids validés (`[A-Za-z0-9_-]{1,64}`) | Seul filet de sécurité en cas de perte du compte. Compte vide : ses fiches (autre DEK) deviendraient illisibles |
 | Image | Facultative ; WebP avec repli JPEG | Safari iOS n'encode pas toujours le WebP via canvas |
 | Hors ligne | Pas de cache Firestore persistant ; seule l'app est mise en cache | Simplicité |
@@ -54,7 +54,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
    — déployé et validé en ligne le 2026-10-29 (PC + Safari iPhone), récupération par lien email comprise
 4. [x] Fiches : CRUD Firestore (`Bytes`), liste avec miniatures, recherche locale — testé contre les émulateurs ; interface à valider à la main
 5. [x] Images : redimensionnement canvas, plafond 900 Ko chiffré — canvas à valider dans le navigateur (PC + iPhone)
-6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), logo (coffre) de l’utilisateur partout, fixé au déploiement ; son illustration du livre en fond d’écran fondu (`background.jpg`)
+6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), logo (coffre) de l’utilisateur partout, fixé au déploiement ; son illustration du livre en fond d’écran fondu (`background.jpg`) ; nom affiché « Stash » (ex-Locket, puis Wanted Archive)
 7. [ ] Sécurité : CSP stricte (hashes SvelteKit), revue des logs
 8. [x] Sauvegarde : export / import JSON chiffré, restauration dans un compte recréé — testé contre les émulateurs
 9. [ ] README en français

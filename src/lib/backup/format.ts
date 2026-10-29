@@ -68,9 +68,9 @@ export function parseBackup(text: string): Backup {
 	try {
 		raw = JSON.parse(text);
 	} catch {
-		throw new Error('Ce fichier n’est pas une sauvegarde Wanted Archive.');
+		throw new Error('Ce fichier n’est pas une sauvegarde Stash.');
 	}
-	if (!isObject(raw) || raw.format !== BACKUP_FORMAT) throw new Error('Ce fichier n’est pas une sauvegarde Wanted Archive.');
+	if (!isObject(raw) || raw.format !== BACKUP_FORMAT) throw new Error('Ce fichier n’est pas une sauvegarde Stash.');
 	if (raw.version !== BACKUP_VERSION) throw new Error('Version de sauvegarde non prise en charge.');
 	if (typeof raw.createdAt !== 'string' || typeof raw.includesImages !== 'boolean') throw new Error(INVALID);
 	if (!isObject(raw.keyring) || !Array.isArray(raw.entries)) throw new Error(INVALID);
@@ -94,6 +94,6 @@ export function parseBackup(text: string): Backup {
 	};
 }
 
-/** Nom du fichier proposé au téléchargement : locket-sauvegarde-AAAA-MM-JJ.json */
+/** Nom du fichier proposé au téléchargement : stash-sauvegarde-AAAA-MM-JJ.json */
 export const backupFileName = (date: Date): string =>
-	`locket-sauvegarde-${date.toISOString().slice(0, 10)}.json`;
+	`stash-sauvegarde-${date.toISOString().slice(0, 10)}.json`;
