@@ -37,12 +37,11 @@
 	}
 </script>
 
-<div class="mb-4 flex items-center gap-2">
-	<h1 class="flex items-center gap-2 text-2xl leading-none font-bold">
-		Mes fiches
-		{#if entries.items?.length}<span class="badge badge-neutral badge-sm">{entries.items.length}</span>{/if}
-	</h1>
-	<a class="btn btn-ghost btn-sm ml-auto" href="/fiche/import"><Icon name="import" class="size-4" /> Importer</a>
+<!-- items-baseline : le compteur s'aligne sur le texte du titre, pas sur sa boîte (jambages compris). -->
+<div class="mb-4 flex items-baseline gap-2">
+	<h1 class="text-2xl font-bold">Mes fiches</h1>
+	{#if entries.items?.length}<span class="badge badge-primary badge-sm">{entries.items.length}</span>{/if}
+	<a class="btn btn-ghost btn-sm ml-auto self-center" href="/fiche/import"><Icon name="import" class="size-4" /> Importer</a>
 </div>
 
 <ErrorAlert message={error} />

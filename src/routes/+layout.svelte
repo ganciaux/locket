@@ -32,7 +32,7 @@
 
 <!-- Pages de connexion : une carte centrée. -->
 {#snippet authShell(content: Snippet)}
-	<div class="bg-base-200 grid min-h-dvh place-items-center p-4">
+	<div class="grid min-h-dvh place-items-center p-4">
 		<div class="w-full max-w-sm">
 			<img src="/logo-256.png" alt="Wanted Archive" title="Wanted Archive" class="mx-auto mb-4 size-24 drop-shadow-md" />
 			<div class="card bg-base-100 shadow-xl">
@@ -51,7 +51,7 @@
 {:else if !session.dek}
 	{@render authShell(unlockScreen)}
 {:else}
-	<div class="bg-base-200 min-h-dvh">
+	<div class="min-h-dvh">
 		<header class="navbar bg-base-100 sticky top-0 z-10 pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-sm">
 			<div class="flex-1">
 				<a href="/" class="btn btn-ghost text-xl">{@render brand()}</a>

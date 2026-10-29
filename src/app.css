@@ -33,3 +33,23 @@
 		font-size: max(1rem, 16px);
 	}
 }
+
+/*
+ * Fond : l'illustration du livre en fondu sur base-200. Calque fixe plutôt que `background-attachment: fixed`,
+ * ignoré par Safari iOS ; z-index -1 le place sous le contenu, cartes et barre restant opaques.
+ */
+@layer base {
+	body {
+		@apply bg-base-200;
+	}
+
+	body::before {
+		content: '';
+		position: fixed;
+		inset: 0;
+		z-index: -1;
+		background: url('/background.jpg') center / cover no-repeat;
+		opacity: 0.12;
+		pointer-events: none;
+	}
+}

@@ -29,7 +29,7 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['client/**/*.{js,css,html,svg,png,webmanifest}'],
+				globPatterns: ['client/**/*.{js,css,html,svg,png,jpg,webmanifest}'],
 				// Chemins réservés de Firebase Hosting (/__/auth/...) : jamais servis par l'app.
 				navigateFallbackDenylist: [/^\/__\//]
 			}

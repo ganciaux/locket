@@ -54,7 +54,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
    — déployé et validé en ligne le 2026-10-29 (PC + Safari iPhone), récupération par lien email comprise
 4. [x] Fiches : CRUD Firestore (`Bytes`), liste avec miniatures, recherche locale — testé contre les émulateurs ; interface à valider à la main
 5. [x] Images : redimensionnement canvas, plafond 900 Ko chiffré — canvas à valider dans le navigateur (PC + iPhone)
-6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), icônes fournies par l’utilisateur, fixées au déploiement : visuel « Wanted Archive » pour l’app installée (`pwa-*`, `apple-touch-icon`), coffre (`logo-256.png`, `favicon-48x48.png`) pour l’en-tête, la connexion et l’onglet
+6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), logo (coffre) de l’utilisateur partout, fixé au déploiement ; son illustration du livre en fond d’écran fondu (`background.jpg`)
 7. [ ] Sécurité : CSP stricte (hashes SvelteKit), revue des logs
 8. [x] Sauvegarde : export / import JSON chiffré, restauration dans un compte recréé — testé contre les émulateurs
 9. [ ] README en français
