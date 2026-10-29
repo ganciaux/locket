@@ -21,7 +21,8 @@ const config = {
 				'default-src': ['self'],
 				'script-src': ['self'],
 				'style-src': ['self'],
-				'img-src': ['self', 'blob:'],
+				// data: : texture SVG des boutons daisyUI ; blob: : images déchiffrées.
+				'img-src': ['self', 'blob:', 'data:'],
 				'connect-src': [
 					'self',
 					'https://firestore.googleapis.com',
