@@ -3,18 +3,25 @@
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
-	import { linkTitle } from '$lib/entries/model';
+	import { NO_TAG_FILTER, type TagFilter, linkTitle } from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	let query = $state('');
-	let selectedTags = $state<string[]>([]);
+	let tagFilter = $state<TagFilter>({ ...NO_TAG_FILTER });
 	let error = $state('');
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
-	const results = $derived(entries.search(query, selectedTags));
-	const filtering = $derived(!!query.trim() || selectedTags.length > 0);
+	const results = $derived(entries.search(query, tagFilter));
+	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
+	const filtering = $derived(!!query.trim() || tagFiltering);
+
+	// « Sans tag » et les tags sélectionnés s'excluent : cocher l'un décoche l'autre.
+	function toggleUntagged() {
+		tagFilter.untagged = !tagFilter.untagged;
+		if (tagFilter.untagged) tagFilter.tagIds = [];
+	}
 </script>
 
 <div class="mb-4 flex items-center gap-2">
@@ -40,11 +47,52 @@
 	</label>
 
 	{#if entries.tags?.length}
-		<div class="mb-4 flex items-start gap-2">
-			<div class="flex-1"><TagPicker tags={entries.tags} bind:selected={selectedTags} label="Filtrer par tags" /></div>
-			{#if selectedTags.length}
-				<button class="btn btn-ghost btn-xs" onclick={() => (selectedTags = [])}>Effacer</button>
-			{/if}
+		<div class="mb-4 flex flex-col gap-2">
+			<div class="flex items-center gap-2">
+				<span class="text-base-content/60 text-xs">Tags</span>
+				<div class="join" role="radiogroup" aria-label="Mode de filtre des tags">
+					<input
+						class="join-item btn btn-xs"
+						type="radio"
+						name="tag-mode"
+						value="or"
+						aria-label="OU"
+						title="Au moins un des tags sélectionnés"
+						bind:group={tagFilter.mode}
+					/>
+					<input
+						class="join-item btn btn-xs"
+						type="radio"
+						name="tag-mode"
+						value="and"
+						aria-label="ET"
+						title="Tous les tags sélectionnés"
+						bind:group={tagFilter.mode}
+					/>
+				</div>
+				{#if tagFiltering}
+					<button class="btn btn-ghost btn-xs ml-auto" onclick={() => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode })}>
+						Effacer
+					</button>
+				{/if}
+			</div>
+			<TagPicker
+				tags={entries.tags}
+				bind:selected={tagFilter.tagIds}
+				label="Filtrer par tags"
+				onchange={(selected) => selected.length && (tagFilter.untagged = false)}
+			>
+				{#snippet before()}
+					<button
+						type="button"
+						class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-neutral' : 'badge-outline badge-neutral'}"
+						aria-pressed={tagFilter.untagged}
+						onclick={toggleUntagged}
+					>
+						Sans tag
+					</button>
+				{/snippet}
+			</TagPicker>
 		</div>
 	{/if}
 

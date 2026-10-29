@@ -4,7 +4,7 @@
  */
 import { session } from '$lib/auth/session.svelte';
 import { bytesToUrl } from './images';
-import { type Tag, byName, matchesFilter, parseTagName } from './model';
+import { NO_TAG_FILTER, type Tag, type TagFilter, byName, matchesFilter, parseTagName } from './model';
 import { listEntries, type EntrySummary } from './repository';
 import { getTags, saveTags } from './tags';
 
@@ -44,8 +44,8 @@ export const entries = {
 	get tags() {
 		return tags;
 	},
-	search(query: string, selectedTagIds: string[] = []): ListItem[] {
-		return (items ?? []).filter((item) => matchesFilter(item, query, selectedTagIds, tagNames));
+	search(query: string, filter: TagFilter = NO_TAG_FILTER): ListItem[] {
+		return (items ?? []).filter((item) => matchesFilter(item, query, filter, tagNames));
 	},
 	find(id: string): ListItem | undefined {
 		return items?.find((item) => item.id === id);
@@ -111,6 +111,13 @@ async function replaceTags(next: Tag[]): Promise<void> {
 export async function addTag(input: string): Promise<void> {
 	const current = loadedTags();
 	await replaceTags([...current, { id: crypto.randomUUID(), name: parseTagName(input, current) }]);
+}
+
+/** Les fiches ne stockent que l'identifiant : renommer ne touche que le catalogue. */
+export async function renameTag(id: string, input: string): Promise<void> {
+	const current = loadedTags();
+	const name = parseTagName(input, current.filter((tag) => tag.id !== id));
+	await replaceTags(current.map((tag) => (tag.id === id ? { ...tag, name } : tag)));
 }
 
 /** Retire le tag du catalogue ; les fiches qui le portent l'oublient à leur prochaine modification. */

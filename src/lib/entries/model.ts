@@ -53,21 +53,30 @@ export const matchesSearch = (name: string, query: string): boolean =>
 	searchKey(name).includes(searchKey(query));
 
 /**
- * Filtre de la liste : la fiche doit porter tous les tags sélectionnés,
- * et le texte doit apparaître dans son nom ou dans l'un de ses tags.
+ * Filtre par tags de la liste :
+ *  - aucun tag sélectionné : pas de filtre ;
+ *  - `or` : au moins un des tags sélectionnés ; `and` : tous ;
+ *  - `untagged` : uniquement les fiches sans tag (exclusif des tags sélectionnés).
  */
+export type TagFilter = { tagIds: string[]; mode: 'or' | 'and'; untagged: boolean };
+
+export const NO_TAG_FILTER: TagFilter = { tagIds: [], mode: 'or', untagged: false };
+
+/** Le texte doit apparaître dans le nom ou dans l'un des tags ; les tags supprimés (inconnus) sont ignorés. */
 export function matchesFilter(
 	entry: { name: string; tagIds?: string[] },
 	query: string,
-	selectedTagIds: string[],
+	filter: TagFilter,
 	tagNames: Map<string, string>
 ): boolean {
-	const tagIds = entry.tagIds ?? [];
-	if (!selectedTagIds.every((id) => tagIds.includes(id))) return false;
-	return (
-		matchesSearch(entry.name, query) ||
-		tagIds.some((id) => tagNames.has(id) && matchesSearch(tagNames.get(id)!, query))
-	);
+	const known = (entry.tagIds ?? []).filter((id) => tagNames.has(id));
+	if (filter.untagged) {
+		if (known.length) return false;
+	} else if (filter.tagIds.length) {
+		const has = (id: string) => known.includes(id);
+		if (filter.mode === 'and' ? !filter.tagIds.every(has) : !filter.tagIds.some(has)) return false;
+	}
+	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tagNames.get(id)!, query));
 }
 
 export const MAX_TAG_LENGTH = 40;

@@ -3,6 +3,8 @@ import {
 	ENCODE_ATTEMPTS,
 	MAX_DOC_BYTES,
 	MAX_NAME_LENGTH,
+	NO_TAG_FILTER,
+	type TagFilter,
 	byName,
 	encodeUnderLimit,
 	fitWithin,
@@ -68,17 +70,34 @@ describe('tags', () => {
 	]);
 	const entry = { name: 'Mutuelle', tagIds: ['t1', 't2', 'supprimé'] };
 
-	it('filtre : tous les tags sélectionnés sont requis', () => {
-		expect(matchesFilter(entry, '', ['t1'], tags)).toBe(true);
-		expect(matchesFilter(entry, '', ['t1', 't2'], tags)).toBe(true);
-		expect(matchesFilter({ name: 'Banque', tagIds: ['t1'] }, '', ['t1', 't2'], tags)).toBe(false);
-		expect(matchesFilter({ name: 'Banque' }, '', [], tags)).toBe(true);
+	const filter = (patch: Partial<TagFilter>): TagFilter => ({ ...NO_TAG_FILTER, ...patch });
+	const banque = { name: 'Banque', tagIds: ['t1'] };
+	const sansTag = { name: 'Notes', tagIds: ['supprimé'] };
+
+	it('sans tag sélectionné : pas de filtre', () => {
+		expect(matchesFilter(banque, '', NO_TAG_FILTER, tags)).toBe(true);
+		expect(matchesFilter({ name: 'Notes' }, '', NO_TAG_FILTER, tags)).toBe(true);
+	});
+
+	it('mode OU (par défaut) : au moins un des tags sélectionnés', () => {
+		expect(matchesFilter(banque, '', filter({ tagIds: ['t1', 't2'] }), tags)).toBe(true);
+		expect(matchesFilter(banque, '', filter({ tagIds: ['t2'] }), tags)).toBe(false);
+	});
+
+	it('mode ET : tous les tags sélectionnés', () => {
+		expect(matchesFilter(entry, '', filter({ tagIds: ['t1', 't2'], mode: 'and' }), tags)).toBe(true);
+		expect(matchesFilter(banque, '', filter({ tagIds: ['t1', 't2'], mode: 'and' }), tags)).toBe(false);
+	});
+
+	it('« sans tag » : uniquement les fiches sans tag connu', () => {
+		expect(matchesFilter(sansTag, '', filter({ untagged: true }), tags)).toBe(true);
+		expect(matchesFilter(banque, '', filter({ untagged: true }), tags)).toBe(false);
 	});
 
 	it('le texte cherche aussi dans les tags, sans casse ni accents', () => {
-		expect(matchesFilter(entry, 'sante', [], tags)).toBe(true);
-		expect(matchesFilter(entry, 'mutu', [], tags)).toBe(true);
-		expect(matchesFilter(entry, 'supprimé', [], tags)).toBe(false);
+		expect(matchesFilter(entry, 'sante', NO_TAG_FILTER, tags)).toBe(true);
+		expect(matchesFilter(entry, 'mutu', NO_TAG_FILTER, tags)).toBe(true);
+		expect(matchesFilter(entry, 'supprimé', NO_TAG_FILTER, tags)).toBe(false);
 	});
 
 	it('parseTagName nettoie et refuse vide ou doublon', () => {

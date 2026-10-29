@@ -1,21 +1,34 @@
 <script lang="ts">
-	// Administration des tags : ajout et suppression. Le catalogue est chiffré comme les fiches.
+	// Administration des tags : ajout, renommage et suppression. Le catalogue est chiffré comme les fiches.
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { MAX_TAG_LENGTH } from '$lib/entries/model';
-	import { addTag, deleteTag, entries, loadEntries } from '$lib/entries/store.svelte';
+	import { addTag, deleteTag, entries, loadEntries, renameTag } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
 	let name = $state('');
 	let error = $state('');
 	let confirmId = $state<string | null>(null);
+	let editId = $state<string | null>(null);
+	let editName = $state('');
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
 	const addForm = formAction(async () => {
 		await addTag(name);
 		name = '';
+	});
+
+	function startEdit(id: string, name: string) {
+		confirmId = null;
+		editId = id;
+		editName = name;
+	}
+
+	const rename = formAction(async () => {
+		if (editId) await renameTag(editId, editName);
+		editId = null;
 	});
 
 	const removal = formAction(async () => {
@@ -60,30 +73,57 @@
 				{#each entries.tags as tag (tag.id)}
 					{@const count = entries.countWithTag(tag.id)}
 					<li class="flex flex-col gap-2 p-4">
-						<div class="flex items-center gap-3">
-							<Icon name="tag" class="text-primary size-4" />
-							<span class="flex-1 font-medium break-all">{tag.name}</span>
-							<span class="text-base-content/60 text-xs">{count} fiche{count > 1 ? 's' : ''}</span>
-							{#if confirmId !== tag.id}
-								<button
-									class="btn btn-ghost btn-sm btn-square text-error"
-									onclick={() => (confirmId = tag.id)}
-									aria-label="Supprimer le tag {tag.name}"
-									title="Supprimer"
-								>
-									<Icon name="trash" class="size-4" />
-								</button>
-							{/if}
-						</div>
-						{#if confirmId === tag.id}
-							<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removal.submit}>
-								<span class="flex-1 text-sm">
-									Supprimer « {tag.name} »{count ? ` et le retirer de ${count} fiche${count > 1 ? 's' : ''}` : ''} ?
-								</span>
-								<button class="btn btn-error btn-sm" disabled={removal.busy}>Supprimer</button>
-								<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
-								<ErrorAlert message={removal.error} />
+						{#if editId === tag.id}
+							<form class="flex flex-col gap-2" onsubmit={rename.submit}>
+								<div class="join w-full">
+									<!-- svelte-ignore a11y_autofocus -->
+									<input
+										class="input input-sm join-item w-full"
+										aria-label="Nouveau nom du tag"
+										maxlength={MAX_TAG_LENGTH}
+										bind:value={editName}
+										required
+										autofocus
+									/>
+									<button class="btn btn-primary btn-sm join-item" disabled={rename.busy}>Renommer</button>
+									<button type="button" class="btn btn-ghost btn-sm join-item" onclick={() => (editId = null)}>Annuler</button>
+								</div>
+								<ErrorAlert message={rename.error} />
 							</form>
+						{:else}
+							<div class="flex items-center gap-3">
+								<Icon name="tag" class="text-primary size-4" />
+								<span class="flex-1 font-medium break-all">{tag.name}</span>
+								<span class="text-base-content/60 text-xs">{count} fiche{count > 1 ? 's' : ''}</span>
+								{#if confirmId !== tag.id}
+									<button
+										class="btn btn-ghost btn-sm btn-square"
+										onclick={() => startEdit(tag.id, tag.name)}
+										aria-label="Renommer le tag {tag.name}"
+										title="Renommer"
+									>
+										<Icon name="edit" class="size-4" />
+									</button>
+									<button
+										class="btn btn-ghost btn-sm btn-square text-error"
+										onclick={() => ((confirmId = tag.id), (editId = null))}
+										aria-label="Supprimer le tag {tag.name}"
+										title="Supprimer"
+									>
+										<Icon name="trash" class="size-4" />
+									</button>
+								{/if}
+							</div>
+							{#if confirmId === tag.id}
+								<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removal.submit}>
+									<span class="flex-1 text-sm">
+										Supprimer « {tag.name} »{count ? ` et le retirer de ${count} fiche${count > 1 ? 's' : ''}` : ''} ?
+									</span>
+									<button class="btn btn-error btn-sm" disabled={removal.busy}>Supprimer</button>
+									<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
+									<ErrorAlert message={removal.error} />
+								</form>
+							{/if}
 						{/if}
 					</li>
 				{/each}
