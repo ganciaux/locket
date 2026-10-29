@@ -10,11 +10,12 @@ import {
 	PUBLIC_USE_EMULATORS
 } from '$env/static/public';
 import { initializeApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { browserLocalPersistence, connectAuthEmulator, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth';
 import { Bytes, connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import type { Encrypted } from './crypto/crypto';
 
-export const USE_EMULATORS = PUBLIC_USE_EMULATORS === 'true';
+// `import.meta.env.DEV` vaut `false` au build : le code des émulateurs disparaît du bundle de prod.
+export const USE_EMULATORS = import.meta.env.DEV && PUBLIC_USE_EMULATORS === 'true';
 const EMULATOR_PROJECT_ID = 'demo-locket';
 const AUTH_EMULATOR_URL = 'http://127.0.0.1:9099';
 
@@ -29,7 +30,9 @@ const app = initializeApp(
 			}
 );
 
-export const auth = getAuth(app);
+// Sans `popupRedirectResolver` (inclus par `getAuth`) : il charge une iframe et un script Google, inutiles
+// en email/mot de passe et qu'il faudrait autoriser dans la CSP.
+export const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] });
 export const db = getFirestore(app);
 auth.languageCode = 'fr';
 

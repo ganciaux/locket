@@ -25,6 +25,13 @@
 	--color-primary-content: oklch(20% 0.06 22);
 }
 
+/* Conteneur de SvelteKit dans app.html : en CSS plutôt qu'en attribut style, bloqué par la CSP. */
+@layer base {
+	.app-root {
+		display: contents;
+	}
+}
+
 /* 16 px minimum sur les champs : en dessous, Safari iOS zoome à la saisie. */
 @layer base {
 	input,
