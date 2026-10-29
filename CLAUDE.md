@@ -1,7 +1,8 @@
 # Stash
 
 PWA de fiches (nom, liens, image) chiffrées de bout en bout. Firebase ne voit jamais de donnée en clair,
-ni le mot de passe, ni une clé. Décisions et avancement : voir [MEMORY.md](MEMORY.md) ; améliorations à faire : [AUDIT.md](AUDIT.md).
+ni le mot de passe, ni une clé. Décisions et avancement : voir [MEMORY.md](MEMORY.md) ; améliorations à faire : [AUDIT.md](AUDIT.md) ;
+modèle de menace et plan d'audit : [SECURITY.md](SECURITY.md) (à tenir à jour si la crypto, l'auth, les règles ou la CSP changent).
 Nom affiché : **Stash** ; « locket » reste l'identifiant interne (HKDF `locket/*`, format de sauvegarde,
 clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sauvegardes existantes.
 

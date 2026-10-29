@@ -92,4 +92,4 @@ d'accueil puis l'ajouter à nouveau. Les données ne sont pas touchées, elles s
 - **L'app se verrouille** après 5 minutes d'inactivité (réglable dans Paramètres) : le mot de passe est alors
   redemandé.
 
-Règles de développement à ne pas casser : voir [CLAUDE.md](CLAUDE.md). Améliorations prévues : [AUDIT.md](AUDIT.md).
+Règles de développement à ne pas casser : voir [CLAUDE.md](CLAUDE.md). Modèle de menace : [SECURITY.md](SECURITY.md). Améliorations prévues : [AUDIT.md](AUDIT.md).
