@@ -6,6 +6,7 @@
 	import { lock, session } from '$lib/auth/session.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Unlock from '$lib/components/Unlock.svelte';
+	import UpdateBanner from '$lib/components/UpdateBanner.svelte';
 	import type { Snippet } from 'svelte';
 	import type { LayoutProps } from './$types';
 
@@ -52,7 +53,7 @@
 	{@render authShell(unlockScreen)}
 {:else}
 	<div class="bg-base-200 min-h-dvh">
-		<header class="navbar bg-base-100 sticky top-0 z-10 shadow-sm">
+		<header class="navbar bg-base-100 sticky top-0 z-10 pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-sm">
 			<div class="flex-1">
 				<a href="/" class="btn btn-ghost text-xl">{@render brand()}</a>
 			</div>
@@ -66,6 +67,8 @@
 		<main class="mx-auto max-w-3xl px-4 pt-6 pb-28">{@render children()}</main>
 	</div>
 {/if}
+
+<UpdateBanner />
 
 {#snippet unlockScreen()}
 	<Unlock />

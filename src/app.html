@@ -2,8 +2,19 @@
 <html lang="fr">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- viewport-fit=cover : l'app occupe tout l'écran de l'iPhone (encoche, barre d'accueil gérées en CSS). -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
+		<meta name="description" content="Vos fiches chiffrées de bout en bout." />
+		<!-- PWA : manifest généré au build, réglages propres à iOS. -->
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="Locket" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1d232a" />
 		<!-- Thème choisi appliqué avant l'affichage (évite un flash clair). Voir src/lib/prefs.svelte.ts. -->
 		<script>
 			try {
