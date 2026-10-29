@@ -54,15 +54,15 @@ export const fromStored = (stored: StoredEncrypted): Encrypted => ({
 });
 
 // ---------------------------------------------------------------------------
-// Émulateur uniquement : l'émulateur n'envoie pas d'email, et son lien mène à sa propre page
-// de réinitialisation (interdite ici). On lit le code via son API REST pour viser /action.
+// Émulateur uniquement : il n'envoie pas d'email. On lit le dernier lien de connexion via son API REST
+// et on garde ses paramètres (mode, oobCode, apiKey) en visant directement /action.
 
-export async function emulatorResetLink(email: string): Promise<string | null> {
+export async function emulatorRecoveryLink(email: string): Promise<string | null> {
 	if (!USE_EMULATORS) return null;
 	const response = await fetch(`${AUTH_EMULATOR_URL}/emulator/v1/projects/${EMULATOR_PROJECT_ID}/oobCodes`);
 	const { oobCodes = [] } = (await response.json()) as {
-		oobCodes?: { email: string; oobCode: string; requestType: string }[];
+		oobCodes?: { email: string; oobLink: string; requestType: string }[];
 	};
-	const last = oobCodes.findLast((c) => c.requestType === 'PASSWORD_RESET' && c.email === email);
-	return last ? `/action?mode=resetPassword&oobCode=${encodeURIComponent(last.oobCode)}` : null;
+	const last = oobCodes.findLast((c) => c.requestType === 'EMAIL_SIGNIN' && c.email === email);
+	return last ? `/action${new URL(last.oobLink).search}` : null;
 }

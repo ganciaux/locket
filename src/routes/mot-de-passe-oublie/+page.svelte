@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { requestPasswordReset } from '$lib/auth/account';
+	import { requestRecoveryLink } from '$lib/auth/account';
 	import { session } from '$lib/auth/session.svelte';
 	import { normalizeEmail } from '$lib/crypto/crypto';
-	import { USE_EMULATORS, emulatorResetLink } from '$lib/firebase';
+	import { USE_EMULATORS, emulatorRecoveryLink } from '$lib/firebase';
 	import { formAction } from '$lib/form.svelte';
 
 	let email = $state(session.user?.email ?? '');
@@ -10,9 +10,9 @@
 	let devLink = $state<string | null>(null);
 
 	const form = formAction(async () => {
-		await requestPasswordReset(email);
+		await requestRecoveryLink(email);
 		sent = true;
-		if (USE_EMULATORS) devLink = await emulatorResetLink(normalizeEmail(email));
+		if (USE_EMULATORS) devLink = await emulatorRecoveryLink(normalizeEmail(email));
 	});
 </script>
 
@@ -21,10 +21,11 @@
 {#if sent}
 	<p>
 		Si un compte existe pour <strong>{email}</strong>, un email vient de lui être envoyé. Le lien qu'il
-		contient vous permettra de choisir un nouveau mot de passe, puis de saisir votre clé de récupération.
+		contient vous connectera ; vous saisirez ensuite votre clé de récupération et un nouveau mot de passe.
 	</p>
+	<p class="hint">Sur iPhone, le lien s'ouvre dans Safari : terminez-y la récupération, puis revenez dans l'app.</p>
 	{#if devLink}
-		<p class="hint">Émulateur : <a href={devLink}>ouvrir le lien de réinitialisation</a></p>
+		<p class="hint">Émulateur : <a href={devLink}>ouvrir le lien de connexion</a></p>
 	{/if}
 {:else}
 	<p class="hint">Vous aurez besoin de la clé de récupération reçue à la création du compte.</p>

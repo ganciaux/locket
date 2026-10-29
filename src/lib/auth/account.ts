@@ -6,18 +6,18 @@
  */
 import {
 	EmailAuthProvider,
-	confirmPasswordReset,
 	createUserWithEmailAndPassword,
 	deleteUser,
+	getAdditionalUserInfo,
+	isSignInWithEmailLink,
 	reauthenticateWithCredential,
-	sendPasswordResetEmail,
+	sendSignInLinkToEmail,
 	signInWithEmailAndPassword,
+	signInWithEmailLink,
 	updatePassword,
-	verifyPasswordResetCode,
 	type User
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { FirebaseError } from 'firebase/app';
 import {
 	type Encrypted,
 	deriveKeys,
@@ -56,6 +56,20 @@ async function readKeyring(uid: string): Promise<Keyring> {
 
 const saveWrappedDek = (uid: string, wrappedDek: Encrypted) =>
 	updateDoc(keyringRef(uid), { wrappedDek: toStored(wrappedDek) });
+
+/**
+ * Firestore puis Firebase Auth : si le second échoue, on remet l'ancienne DEK emballée
+ * pour garder les deux cohérents.
+ */
+async function replacePassword(user: User, previous: Encrypted, next: Encrypted, authToken: string) {
+	await saveWrappedDek(user.uid, next);
+	try {
+		await updatePassword(user, authToken);
+	} catch (error) {
+		await saveWrappedDek(user.uid, previous).catch(() => {});
+		throw error;
+	}
+}
 
 /** AES-GCM échoue sans détail si la clé est mauvaise : on traduit en message utilisateur. */
 async function orFail<T>(promise: Promise<T>, message: string): Promise<T> {
@@ -123,10 +137,7 @@ export async function unlock(password: string): Promise<void> {
 	setUnlocked(user, await orFail(unwrapDek(wrappedDek, kek), WRONG_PASSWORD));
 }
 
-/**
- * Réemballe la DEK sous la nouvelle KEK ; les fiches ne sont pas rechiffrées.
- * Firestore puis Firebase Auth : si le second échoue, on remet l'ancienne DEK emballée.
- */
+/** Réemballe la DEK sous la nouvelle KEK ; les fiches ne sont pas rechiffrées. */
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
 	const user = currentUser();
 	const [current, next] = await Promise.all([
@@ -138,55 +149,62 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
 	// Firebase exige une connexion récente pour changer le mot de passe.
 	await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, current.authToken));
-	await saveWrappedDek(user.uid, rewrapped);
-	try {
-		await updatePassword(user, next.authToken);
-	} catch (error) {
-		await saveWrappedDek(user.uid, wrappedDek).catch(() => {});
-		throw error;
-	}
+	await replacePassword(user, wrappedDek, rewrapped, next.authToken);
 }
 
 // ---------------------------------------------------------------------------
-// Récupération : email Firebase → page d'action de l'app (/action), jamais la page hébergée par Firebase.
+// Récupération : connexion par lien envoyé par email, puis clé de récupération.
+// Jamais `sendPasswordResetEmail` : sa page hébergée par Firebase recevrait le vrai mot de passe.
 
-export async function requestPasswordReset(email: string): Promise<void> {
+const RECOVERY_EMAIL_KEY = 'locket.recoveryEmail';
+
+/** Envoie un lien de connexion qui ramène sur /action. L'email est mémorisé pour ne pas le redemander. */
+export async function requestRecoveryLink(email: string): Promise<void> {
+	email = normalizeEmail(email);
+	await sendSignInLinkToEmail(auth, email, { url: `${location.origin}/action`, handleCodeInApp: true });
 	try {
-		await sendPasswordResetEmail(auth, normalizeEmail(email));
-	} catch (error) {
-		// Même réponse que le compte existe ou non (déjà le cas en production avec la protection anti-énumération).
-		if (!(error instanceof FirebaseError && error.code === 'auth/user-not-found')) throw error;
+		localStorage.setItem(RECOVERY_EMAIL_KEY, email);
+	} catch {
+		// Stockage indisponible : l'email sera redemandé à l'ouverture du lien.
 	}
 }
 
-/** Vérifie le code du lien et renvoie l'email du compte concerné. */
-export const checkResetCode = (oobCode: string): Promise<string> => verifyPasswordResetCode(auth, oobCode);
+export const isRecoveryLink = (url: string): boolean => isSignInWithEmailLink(auth, url);
 
-/** Contrôle de forme, avant de consommer le lien : n'assure pas que la clé est la bonne. */
-export const isWellFormedRecoveryKey = (recoveryKey: string): Promise<boolean> =>
-	deriveRecoveryKek(recoveryKey).then(
-		() => true,
-		() => false
-	);
-
-/**
- * Étape 1 : nouveau mot de passe côté Firebase (jeton dérivé), puis connexion.
- * Renvoie la nouvelle KEK ; la DEK reste emballée par l'ancienne tant que l'étape 2 n'a pas réussi.
- */
-export async function resetPassword(oobCode: string, email: string, newPassword: string): Promise<CryptoKey> {
-	email = normalizeEmail(email);
-	const { kek, authToken } = await deriveKeys(newPassword, email);
-	await confirmPasswordReset(auth, oobCode, authToken);
-	await signInWithEmailAndPassword(auth, email, authToken);
-	return kek;
+/** Vide si le lien est ouvert dans un autre navigateur (ex. Safari plutôt que la PWA sur iPhone). */
+export function rememberedRecoveryEmail(): string {
+	try {
+		return localStorage.getItem(RECOVERY_EMAIL_KEY) ?? '';
+	} catch {
+		return '';
+	}
 }
 
-/** Étape 2 : déballe la DEK avec la clé de récupération et la réemballe sous la nouvelle KEK. */
-export async function restoreWithRecoveryKey(recoveryKey: string, newKek: CryptoKey): Promise<void> {
+/** Étape 1 : connexion par le lien, à usage unique. */
+export async function signInWithRecoveryLink(email: string, url: string): Promise<void> {
+	const credential = await signInWithEmailLink(auth, normalizeEmail(email), url);
+	try {
+		localStorage.removeItem(RECOVERY_EMAIL_KEY);
+	} catch {
+		// rien à nettoyer
+	}
+	// Un lien de connexion crée le compte s'il n'existe pas : on annule.
+	if (getAdditionalUserInfo(credential)?.isNewUser) {
+		await deleteUser(credential.user).catch(() => {});
+		throw new Error('Aucun compte n’existe pour cet email.');
+	}
+}
+
+/**
+ * Étape 2 : déballe la DEK avec la clé de récupération, la réemballe sous la KEK du nouveau mot de passe,
+ * puis remplace le mot de passe Firebase. Clé fausse → rien n'est modifié, on peut réessayer.
+ */
+export async function recoverWithKey(recoveryKey: string, newPassword: string): Promise<void> {
 	const user = currentUser();
 	const recoveryKek = await orFail(deriveRecoveryKek(recoveryKey), WRONG_RECOVERY_KEY);
-	const { recoveryDek } = await readKeyring(user.uid);
-	const wrappedDek = await orFail(rewrapDek(recoveryDek, recoveryKek, newKek), WRONG_RECOVERY_KEY);
-	await saveWrappedDek(user.uid, wrappedDek);
-	setUnlocked(user, await unwrapDek(wrappedDek, newKek));
+	const next = await deriveKeys(newPassword, user.email);
+	const { wrappedDek, recoveryDek } = await readKeyring(user.uid);
+	const rewrapped = await orFail(rewrapDek(recoveryDek, recoveryKek, next.kek), WRONG_RECOVERY_KEY);
+	await replacePassword(user, wrappedDek, rewrapped, next.authToken);
+	setUnlocked(user, await unwrapDek(rewrapped, next.kek));
 }

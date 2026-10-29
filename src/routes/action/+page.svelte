@@ -1,84 +1,48 @@
 <script lang="ts">
-	// Page d'action personnalisée (Console Firebase > Authentication > Modèles > URL d'action).
-	// Remplace la page hébergée par Firebase, qui recevrait le vrai mot de passe.
-	import { goto } from '$app/navigation';
+	// Récupération : le lien de connexion envoyé par /mot-de-passe-oublie mène ici.
+	// Étape 1 : connexion par le lien. Étape 2 : clé de récupération + nouveau mot de passe.
+	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import {
 		MIN_PASSWORD_LENGTH,
 		checkNewPassword,
-		checkResetCode,
-		isWellFormedRecoveryKey,
-		resetPassword,
-		restoreWithRecoveryKey
+		isRecoveryLink,
+		recoverWithKey,
+		rememberedRecoveryEmail,
+		signInWithRecoveryLink
 	} from '$lib/auth/account';
-	import { errorMessage } from '$lib/errors';
+	import { session } from '$lib/auth/session.svelte';
 	import { formAction } from '$lib/form.svelte';
 
-	const mode = page.url.searchParams.get('mode');
-	const oobCode = page.url.searchParams.get('oobCode') ?? '';
+	const link = page.url.href;
+	const hasLink = isRecoveryLink(link);
 
-	let email = $state('');
-	let linkError = $state('');
+	let email = $state(rememberedRecoveryEmail());
 	let password = $state('');
 	let confirmation = $state('');
 	let recoveryKey = $state('');
-	// Renseignée une fois le mot de passe changé : si la clé de récupération est fausse,
-	// on ne redemande qu'elle (le lien est déjà consommé).
-	let newKek = $state.raw<CryptoKey | null>(null);
 
-	if (mode === 'resetPassword') {
-		checkResetCode(oobCode).then(
-			(accountEmail) => (email = accountEmail),
-			(error) => (linkError = errorMessage(error))
-		);
-	}
+	const linkForm = formAction(async () => {
+		await signInWithRecoveryLink(email, link);
+		// Lien consommé : inutile de le garder dans l'historique.
+		replaceState('/action', {});
+	});
 
-	const form = formAction(async () => {
-		if (!newKek) {
-			checkNewPassword(password, confirmation);
-			if (!(await isWellFormedRecoveryKey(recoveryKey)))
-				throw new Error('Clé de récupération mal formée : vérifiez chaque groupe de caractères.');
-			newKek = await resetPassword(oobCode, email, password);
-			password = confirmation = '';
-		}
-		await restoreWithRecoveryKey(recoveryKey, newKek);
+	const recoveryForm = formAction(async () => {
+		checkNewPassword(password, confirmation);
+		await recoverWithKey(recoveryKey, password);
 		await goto('/');
 	});
 </script>
 
-<h1>Nouveau mot de passe</h1>
+<h1>Récupérer mes fiches</h1>
 
-{#if mode !== 'resetPassword'}
-	<p>Ce lien n'est pas pris en charge.</p>
-{:else if linkError}
-	<p class="error" role="alert">{linkError}</p>
-	<p><a href="/mot-de-passe-oublie">Demander un nouveau lien</a></p>
-{:else if !email}
-	<p>Vérification du lien…</p>
-{:else}
-	<p>Compte : <strong>{email}</strong></p>
-	{#if newKek}
-		<p>Votre mot de passe a été changé. Saisissez à nouveau votre clé de récupération pour retrouver vos fiches.</p>
-	{/if}
-
-	<form onsubmit={form.submit}>
-		<input type="email" autocomplete="username" value={email} hidden readonly />
-		{#if !newKek}
-			<label>
-				Nouveau mot de passe ({MIN_PASSWORD_LENGTH} caractères minimum)
-				<input
-					type="password"
-					autocomplete="new-password"
-					minlength={MIN_PASSWORD_LENGTH}
-					bind:value={password}
-					required
-				/>
-			</label>
-			<label>
-				Confirmation
-				<input type="password" autocomplete="new-password" bind:value={confirmation} required />
-			</label>
-		{/if}
+{#if !session.ready}
+	<p>Chargement…</p>
+{:else if session.user}
+	<p>Compte : <strong>{session.user.email}</strong></p>
+	<form onsubmit={recoveryForm.submit}>
+		<input type="email" autocomplete="username" value={session.user.email} hidden readonly />
 		<label>
 			Clé de récupération
 			<input
@@ -90,7 +54,34 @@
 				required
 			/>
 		</label>
-		{#if form.error}<p class="error" role="alert">{form.error}</p>{/if}
-		<button disabled={form.busy}>{form.busy ? 'Récupération…' : 'Récupérer mes fiches'}</button>
+		<label>
+			Nouveau mot de passe ({MIN_PASSWORD_LENGTH} caractères minimum)
+			<input
+				type="password"
+				autocomplete="new-password"
+				minlength={MIN_PASSWORD_LENGTH}
+				bind:value={password}
+				required
+			/>
+		</label>
+		<label>
+			Confirmation
+			<input type="password" autocomplete="new-password" bind:value={confirmation} required />
+		</label>
+		{#if recoveryForm.error}<p class="error" role="alert">{recoveryForm.error}</p>{/if}
+		<button disabled={recoveryForm.busy}>{recoveryForm.busy ? 'Récupération…' : 'Récupérer mes fiches'}</button>
 	</form>
+{:else if hasLink}
+	<p>Confirmez l'adresse email à laquelle le lien a été envoyé.</p>
+	<form onsubmit={linkForm.submit}>
+		<label>
+			Email
+			<input type="email" autocomplete="username" bind:value={email} required />
+		</label>
+		{#if linkForm.error}<p class="error" role="alert">{linkForm.error}</p>{/if}
+		<button disabled={linkForm.busy}>{linkForm.busy ? 'Connexion…' : 'Continuer'}</button>
+	</form>
+{:else}
+	<p>Ce lien est invalide ou a déjà été utilisé.</p>
+	<p><a href="/mot-de-passe-oublie">Demander un nouveau lien</a></p>
 {/if}

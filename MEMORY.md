@@ -8,7 +8,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 |---|---|---|
 | Dérivation | PBKDF2-SHA-256 600k → 256 bits → HKDF (`locket/kek`, `locket/auth`) | Demander 512 bits à PBKDF2 double le coût pour nous, pas pour un attaquant (1 bloc suffit à tester un mot de passe) |
 | Sel | Email normalisé (trim + minuscules) | Cahier des charges ; conséquence : changement d'email non supporté |
-| Récupération | Email de reset Firebase **avec page d'action personnalisée** dans l'app : nouveau mot de passe → `confirmPasswordReset(code, jetonDérivé)`, puis clé de récupération → réemballage de la DEK | Sans ça, un mot de passe oublié empêche de se connecter, donc de lire la DEK emballée. La page hébergée par Firebase est interdite (elle recevrait le vrai mot de passe) |
+| Récupération | Connexion par **lien envoyé par email** (`sendSignInLinkToEmail` → `/action` → `signInWithEmailLink`), puis clé de récupération → DEK réemballée sous la nouvelle KEK → `updatePassword(nouveauJeton)` | Sans connexion, le trousseau est illisible. `sendPasswordResetEmail` est exclu : l'URL d'action n'est plus modifiable (`EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`, console et API, 2026-10-28), donc son lien mène à la page Firebase qui recevrait le vrai mot de passe. Le lien de connexion, lui, redirige vers l'URL passée dans le code. Méthode « Lien envoyé par e-mail » activée dans la console le 2026-10-29 |
 | Clé de récupération | 256 bits aléatoires, base32 par groupes de 4, HKDF (`locket/recovery`) | Assez d'entropie pour se passer de PBKDF2 |
 | AAD | `"<entryId>/<champ>"` sur chaque chiffré | Empêche de déplacer un chiffré vers une autre fiche ou un autre champ |
 | Session | DEK en mémoire seulement → écran « Déverrouiller » à chaque ouverture (session Firebase conservée) | Pas de clé au repos sur l'appareil |
@@ -22,25 +22,19 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Mot de passe | 12 caractères minimum | Seul rempart contre une attaque hors ligne sur `wrappedDek` |
 | Session (code) | DEK rattachée à l'uid (`session.svelte.ts`) | Pas de course avec `onAuthStateChanged` lors d'un changement d'utilisateur |
 | Changement de mot de passe | Réauthentification → Firestore → `updatePassword` ; si ce dernier échoue, l'ancienne `wrappedDek` est remise | Garder Auth et trousseau cohérents ; la clé de récupération reste le filet de sécurité |
-| Récupération (code) | 2 étapes sur `/action` : `confirmPasswordReset` + connexion, puis déballage par la clé de récupération. Clé fausse → on ne redemande que la clé | Le trousseau n'est lisible qu'une fois connecté ; un abandon entre les deux se rattrape par un nouveau lien |
+| Récupération (code) | 2 étapes sur `/action` : connexion par le lien (email redemandé s'il est ouvert dans un autre navigateur), puis clé + nouveau mot de passe. Clé fausse → rien n'est modifié, on réessaie sans nouveau lien. Lien pour un email sans compte → le compte créé par Firebase est supprimé | Le lien est à usage unique ; sur iPhone il s'ouvre dans Safari, pas dans la PWA |
 | Inscription ratée | Si l'écriture du trousseau échoue, le compte Auth est supprimé | Un compte sans trousseau est inutilisable |
 
-## Lien de réinitialisation : problème ouvert (bloquant avant la mise en production)
+## À vérifier avant la mise en production
 
-- L'URL d'action personnalisée ne peut pas être modifiée : la console et l'API
-  (`notification.sendEmail.callbackUri`) répondent `EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED` (constaté le 2026-10-28).
-  Le lien de l'email mène donc à `/__/auth/action`, la page Firebase interdite.
-- Piste A, à tester contre le vrai projet : `sendPasswordResetEmail(..., { url: origin + '/action', handleCodeInApp: true })`
-  pour que Firebase redirige vers `/action` sans afficher son formulaire. Non vérifié.
-- Piste B, en repli : l'utilisateur colle le lien de l'email dans `/action`, qui en extrait l'`oobCode`.
-- Domaines autorisés : les 3 domaines par défaut (`localhost`, `*.firebaseapp.com`, `*.web.app`) suffisent.
-- Vérifier que la protection contre l'énumération des emails est active.
+- Domaines autorisés (Authentication > Paramètres) : `localhost`, `*.firebaseapp.com`, `*.web.app` par défaut ; y ajouter tout domaine personnalisé, sinon `sendSignInLinkToEmail` est refusé.
+- Protection contre l'énumération des emails active.
 
 ## Émulateurs
 
 - `firebase-tools` est en `devDependencies` : `npm run emulators` suffit, sans installation globale (Java requis pour Firestore).
-- L'émulateur n'envoie pas d'email : en mode émulateur, la page « Mot de passe oublié » affiche le lien vers `/action`
-  (lu via l'API REST de l'émulateur). Ne pas utiliser le lien de l'émulateur, qui mène à sa propre page.
+- L'émulateur n'envoie pas d'email : en mode émulateur, la page « Mot de passe oublié » affiche le lien de connexion
+  vers `/action` (lu via l'API REST de l'émulateur).
 
 ## Avancement
 
