@@ -22,10 +22,11 @@
 		{ value: 'medium', label: 'M', title: 'Cartes moyennes' },
 		{ value: 'large', label: 'L', title: 'Grandes cartes' }
 	];
+	// Libellés courts : la barre d'affichage doit tenir sur une ligne à 320 px.
 	const SORTS: { value: SortOrder; label: string }[] = [
-		{ value: 'name', label: 'Nom' },
-		{ value: 'created', label: 'Créées récemment' },
-		{ value: 'updated', label: 'Modifiées récemment' }
+		{ value: 'name', label: 'Tri : nom' },
+		{ value: 'created', label: 'Tri : récentes' },
+		{ value: 'updated', label: 'Tri : modifiées' }
 	];
 
 	let query = $state('');
@@ -120,60 +121,40 @@
 	{/if}
 	<label class="input mb-3 w-full">
 		<Icon name="search" class="size-4 opacity-50" />
-		<input type="search" placeholder="Rechercher dans {entries.active?.name} (nom ou tag)" aria-label="Rechercher" bind:value={query} />
+		<input type="search" placeholder="Rechercher dans {entries.active?.name}" aria-label="Rechercher" bind:value={query} />
 	</label>
 
-	<div class="mb-4 flex flex-col gap-2">
-		<div class="flex flex-wrap items-center gap-2">
-			{#if entries.tags?.length}
-				<span class="text-base-content/60 text-xs">Tags</span>
-				<div class="join" role="radiogroup" aria-label="Mode de filtre des tags">
-					<input
-						class="join-item btn btn-xs"
-						type="radio"
-						name="tag-mode"
-						value="or"
-						aria-label="OU"
-						title="Au moins un des tags sélectionnés"
-						bind:group={tagFilter.mode}
-					/>
-					<input
-						class="join-item btn btn-xs"
-						type="radio"
-						name="tag-mode"
-						value="and"
-						aria-label="ET"
-						title="Tous les tags sélectionnés"
-						bind:group={tagFilter.mode}
-					/>
-				</div>
-				{#if tagFiltering}
-					<button class="btn btn-ghost btn-xs" onclick={() => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode })}>
-						Effacer
-					</button>
+	<!-- Filtre : pastilles de tags ; OU / ET n'a de sens qu'à partir de deux tags sélectionnés. -->
+	{#if entries.tags?.length}
+		<div class="mb-3 flex flex-col gap-2">
+			<div class="flex min-h-6 items-center gap-2">
+				<span class="text-base-content/60 text-xs">Filtrer par tags</span>
+				{#if tagFilter.tagIds.length > 1}
+					<div class="join" role="radiogroup" aria-label="Mode de filtre des tags">
+						<input
+							class="join-item btn btn-xs"
+							type="radio"
+							name="tag-mode"
+							value="or"
+							aria-label="OU"
+							title="Au moins un des tags sélectionnés"
+							bind:group={tagFilter.mode}
+						/>
+						<input
+							class="join-item btn btn-xs"
+							type="radio"
+							name="tag-mode"
+							value="and"
+							aria-label="ET"
+							title="Tous les tags sélectionnés"
+							bind:group={tagFilter.mode}
+						/>
+					</div>
 				{/if}
-			{/if}
-			<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
-				{#each SORTS as sort (sort.value)}
-					<option value={sort.value}>{sort.label}</option>
-				{/each}
-			</select>
-			<span class="text-base-content/60 text-xs">Taille</span>
-			<div class="join" role="radiogroup" aria-label="Taille des cartes">
-				{#each SIZES as size (size.value)}
-					<input
-						class="join-item btn btn-xs"
-						type="radio"
-						name="card-size"
-						value={size.value}
-						aria-label={size.label}
-						title={size.title}
-						bind:group={prefs.cardSize}
-					/>
-				{/each}
+				{#if tagFiltering}
+					<button class="btn btn-ghost btn-xs ml-auto" onclick={resetTagFilter}>Effacer</button>
+				{/if}
 			</div>
-		</div>
-		{#if entries.tags?.length}
 			<TagPicker
 				tags={entries.tags}
 				bind:selected={tagFilter.tagIds}
@@ -191,7 +172,32 @@
 					</button>
 				{/snippet}
 			</TagPicker>
-		{/if}
+		</div>
+	{/if}
+
+	<!-- Affichage : nombre de résultats, tri et taille des cartes, sur une seule ligne même à 320 px. -->
+	<div class="mb-3 flex items-center gap-2">
+		<span class="text-base-content/60 text-xs" role="status">
+			{results.length} fiche{results.length > 1 ? 's' : ''}{filtering ? ` sur ${entries.activeItems.length}` : ''}
+		</span>
+		<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
+			{#each SORTS as sort (sort.value)}
+				<option value={sort.value}>{sort.label}</option>
+			{/each}
+		</select>
+		<div class="join" role="radiogroup" aria-label="Taille des cartes">
+			{#each SIZES as size (size.value)}
+				<input
+					class="join-item btn btn-xs"
+					type="radio"
+					name="card-size"
+					value={size.value}
+					aria-label={size.label}
+					title={size.title}
+					bind:group={prefs.cardSize}
+				/>
+			{/each}
+		</div>
 	</div>
 
 	{#if results.length === 0 && filtering}
