@@ -21,7 +21,6 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" type="image/png" href="/favicon-48x48.png" />
 	<title>Stash</title>
 </svelte:head>
 
