@@ -4,7 +4,14 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
 	plugins: [sveltekit()],
 	test: {
-		include: ['src/**/*.test.ts'],
-		environment: 'node'
+		environment: 'node',
+		projects: [
+			{
+				extends: true,
+				test: { name: 'unit', include: ['src/**/*.test.ts'], exclude: ['src/**/*.emulator.test.ts'] }
+			},
+			// Exige `npm run emulators` dans un autre terminal.
+			{ extends: true, test: { name: 'emulators', include: ['src/**/*.emulator.test.ts'] } }
+		]
 	}
 });
