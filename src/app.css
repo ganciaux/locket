@@ -1,210 +1,35 @@
-:root {
-	color-scheme: light dark;
-	font-family: system-ui, sans-serif;
-	line-height: 1.5;
-	--accent: #2f6fde;
-	--danger: #d32f2f;
-	--border: #8888;
+@import 'tailwindcss';
+
+/*
+ * daisyUI : thème clair par défaut, sombre si le système le demande.
+ * Paramètres > Thème force l'un ou l'autre via `data-theme` sur <html> (voir src/lib/prefs.svelte.ts).
+ */
+@plugin 'daisyui' {
+	themes:
+		light --default,
+		dark --prefersdark;
 }
 
-/* Thème forcé dans Paramètres ; sinon, celui du système. */
-:root[data-theme='light'] {
-	color-scheme: light;
+/* Accent indigo (indigo-600 en clair, indigo-400 en sombre pour garder le contraste). */
+@plugin 'daisyui/theme' {
+	name: 'light';
+	default: true;
+	--color-primary: oklch(51.1% 0.262 276.966);
+	--color-primary-content: oklch(98.5% 0.01 277);
 }
 
-:root[data-theme='dark'] {
-	color-scheme: dark;
+@plugin 'daisyui/theme' {
+	name: 'dark';
+	prefersdark: true;
+	--color-primary: oklch(67.3% 0.182 276.935);
+	--color-primary-content: oklch(20% 0.06 277);
 }
 
-fieldset {
-	display: grid;
-	gap: 0.5rem;
-	margin: 0;
-	border: 1px solid var(--border);
-	border-radius: 0.4rem;
-}
-
-body {
-	margin: 0;
-}
-
-main {
-	max-width: 28rem;
-	margin: 0 auto;
-	padding: 1.5rem 1rem;
-}
-
-form {
-	display: grid;
-	gap: 1rem;
-}
-
-label {
-	display: grid;
-	gap: 0.25rem;
-}
-
-/* 16 px minimum : en dessous, Safari iOS zoome sur le champ. */
-input,
-button {
-	font: inherit;
-}
-
-input:not([type='checkbox']) {
-	padding: 0.6rem;
-	border: 1px solid var(--border);
-	border-radius: 0.4rem;
-}
-
-button {
-	padding: 0.6rem 1rem;
-	border: 0;
-	border-radius: 0.4rem;
-	background: var(--accent);
-	color: white;
-	cursor: pointer;
-}
-
-button:disabled {
-	opacity: 0.6;
-	cursor: default;
-}
-
-button.link {
-	padding: 0;
-	background: none;
-	color: var(--accent);
-	text-decoration: underline;
-}
-
-.error {
-	margin: 0;
-	color: var(--danger);
-}
-
-.hint {
-	color: GrayText;
-	font-size: 0.9rem;
-}
-
-.check {
-	display: flex;
-	gap: 0.5rem;
-	align-items: center;
-}
-
-.recovery-key {
-	padding: 1rem;
-	border: 2px dashed var(--accent);
-	border-radius: 0.4rem;
-	font-family: ui-monospace, monospace;
-	font-size: 1.1rem;
-	overflow-wrap: anywhere;
-}
-
-/* ---------------------------------------------------------------------------
-   Fiches */
-
-.bar {
-	display: flex;
-	gap: 1rem;
-	align-items: center;
-	justify-content: space-between;
-	flex-wrap: wrap;
-}
-
-footer.bar {
-	margin-top: 2rem;
-}
-
-a.button {
-	padding: 0.6rem 1rem;
-	border-radius: 0.4rem;
-	background: var(--accent);
-	color: white;
-	text-decoration: none;
-}
-
-button.secondary {
-	background: none;
-	color: var(--accent);
-	border: 1px solid var(--accent);
-}
-
-button.danger {
-	background: var(--danger);
-}
-
-input[type='search'] {
-	width: 100%;
-	box-sizing: border-box;
-}
-
-.entries {
-	display: grid;
-	gap: 0.5rem;
-	padding: 0;
-	list-style: none;
-}
-
-.entries a {
-	display: flex;
-	gap: 0.75rem;
-	align-items: center;
-	padding: 0.5rem;
-	border: 1px solid var(--border);
-	border-radius: 0.4rem;
-	color: inherit;
-	text-decoration: none;
-}
-
-.entries img,
-.no-thumb {
-	width: 3.5rem;
-	height: 3.5rem;
-	flex: none;
-	border-radius: 0.3rem;
-	object-fit: cover;
-}
-
-.no-thumb {
-	display: grid;
-	place-items: center;
-	background: var(--border);
-	font-weight: bold;
-}
-
-.preview,
-.full {
-	display: block;
-	max-width: 100%;
-	height: auto;
-	border-radius: 0.4rem;
-}
-
-.preview {
-	max-height: 12rem;
-}
-
-.links {
-	padding-left: 1.2rem;
-	overflow-wrap: anywhere;
-}
-
-.link-row {
-	display: grid;
-	gap: 0.25rem;
-	padding-bottom: 0.5rem;
-	border-bottom: 1px solid var(--border);
-}
-
-.link-row button {
-	justify-self: start;
-}
-
-.confirm {
-	margin-top: 1rem;
-	padding: 1rem;
-	border: 1px solid var(--danger);
-	border-radius: 0.4rem;
+/* 16 px minimum sur les champs : en dessous, Safari iOS zoome à la saisie. */
+@layer base {
+	input,
+	select,
+	textarea {
+		font-size: max(1rem, 16px);
+	}
 }

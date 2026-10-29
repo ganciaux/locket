@@ -2,6 +2,5 @@
 	import EntryForm from '$lib/components/EntryForm.svelte';
 </script>
 
-<h1>Nouvelle fiche</h1>
-<EntryForm />
-<p><a href="/">Annuler</a></p>
+<h1 class="mb-4 text-2xl font-bold">Nouvelle fiche</h1>
+<EntryForm cancelHref="/" />

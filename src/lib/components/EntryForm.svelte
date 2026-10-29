@@ -2,13 +2,16 @@
 	// Création et modification d'une fiche. L'image est préparée (redimensionnée) puis chiffrée à l'enregistrement.
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/auth/session.svelte';
+	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+	import Field from '$lib/components/Field.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { prepareImage } from '$lib/entries/images';
 	import { type Link, parseLinkUrl } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
 	import { type ListItem, upsertEntry } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
 
-	let { entry }: { entry?: ListItem } = $props();
+	let { entry, cancelHref }: { entry?: ListItem; cancelHref: string } = $props();
 
 	// Valeurs initiales seulement : le formulaire édite sa propre copie.
 	// svelte-ignore state_referenced_locally
@@ -59,41 +62,88 @@
 	});
 </script>
 
-<form onsubmit={form.submit}>
-	<label>
-		Nom
-		<input bind:value={name} maxlength="200" required />
-	</label>
+<form class="flex flex-col gap-4" onsubmit={form.submit}>
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-4">
+			<Field label="Nom">
+				<input class="input input-lg w-full" bind:value={name} maxlength="200" required />
+			</Field>
+		</div>
+	</section>
 
-	<fieldset>
-		<legend>Liens</legend>
-		{#each links as link, i (i)}
-			<div class="link-row">
-				<input
-					inputmode="url"
-					autocapitalize="off"
-					autocomplete="off"
-					spellcheck="false"
-					placeholder="https://…"
-					aria-label="Adresse"
-					bind:value={link.url}
-				/>
-				<input placeholder="Libellé (facultatif)" aria-label="Libellé" bind:value={link.label} />
-				<button type="button" class="link" onclick={() => links.splice(i, 1)}>Retirer</button>
-			</div>
-		{/each}
-		<button type="button" class="secondary" onclick={() => links.push({ url: '', label: '' })}>Ajouter un lien</button>
-	</fieldset>
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-base"><Icon name="link" /> Liens</h2>
+			{#each links as link, i (i)}
+				<div class="bg-base-200 rounded-box grid grid-cols-[1fr_auto] gap-2 p-3">
+					<div class="flex flex-col gap-2">
+						<input
+							class="input input-sm w-full"
+							inputmode="url"
+							autocapitalize="off"
+							autocomplete="off"
+							spellcheck="false"
+							placeholder="https://…"
+							aria-label="Adresse"
+							bind:value={link.url}
+						/>
+						<input
+							class="input input-sm w-full"
+							placeholder="Libellé (facultatif)"
+							aria-label="Libellé"
+							bind:value={link.label}
+						/>
+					</div>
+					<button
+						type="button"
+						class="btn btn-ghost btn-sm btn-square"
+						onclick={() => links.splice(i, 1)}
+						aria-label="Retirer ce lien"
+						title="Retirer ce lien"
+					>
+						<Icon name="close" class="size-4" />
+					</button>
+				</div>
+			{:else}
+				<p class="text-base-content/60 text-sm">Aucun lien.</p>
+			{/each}
+			<button
+				type="button"
+				class="btn btn-outline btn-primary btn-sm self-start"
+				onclick={() => links.push({ url: '', label: '' })}
+			>
+				<Icon name="plus" class="size-4" /> Ajouter un lien
+			</button>
+		</div>
+	</section>
 
-	<fieldset>
-		<legend>Image</legend>
-		{#if preview}
-			<img class="preview" src={preview} alt="Aperçu" />
-			<button type="button" class="link" onclick={removeImage}>Retirer l'image</button>
-		{/if}
-		<input type="file" accept="image/*" bind:this={fileInput} onchange={onFileChange} />
-	</fieldset>
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-base"><Icon name="image" /> Image</h2>
+			{#if preview}
+				<div class="relative self-start">
+					<img class="rounded-box max-h-56 w-auto" src={preview} alt="Aperçu" />
+					<button
+						type="button"
+						class="btn btn-circle btn-sm absolute top-2 right-2"
+						onclick={removeImage}
+						aria-label="Retirer l'image"
+						title="Retirer l'image"
+					>
+						<Icon name="close" class="size-4" />
+					</button>
+				</div>
+			{/if}
+			<input type="file" accept="image/*" class="file-input w-full" bind:this={fileInput} onchange={onFileChange} />
+			<p class="text-base-content/60 text-xs">Redimensionnée et chiffrée sur cet appareil avant l'envoi.</p>
+		</div>
+	</section>
 
-	{#if form.error}<p class="error" role="alert">{form.error}</p>{/if}
-	<button disabled={form.busy}>{form.busy ? 'Enregistrement…' : 'Enregistrer'}</button>
+	<ErrorAlert message={form.error} />
+	<div class="flex gap-2">
+		<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy}>
+			{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Enregistrement…{:else}Enregistrer{/if}
+		</button>
+		<a class="btn btn-ghost" href={cancelHref}>Annuler</a>
+	</div>
 </form>

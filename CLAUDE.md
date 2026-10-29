@@ -8,6 +8,8 @@ ni le mot de passe, ni une clé. Décisions et avancement : voir [MEMORY.md](MEM
 - `adapter-static` en SPA (`ssr = false`, fallback `index.html`).
 - Firebase (plan Spark) : Hosting, Auth email/mot de passe, Firestore (Europe). Pas de Cloud Storage ni de Functions.
 - Tests : Vitest (`src/**/*.test.ts`).
+- UI : Tailwind CSS 4 + daisyUI 5 (classes daisyUI d'abord, utilitaires Tailwind ensuite), icônes dans `Icon.svelte`.
+  `data-theme` sur `<html>` (préférence Thème) est l'attribut natif de daisyUI.
 
 ## Commandes
 - `npm run dev` : serveur Vite

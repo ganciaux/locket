@@ -10,6 +10,7 @@
 
 {#if href}
 	<a
+		class="link link-primary"
 		{href}
 		target={prefs.linksInNewTab ? '_blank' : undefined}
 		rel="noopener noreferrer">{@render children()}</a

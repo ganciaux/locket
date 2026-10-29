@@ -2,7 +2,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { session } from '$lib/auth/session.svelte';
+	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
 	import { deleteEntry, getImage } from '$lib/entries/repository';
 	import { entries, loadEntries, removeEntry } from '$lib/entries/store.svelte';
@@ -17,13 +19,12 @@
 
 	const id = $derived(page.params.id ?? '');
 	const entry = $derived(entries.find(id));
-	const hasImage = $derived(!!entry?.imageType);
 
 	// L'image complète n'est téléchargée et déchiffrée qu'ici, puis libérée en quittant la page.
 	$effect(() => {
 		const { user, dek } = session;
-		if (!user || !dek || !hasImage || !entry?.imageType) return;
-		const type = entry.imageType;
+		const type = entry?.imageType;
+		if (!user || !dek || !type) return;
 		let url: string | null = null;
 		let cancelled = false;
 		getImage(user.uid, dek, id).then(
@@ -53,48 +54,64 @@
 		new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 </script>
 
-{#if error}
-	<p class="error" role="alert">{error}</p>
-{:else if !entries.items}
-	<p>Déchiffrement…</p>
-{:else if !entry}
-	<p>Fiche introuvable.</p>
-{:else}
-	<h1>{entry.name}</h1>
+<a href="/" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Mes fiches</a>
 
-	{#if hasImage}
-		<img class="full" src={imageUrl ?? entry.thumbUrl} alt={entry.name} />
-	{/if}
+<ErrorAlert message={error} />
 
-	{#if entry.links.length}
-		<ul class="links">
-			{#each entry.links as link, i (i)}
-				<li><ExternalLink url={link.url}>{link.label || link.url}</ExternalLink></li>
-			{/each}
-		</ul>
-	{:else}
-		<p class="hint">Aucun lien.</p>
-	{/if}
-
-	<p class="hint">Modifiée le {formatDate(entry.updatedAt)}</p>
-
-	<div class="bar">
-		<a class="button" href="/fiche/{entry.id}/modifier">Modifier</a>
-		{#if !confirmDelete}
-			<button class="danger" onclick={() => (confirmDelete = true)}>Supprimer</button>
+{#if !error && !entries.items}
+	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+{:else if entries.items && !entry}
+	<p class="alert alert-warning alert-soft">Fiche introuvable.</p>
+{:else if entry}
+	<article class="card bg-base-100 overflow-hidden shadow-sm">
+		{#if entry.imageType}
+			<figure class="bg-base-200 relative">
+				<img class="max-h-[70vh] w-full object-contain" src={imageUrl ?? entry.thumbUrl} alt={entry.name} />
+				{#if !imageUrl}
+					<span class="loading loading-spinner text-primary absolute top-3 right-3"></span>
+				{/if}
+			</figure>
 		{/if}
-	</div>
+		<div class="card-body gap-4">
+			<h1 class="card-title text-2xl break-words">{entry.name}</h1>
 
-	{#if confirmDelete}
-		<form class="confirm" onsubmit={removal.submit}>
-			<p>Supprimer définitivement « {entry.name} » ?</p>
-			{#if removal.error}<p class="error" role="alert">{removal.error}</p>{/if}
-			<div class="bar">
-				<button class="danger" disabled={removal.busy}>{removal.busy ? 'Suppression…' : 'Supprimer'}</button>
-				<button type="button" class="link" onclick={() => (confirmDelete = false)}>Annuler</button>
-			</div>
-		</form>
-	{/if}
+			{#if entry.links.length}
+				<ul class="flex flex-col gap-2">
+					{#each entry.links as link, i (i)}
+						<li class="bg-base-200 rounded-box flex items-center gap-3 p-3">
+							<Icon name="external" class="text-primary size-4 shrink-0" />
+							<span class="min-w-0 flex-1 break-all">
+								<ExternalLink url={link.url}>{link.label || link.url}</ExternalLink>
+								{#if link.label}<span class="text-base-content/50 block truncate text-xs">{link.url}</span>{/if}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="text-base-content/60 text-sm">Aucun lien.</p>
+			{/if}
+
+			<p class="text-base-content/50 text-xs">Modifiée le {formatDate(entry.updatedAt)}</p>
+
+			{#if confirmDelete}
+				<form class="alert alert-error alert-soft flex flex-col items-stretch gap-3" onsubmit={removal.submit}>
+					<p>Supprimer définitivement « {entry.name} » ?</p>
+					<ErrorAlert message={removal.error} />
+					<div class="flex gap-2">
+						<button class="btn btn-error btn-sm" disabled={removal.busy}>
+							{#if removal.busy}<span class="loading loading-spinner loading-xs"></span>{/if} Supprimer
+						</button>
+						<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmDelete = false)}>Annuler</button>
+					</div>
+				</form>
+			{:else}
+				<div class="card-actions">
+					<a class="btn btn-primary" href="/fiche/{entry.id}/modifier"><Icon name="edit" class="size-4" /> Modifier</a>
+					<button class="btn btn-outline btn-error" onclick={() => (confirmDelete = true)}>
+						<Icon name="trash" class="size-4" /> Supprimer
+					</button>
+				</div>
+			{/if}
+		</div>
+	</article>
 {/if}
-
-<p><a href="/">Retour à la liste</a></p>

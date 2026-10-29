@@ -12,6 +12,8 @@
 		signInWithRecoveryLink
 	} from '$lib/auth/account';
 	import { session } from '$lib/auth/session.svelte';
+	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+	import Field from '$lib/components/Field.svelte';
 	import { formAction } from '$lib/form.svelte';
 
 	const link = page.url.href;
@@ -39,17 +41,17 @@
 	});
 </script>
 
-<h1>Récupérer mes fiches</h1>
+<h1 class="card-title">Récupérer mes fiches</h1>
 
 {#if !session.ready}
-	<p>Chargement…</p>
+	<span class="loading loading-spinner text-primary"></span>
 {:else if signedInByLink && session.user}
-	<p>Compte : <strong>{session.user.email}</strong></p>
-	<form onsubmit={recoveryForm.submit}>
+	<p class="text-base-content/70 text-sm">Compte : <strong>{session.user.email}</strong></p>
+	<form class="flex flex-col gap-4" onsubmit={recoveryForm.submit}>
 		<input type="email" autocomplete="username" value={session.user.email} hidden readonly />
-		<label>
-			Clé de récupération
+		<Field label="Clé de récupération">
 			<input
+				class="input w-full font-mono"
 				autocomplete="off"
 				autocapitalize="characters"
 				spellcheck="false"
@@ -57,35 +59,38 @@
 				bind:value={recoveryKey}
 				required
 			/>
-		</label>
-		<label>
-			Nouveau mot de passe ({MIN_PASSWORD_LENGTH} caractères minimum)
+		</Field>
+		<Field label="Nouveau mot de passe" hint="{MIN_PASSWORD_LENGTH} caractères minimum">
 			<input
+				class="input w-full"
 				type="password"
 				autocomplete="new-password"
 				minlength={MIN_PASSWORD_LENGTH}
 				bind:value={password}
 				required
 			/>
-		</label>
-		<label>
-			Confirmation
-			<input type="password" autocomplete="new-password" bind:value={confirmation} required />
-		</label>
-		{#if recoveryForm.error}<p class="error" role="alert">{recoveryForm.error}</p>{/if}
-		<button disabled={recoveryForm.busy}>{recoveryForm.busy ? 'Récupération…' : 'Récupérer mes fiches'}</button>
+		</Field>
+		<Field label="Confirmation">
+			<input class="input w-full" type="password" autocomplete="new-password" bind:value={confirmation} required />
+		</Field>
+		<ErrorAlert message={recoveryForm.error} />
+		<button class="btn btn-primary" disabled={recoveryForm.busy}>
+			{#if recoveryForm.busy}<span class="loading loading-spinner loading-sm"></span> Récupération…{:else}Récupérer
+				mes fiches{/if}
+		</button>
 	</form>
 {:else if hasLink}
-	<p>Confirmez l'adresse email à laquelle le lien a été envoyé.</p>
-	<form onsubmit={linkForm.submit}>
-		<label>
-			Email
-			<input type="email" autocomplete="username" bind:value={email} required />
-		</label>
-		{#if linkForm.error}<p class="error" role="alert">{linkForm.error}</p>{/if}
-		<button disabled={linkForm.busy}>{linkForm.busy ? 'Connexion…' : 'Continuer'}</button>
+	<p class="text-base-content/70 text-sm">Confirmez l'adresse email à laquelle le lien a été envoyé.</p>
+	<form class="flex flex-col gap-4" onsubmit={linkForm.submit}>
+		<Field label="Email">
+			<input class="input w-full" type="email" autocomplete="username" bind:value={email} required />
+		</Field>
+		<ErrorAlert message={linkForm.error} />
+		<button class="btn btn-primary" disabled={linkForm.busy}>
+			{#if linkForm.busy}<span class="loading loading-spinner loading-sm"></span> Connexion…{:else}Continuer{/if}
+		</button>
 	</form>
 {:else}
-	<p>Ce lien est invalide ou a déjà été utilisé.</p>
-	<p><a href="/mot-de-passe-oublie">Demander un nouveau lien</a></p>
+	<p role="alert" class="alert alert-warning alert-soft text-sm">Ce lien est invalide ou a déjà été utilisé.</p>
+	<a class="btn btn-outline" href="/mot-de-passe-oublie">Demander un nouveau lien</a>
 {/if}
