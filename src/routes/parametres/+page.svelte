@@ -27,6 +27,7 @@
 	});
 </script>
 
+<a href="/" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Mes fiches</a>
 <h1 class="mb-6 text-2xl font-bold">Paramètres</h1>
 
 <div class="flex flex-col gap-6">
