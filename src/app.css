@@ -7,6 +7,23 @@
 	--border: #8888;
 }
 
+/* Thème forcé dans Paramètres ; sinon, celui du système. */
+:root[data-theme='light'] {
+	color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+fieldset {
+	display: grid;
+	gap: 0.5rem;
+	margin: 0;
+	border: 1px solid var(--border);
+	border-radius: 0.4rem;
+}
+
 body {
 	margin: 0;
 }

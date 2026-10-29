@@ -2,6 +2,13 @@
 	import { MIN_PASSWORD_LENGTH, changePassword, checkNewPassword } from '$lib/auth/account';
 	import { session, signOut } from '$lib/auth/session.svelte';
 	import { formAction } from '$lib/form.svelte';
+	import { prefs, type Theme } from '$lib/prefs.svelte';
+
+	const THEMES: { value: Theme; label: string }[] = [
+		{ value: 'auto', label: 'Automatique (système)' },
+		{ value: 'light', label: 'Clair' },
+		{ value: 'dark', label: 'Sombre' }
+	];
 
 	let currentPassword = $state('');
 	let password = $state('');
@@ -19,6 +26,25 @@
 
 <h1>Paramètres</h1>
 <p>Compte : <strong>{session.user?.email}</strong></p>
+
+<h2>Affichage</h2>
+<p class="hint">Réglages propres à cet appareil.</p>
+<fieldset>
+	<legend>Thème</legend>
+	{#each THEMES as theme (theme.value)}
+		<label class="check">
+			<input type="radio" name="theme" value={theme.value} bind:group={prefs.theme} />
+			{theme.label}
+		</label>
+	{/each}
+</fieldset>
+<p>
+	<label class="check">
+		<input type="checkbox" bind:checked={prefs.linksInNewTab} />
+		Ouvrir les liens dans un nouvel onglet
+	</label>
+</p>
+<p class="hint">Recommandé sur iPhone : sinon, ouvrir un lien fait quitter l'app.</p>
 
 <h2>Changer de mot de passe</h2>
 <form onsubmit={form.submit}>
