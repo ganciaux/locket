@@ -8,7 +8,7 @@ import { Bytes, doc, getDoc } from 'firebase/firestore';
 import { generateDek, randomBytes } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
 import { createEntries, deleteEntry, getImage, listEntries, saveEntry } from './repository';
-import { getTags, saveTags } from './tags';
+import { tagCatalog } from './catalog';
 
 let uid: string;
 let dek: CryptoKey;
@@ -68,13 +68,13 @@ describe('fiches (émulateurs)', () => {
 	}, 30_000);
 
 	it('enregistre le catalogue de tags chiffré', async () => {
-		expect(await getTags(uid, dek)).toEqual([]);
+		expect(await tagCatalog.get(uid, dek)).toEqual([]);
 		const tags = [{ id: 'tag-1', name: 'Santé' }];
-		await saveTags(uid, dek, tags);
+		await tagCatalog.save(uid, dek, tags);
 		const raw = (await getDoc(doc(db, 'users', uid, 'meta', 'tags'))).data()!;
 		expect(raw.data.data).toBeInstanceOf(Bytes);
 		expect(JSON.stringify(raw)).not.toContain('Santé');
-		expect(await getTags(uid, dek)).toEqual(tags);
+		expect(await tagCatalog.get(uid, dek)).toEqual(tags);
 	});
 
 	it('refuse un chiffré déplacé dans une autre fiche (AAD)', async () => {

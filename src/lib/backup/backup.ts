@@ -9,7 +9,7 @@ import { session } from '$lib/auth/session.svelte';
 import { decryptJson } from '$lib/crypto/crypto';
 import { hasEntries, readStoredEntries, writeStoredEntries } from '$lib/entries/repository';
 import { resetEntries } from '$lib/entries/store.svelte';
-import { decryptTags, getTags, readStoredTags, saveTags } from '$lib/entries/tags';
+import { tagCatalog } from '$lib/entries/catalog';
 import { type Backup, serializeBackup } from './format';
 
 function unlockedSession() {
@@ -22,7 +22,7 @@ export async function createBackup(includeImages: boolean): Promise<string> {
 	const { uid } = unlockedSession();
 	const [keyring, tags, entries] = await Promise.all([
 		readCurrentKeyring(),
-		readStoredTags(uid),
+		tagCatalog.readStored(uid),
 		readStoredEntries(uid, includeImages)
 	]);
 	return serializeBackup({ createdAt: new Date().toISOString(), includesImages: includeImages, keyring, tags, entries });
@@ -33,7 +33,7 @@ async function opensWith(backup: Backup, dek: CryptoKey): Promise<boolean> {
 	const [first] = backup.entries;
 	try {
 		if (first) await decryptJson(dek, first.data, `${first.id}/data`);
-		else if (backup.tags) await decryptTags(dek, backup.tags);
+		else if (backup.tags) await tagCatalog.decrypt(dek, backup.tags);
 		return true;
 	} catch {
 		return false;
@@ -69,10 +69,10 @@ export async function restoreBackup(backup: Backup, oldKey?: OldKey): Promise<Re
 
 	// Compte recréé : son catalogue éventuel (autre clé) serait illisible, il est toujours remplacé.
 	if (backup.tags || adopted) {
-		const fromBackup = backup.tags ? await decryptTags(dek, backup.tags) : [];
-		const current = adopted ? [] : await getTags(uid, dek);
+		const fromBackup = backup.tags ? await tagCatalog.decrypt(dek, backup.tags) : [];
+		const current = adopted ? [] : await tagCatalog.get(uid, dek);
 		const currentIds = new Set(current.map((tag) => tag.id));
-		await saveTags(uid, dek, [...current, ...fromBackup.filter((tag) => !currentIds.has(tag.id))]);
+		await tagCatalog.save(uid, dek, [...current, ...fromBackup.filter((tag) => !currentIds.has(tag.id))]);
 	}
 	await writeStoredEntries(uid, backup.entries, backup.includesImages);
 	resetEntries();

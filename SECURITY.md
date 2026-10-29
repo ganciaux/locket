@@ -15,7 +15,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
   - `src/lib/crypto/` : toute la crypto (Web Crypto) ;
   - `src/lib/auth/account.ts` : inscription, connexion, changement de mot de passe, récupération ;
   - `src/lib/backup/` : export et restauration ;
-  - `src/lib/entries/repository.ts`, `src/lib/entries/tags.ts` : écriture dans Firestore ;
+  - `src/lib/entries/repository.ts`, `src/lib/entries/catalog.ts` : écriture dans Firestore ;
   - `firestore.rules`, `firebase.json` (en-têtes), `svelte.config.js` (CSP).
 
 ## 2. Ce qu'on protège

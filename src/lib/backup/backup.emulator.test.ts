@@ -8,7 +8,7 @@ import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
 import { auth } from '$lib/firebase';
 import { deleteEntry, listEntries, saveEntry } from '$lib/entries/repository';
-import { getTags, saveTags } from '$lib/entries/tags';
+import { tagCatalog } from '$lib/entries/catalog';
 import { OldKeyRequired, createBackup, restoreBackup } from './backup';
 import { parseBackup } from './format';
 
@@ -25,7 +25,7 @@ describe('sauvegarde (émulateurs)', () => {
 		const email = `b${Date.now()}@example.com`;
 		const oldRecoveryKey = await signUp(email, PASSWORD);
 		let { uid, dek } = current();
-		await saveTags(uid, dek, [{ id: 'tag-1', name: 'Santé' }]);
+		await tagCatalog.save(uid, dek, [{ id: 'tag-1', name: 'Santé' }]);
 		const kept = await saveEntry(uid, dek, { name: 'Mutuelle', links: [], tagIds: ['tag-1'] });
 		const removed = await saveEntry(uid, dek, { name: 'Banque', links: [], tagIds: [] });
 
@@ -53,7 +53,7 @@ describe('sauvegarde (émulateurs)', () => {
 		({ uid, dek } = current());
 		const restored = await listEntries(uid, dek);
 		expect(restored.find((e) => e.id === kept.id)).toMatchObject({ name: 'Mutuelle', tagIds: ['tag-1'] });
-		expect(await getTags(uid, dek)).toEqual([{ id: 'tag-1', name: 'Santé' }]);
+		expect(await tagCatalog.get(uid, dek)).toEqual([{ id: 'tag-1', name: 'Santé' }]);
 
 		// L'ancienne clé de récupération est de nouveau la bonne.
 		const { recoveryDek } = await readCurrentKeyring();

@@ -6,7 +6,7 @@ import { session } from '$lib/auth/session.svelte';
 import { bytesToUrl } from './images';
 import { NO_TAG_FILTER, type SortOrder, type Tag, type TagFilter, byName, matchesFilter, parseTagName, sortBy } from './model';
 import { listEntries, type EntrySummary } from './repository';
-import { getTags, saveTags } from './tags';
+import { tagCatalog } from './catalog';
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
@@ -65,7 +65,7 @@ export const entries = {
 export function loadEntries(): Promise<void> {
 	const { user, dek } = session;
 	if (!user || !dek) return Promise.resolve();
-	loading ??= Promise.all([listEntries(user.uid, dek), getTags(user.uid, dek)]).then(
+	loading ??= Promise.all([listEntries(user.uid, dek), tagCatalog.get(user.uid, dek)]).then(
 		([list, catalog]) => {
 			if (session.dek !== dek) return;
 			items = list.map(withThumbUrl).sort(byName);
@@ -111,7 +111,7 @@ function loadedTags(): Tag[] {
 async function replaceTags(next: Tag[]): Promise<void> {
 	const { user, dek } = session;
 	if (!user || !dek) throw new Error('Session verrouillée.');
-	await saveTags(user.uid, dek, next);
+	await tagCatalog.save(user.uid, dek, next);
 	tags = [...next].sort(byName);
 }
 
