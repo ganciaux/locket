@@ -6,6 +6,15 @@
 	let needRefresh = $state(false);
 	let updateSW: ((reload?: boolean) => Promise<void>) | undefined;
 
+	// On recharge nous-mêmes quand la nouvelle version prend la main : `registerSW` ne le fait que si la mise à jour
+	// a été détectée par cette page, pas si elle était déjà en attente (autre onglet, version trouvée au chargement).
+	// Filet : s'il n'y avait rien en attente, aucun changement n'arrive ; on recharge quand même.
+	function reload() {
+		navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+		updateSW?.(true);
+		setTimeout(() => location.reload(), 3000);
+	}
+
 	onMount(async () => {
 		const { registerSW } = await import('virtual:pwa-register');
 		updateSW = registerSW({ immediate: true, onNeedRefresh: () => (needRefresh = true) });
@@ -17,7 +26,7 @@
 		<div role="status" class="alert bg-base-100 shadow-lg">
 			<span class="text-sm">Nouvelle version disponible.</span>
 			<button class="btn btn-ghost btn-sm" onclick={() => (needRefresh = false)}>Plus tard</button>
-			<button class="btn btn-primary btn-sm" onclick={() => updateSW?.(true)}>Recharger</button>
+			<button class="btn btn-primary btn-sm" onclick={reload}>Recharger</button>
 		</div>
 	</div>
 {/if}
