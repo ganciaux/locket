@@ -5,14 +5,14 @@ vont dans [MEMORY.md](MEMORY.md).
 
 ## 1. Sécurité (avant un usage sérieux)
 
-- [ ] **Fermer les inscriptions** : app personnelle (décidé le 2026-10-29). Sinon n'importe qui peut créer un compte
+- [x] **Fermer les inscriptions** (fait le 2026-10-29, vérifié : `ADMIN_ONLY_OPERATION`) : app personnelle (décidé le 2026-10-29). Sinon n'importe qui peut créer un compte
       et consommer le quota Firestore Spark (1 Go), sans voir nos données. Action console, voir plus bas. *Simple.*
 - [x] **CSP stricte** (étape 7) : `kit.csp` en `<meta>` (hash du script de démarrage recalculé à chaque build),
       thème dans `static/theme.js`, `initializeAuth` sans module popup/redirection (pas d'iframe ni de script Google) ;
       `frame-ancestors`, `nosniff`, `no-referrer`, HSTS en en-têtes `firebase.json`.
 - [x] **Code des émulateurs retiré du build de prod** (`import.meta.env.DEV`).
 - [x] **Verrouillage automatique après inactivité** : réglable dans Paramètres, 5 min par défaut.
-- [ ] **Console Firebase** : protection contre l'énumération d'emails, domaines autorisés (voir plus bas). *Simple.*
+- [x] **Console Firebase** (fait le 2026-10-29 ; énumération vérifiée : `INVALID_LOGIN_CREDENTIALS`) : protection contre l'énumération d'emails, domaines autorisés (voir plus bas). *Simple.*
 - [ ] **TLS du poste Windows** (reporté) : retirer `NODE_TLS_REJECT_UNAUTHORIZED=0` et `strict-ssl=false`,
       passer par `NODE_OPTIONS=--use-system-ca` (voir `CLAUDE.local.md`). *Simple.*
 
@@ -39,8 +39,8 @@ vont dans [MEMORY.md](MEMORY.md).
 
 ## Actions console Firebase (à faire à la main)
 
-- [ ] Authentication > Paramètres > Actions des utilisateurs : décocher « Activer la création (inscription) ».
+- [x] Authentication > Paramètres > Actions des utilisateurs : décocher « Activer la création (inscription) ».
       Pour restaurer une sauvegarde dans un compte recréé, la réactiver le temps de l'inscription.
-- [ ] Authentication > Paramètres > Protection contre l'énumération des adresses e-mail : activer.
-- [ ] Authentication > Paramètres > Domaines autorisés : garder `locket-403b5.web.app` et `locket-403b5.firebaseapp.com`,
+- [x] Authentication > Paramètres > Protection contre l'énumération des adresses e-mail : activer.
+- [x] Authentication > Paramètres > Domaines autorisés : garder `locket-403b5.web.app` et `locket-403b5.firebaseapp.com`,
       retirer `localhost` (le dev passe par les émulateurs).

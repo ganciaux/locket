@@ -162,7 +162,14 @@ const RECOVERY_EMAIL_KEY = 'locket.recoveryEmail';
 /** Envoie un lien de connexion qui ramène sur /action. L'email est mémorisé pour ne pas le redemander. */
 export async function requestRecoveryLink(email: string): Promise<void> {
 	email = normalizeEmail(email);
-	await sendSignInLinkToEmail(auth, email, { url: `${location.origin}/action`, handleCodeInApp: true });
+	try {
+		await sendSignInLinkToEmail(auth, email, { url: `${location.origin}/action`, handleCodeInApp: true });
+	} catch (error) {
+		// Inscriptions fermées : Firebase refuse les adresses sans compte. Même réponse que si le compte existait,
+		// sinon la page révélerait quelles adresses ont un compte.
+		if (!(error instanceof FirebaseError && error.code === 'auth/admin-restricted-operation')) throw error;
+		return;
+	}
 	try {
 		localStorage.setItem(RECOVERY_EMAIL_KEY, email);
 	} catch {
