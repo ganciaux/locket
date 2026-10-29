@@ -2,6 +2,7 @@
 	// Sauvegarde chiffrée (export) et restauration (import). Le fichier reste illisible sans mot de passe.
 	import { type RestoreResult, OldKeyRequired, createBackup, restoreBackup } from '$lib/backup/backup';
 	import { type Backup, backupFileName, parseBackup } from '$lib/backup/format';
+	import { readBackupInfo, recordBackup } from '$lib/backup/reminder';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -10,6 +11,7 @@
 
 	// --- Export
 	let includeImages = $state(true);
+	let lastBackupAt = $state(readBackupInfo().lastAt);
 
 	const exportForm = formAction(async () => {
 		const blob = new Blob([await createBackup(includeImages)], { type: 'application/json' });
@@ -17,6 +19,8 @@
 		const link = Object.assign(document.createElement('a'), { href: url, download: backupFileName(new Date()) });
 		link.click();
 		setTimeout(() => URL.revokeObjectURL(url), 60_000);
+		recordBackup();
+		lastBackupAt = readBackupInfo().lastAt;
 	});
 
 	// --- Restauration
@@ -81,6 +85,11 @@
 				</span>
 				<input type="checkbox" class="toggle toggle-primary" bind:checked={includeImages} />
 			</label>
+			<p class="text-base-content/60 text-xs">
+				{lastBackupAt
+					? `Dernière sauvegarde depuis cet appareil : ${formatDate(new Date(lastBackupAt).toISOString())}.`
+					: 'Aucune sauvegarde depuis cet appareil.'}
+			</p>
 			<ErrorAlert message={exportForm.error} />
 			<button class="btn btn-primary self-start" disabled={exportForm.busy}>
 				{#if exportForm.busy}<span class="loading loading-spinner loading-sm"></span> Préparation…{:else}<Icon

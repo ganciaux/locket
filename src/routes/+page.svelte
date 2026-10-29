@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
-	import { NO_TAG_FILTER, type TagFilter, linkTitle } from '$lib/entries/model';
+	import { NO_TAG_FILTER, type SortOrder, type TagFilter, linkTitle } from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { type CardSize, prefs } from '$lib/prefs.svelte';
@@ -19,14 +20,26 @@
 		{ value: 'medium', label: 'M', title: 'Cartes moyennes' },
 		{ value: 'large', label: 'L', title: 'Grandes cartes' }
 	];
+	const SORTS: { value: SortOrder; label: string }[] = [
+		{ value: 'name', label: 'Nom' },
+		{ value: 'created', label: 'Créées récemment' },
+		{ value: 'updated', label: 'Modifiées récemment' }
+	];
 
 	let query = $state('');
 	let tagFilter = $state<TagFilter>({ ...NO_TAG_FILTER });
 	let error = $state('');
+	const backupInfo = readBackupInfo();
+	let remindBackup = $state(isReminderDue(backupInfo, Date.now()));
+
+	function remindLater() {
+		snoozeReminder();
+		remindBackup = false;
+	}
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
-	const results = $derived(entries.search(query, tagFilter));
+	const results = $derived(entries.search(query, tagFilter, prefs.sort));
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
 	const filtering = $derived(!!query.trim() || tagFiltering);
 
@@ -55,6 +68,19 @@
 		<a class="btn btn-primary" href="/fiche/nouvelle"><Icon name="plus" /> Créer ma première fiche</a>
 	</div>
 {:else if entries.items}
+	{#if remindBackup}
+		<div role="status" class="alert alert-warning alert-soft mb-3">
+			<span class="text-sm">
+				{backupInfo.lastAt
+					? `Dernière sauvegarde il y a ${daysSince(backupInfo.lastAt, Date.now())} jours.`
+					: 'Aucune sauvegarde depuis cet appareil.'}
+			</span>
+			<div class="flex gap-2">
+				<button class="btn btn-ghost btn-sm" onclick={remindLater}>Plus tard</button>
+				<a class="btn btn-sm" href="/sauvegarde">Sauvegarder</a>
+			</div>
+		</div>
+	{/if}
 	<label class="input mb-3 w-full">
 		<Icon name="search" class="size-4 opacity-50" />
 		<input type="search" placeholder="Rechercher (nom ou tag)" aria-label="Rechercher" bind:value={query} />
@@ -90,7 +116,12 @@
 					</button>
 				{/if}
 			{/if}
-			<span class="text-base-content/60 ml-auto text-xs">Taille</span>
+			<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
+				{#each SORTS as sort (sort.value)}
+					<option value={sort.value}>{sort.label}</option>
+				{/each}
+			</select>
+			<span class="text-base-content/60 text-xs">Taille</span>
 			<div class="join" role="radiogroup" aria-label="Taille des cartes">
 				{#each SIZES as size (size.value)}
 					<input
