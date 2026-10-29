@@ -24,6 +24,12 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Changement de mot de passe | Réauthentification → Firestore → `updatePassword` ; si ce dernier échoue, l'ancienne `wrappedDek` est remise | Garder Auth et trousseau cohérents ; la clé de récupération reste le filet de sécurité |
 | Récupération (code) | 2 étapes sur `/action` : connexion par le lien **toujours**, même si une session existe déjà (`updatePassword` exige une connexion récente, quelques minutes ; bug constaté en ligne le 2026-10-29), email redemandé s'il est ouvert dans un autre navigateur ; puis clé + nouveau mot de passe. Clé fausse → rien n'est modifié, on réessaie sans nouveau lien. Lien pour un email sans compte → le compte créé par Firebase est supprimé | Le lien est à usage unique ; sur iPhone il s'ouvre dans Safari, pas dans la PWA |
 | Inscription ratée | Si l'écriture du trousseau échoue, le compte Auth est supprimé | Un compte sans trousseau est inutilisable |
+| Fiches | `users/{uid}/entries/{id}` = `{ data, thumb? }`, `users/{uid}/images/{id}` = `{ image }`, chaque champ `{ iv, data }` en `Bytes` ; écrits/supprimés dans un même lot | Le SDK web lit les documents en entier : avec l'image dans la fiche, la liste téléchargerait toutes les images. Écart assumé au modèle du cahier des charges |
+| Contenu chiffré `data` | `{ name, links: [{ url, label? }], createdAt, updatedAt, imageType? }` | `imageType` sert à afficher image et miniature (WebP ou JPEG) |
+| Liens | `http(s)` uniquement, `https://` ajouté si absent ; revalidés à l'affichage | Un lien `javascript:` exécuterait du code avec la DEK en mémoire |
+| Images | Canvas : 1600 px / 300 px ; qualité puis taille réduites par paliers jusqu'à < 900 Ko | Limite Firestore de 1 Mio par document |
+| Liste | Chargée et déchiffrée une fois par déverrouillage, cache mémoire vidé au verrouillage ; tri par nom ; recherche sans casse ni accents | Pas de rechargement de toutes les miniatures à chaque navigation |
+| Préférences | Thème (auto/clair/sombre) et ouverture des liens (nouvel onglet par défaut) en `localStorage`, par appareil | Le bon réglage diffère entre PC et iPhone (PWA) ; rien de sensible |
 
 ## À vérifier avant la mise en production
 
@@ -42,8 +48,8 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 2. [x] Module crypto + tests Vitest
 3. [x] Auth : inscription (clé de récupération affichée une fois), connexion, déverrouillage, changement de mot de passe, récupération
    — déployé et validé en ligne le 2026-10-29 (PC + Safari iPhone), récupération par lien email comprise
-4. [ ] Fiches : CRUD Firestore (`Bytes`), liste avec miniatures, recherche locale
-5. [ ] Images : redimensionnement canvas, plafond 900 Ko chiffré
+4. [x] Fiches : CRUD Firestore (`Bytes`), liste avec miniatures, recherche locale — testé contre les émulateurs ; interface à valider à la main
+5. [x] Images : redimensionnement canvas, plafond 900 Ko chiffré — canvas à valider dans le navigateur (PC + iPhone)
 6. [ ] PWA : manifest, service worker, icônes, iOS
 7. [ ] Sécurité : CSP stricte (hashes SvelteKit), revue des logs
 8. [ ] Sauvegarde : export / import JSON

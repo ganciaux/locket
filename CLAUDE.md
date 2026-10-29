@@ -13,6 +13,7 @@ ni le mot de passe, ni une clé. Décisions et avancement : voir [MEMORY.md](MEM
 - `npm run dev` : serveur Vite
 - `npm run emulators` : émulateurs Auth + Firestore + Hosting (projet fictif `demo-locket`)
 - `npm test` : tests unitaires
+- `npm run test:emulators` : tests d'intégration (`*.emulator.test.ts`) contre les émulateurs lancés à part (`.env.test`)
 - `npm run check` : svelte-check (types)
 - `npm run build` : build statique dans `build/`
 
