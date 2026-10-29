@@ -49,6 +49,7 @@ export async function getImage(uid: string, dek: CryptoKey, id: string): Promise
 export type EntryInput = {
 	name: string;
 	links: Link[];
+	tagIds: string[];
 	/** undefined : image inchangée ; null : supprimée ; sinon : remplacée. */
 	image?: PreparedImage | null;
 };
@@ -72,7 +73,8 @@ export async function saveEntry(
 		links: input.links,
 		createdAt: existing?.createdAt ?? now,
 		updatedAt: now,
-		...(imageType && { imageType })
+		...(imageType && { imageType }),
+		...(input.tagIds.length && { tagIds: input.tagIds })
 	};
 
 	const batch = writeBatch(db);

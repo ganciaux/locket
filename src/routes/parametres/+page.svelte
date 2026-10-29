@@ -3,6 +3,7 @@
 	import { session, signOut } from '$lib/auth/session.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { formAction } from '$lib/form.svelte';
 	import { prefs, type Theme } from '$lib/prefs.svelte';
 
@@ -57,6 +58,14 @@
 				</span>
 				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.linksInNewTab} />
 			</label>
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-lg">Tags</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">Libellés libres pour classer et filtrer vos fiches, chiffrés comme elles.</p>
+			<a class="btn btn-outline btn-primary self-start" href="/tags"><Icon name="tag" class="size-4" /> Gérer les tags</a>
 		</div>
 	</section>
 

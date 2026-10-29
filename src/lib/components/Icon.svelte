@@ -15,6 +15,7 @@
 		image: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 8.5a1 1 0 1 0 0 .01',
 		copy: 'M8 8h12v12H8zM4 16V4h12',
 		import: 'M12 4v11M7 10l5 5 5-5M4 20h16',
+		tag: 'M3 12V4h8l10 10-8 8zM7.5 7.5h.01',
 		check: 'M5 12l5 5 9-10'
 	} as const;
 

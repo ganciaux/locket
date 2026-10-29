@@ -75,6 +75,14 @@
 		<div class="card-body gap-4">
 			<h1 class="card-title text-2xl break-words">{entry.name}</h1>
 
+			{#if entries.tagsOf(entry).length}
+				<div class="-mt-2 flex flex-wrap gap-2">
+					{#each entries.tagsOf(entry) as tag (tag.id)}
+						<span class="badge badge-soft badge-primary">{tag.name}</span>
+					{/each}
+				</div>
+			{/if}
+
 			{#if entry.links.length}
 				<ul class="flex flex-col gap-2">
 					{#each entry.links as link, i (i)}

@@ -2,16 +2,19 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { linkTitle } from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	let query = $state('');
+	let selectedTags = $state<string[]>([]);
 	let error = $state('');
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
-	const results = $derived(entries.search(query));
+	const results = $derived(entries.search(query, selectedTags));
+	const filtering = $derived(!!query.trim() || selectedTags.length > 0);
 </script>
 
 <div class="mb-4 flex items-center gap-2">
@@ -31,13 +34,22 @@
 		<a class="btn btn-primary" href="/fiche/nouvelle"><Icon name="plus" /> Créer ma première fiche</a>
 	</div>
 {:else if entries.items}
-	<label class="input mb-4 w-full">
+	<label class="input mb-3 w-full">
 		<Icon name="search" class="size-4 opacity-50" />
-		<input type="search" placeholder="Rechercher par nom" aria-label="Rechercher" bind:value={query} />
+		<input type="search" placeholder="Rechercher (nom ou tag)" aria-label="Rechercher" bind:value={query} />
 	</label>
 
-	{#if results.length === 0}
-		<p class="text-base-content/60 py-8 text-center">Aucune fiche ne correspond à « {query} ».</p>
+	{#if entries.tags?.length}
+		<div class="mb-4 flex items-start gap-2">
+			<div class="flex-1"><TagPicker tags={entries.tags} bind:selected={selectedTags} label="Filtrer par tags" /></div>
+			{#if selectedTags.length}
+				<button class="btn btn-ghost btn-xs" onclick={() => (selectedTags = [])}>Effacer</button>
+			{/if}
+		</div>
+	{/if}
+
+	{#if results.length === 0 && filtering}
+		<p class="text-base-content/60 py-8 text-center">Aucune fiche ne correspond.</p>
 	{/if}
 
 	<!-- items-start : une carte dont on ouvre les liens s'allonge sans étirer ses voisines. -->
@@ -55,6 +67,15 @@
 						{/if}
 					</figure>
 					<h2 class="truncate px-3 pt-3 pb-2 text-sm font-semibold">{entry.name}</h2>
+					{#if entry.tagIds?.length}
+						{@const entryTags = entries.tagsOf(entry)}
+						<div class="flex flex-wrap gap-1 px-3 pb-2">
+							{#each entryTags.slice(0, 3) as tag (tag.id)}
+								<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
+							{/each}
+							{#if entryTags.length > 3}<span class="badge badge-ghost badge-xs">+{entryTags.length - 3}</span>{/if}
+						</div>
+					{/if}
 				</a>
 
 				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->

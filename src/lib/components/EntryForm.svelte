@@ -5,10 +5,12 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
 	import { type Link, MAX_NAME_LENGTH, parseLinkUrl } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
-	import { type ListItem, upsertEntry } from '$lib/entries/store.svelte';
+	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
+	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
 	let { entry, cancelHref }: { entry?: ListItem; cancelHref: string } = $props();
@@ -18,7 +20,13 @@
 	let name = $state(entry?.name ?? '');
 	// svelte-ignore state_referenced_locally
 	let links = $state((entry?.links ?? []).map((l) => ({ url: l.url, label: l.label ?? '' })));
+	// svelte-ignore state_referenced_locally
+	let tagIds = $state([...(entry?.tagIds ?? [])]);
 	let file = $state<File | null>(null);
+	let loadError = $state('');
+
+	// Catalogue de tags (et fiches) : déjà en mémoire le plus souvent, sinon chargé ici.
+	loadEntries().catch((e) => (loadError = errorMessage(e)));
 	let fileInput: HTMLInputElement;
 	let imageRemoved = $state(false);
 
@@ -54,9 +62,12 @@
 	const form = formAction(async () => {
 		const { user, dek } = session;
 		if (!user || !dek) throw new Error('Session verrouillée.');
+		if (!entries.tags) throw new Error('Tags pas encore chargés.');
 		const parsedLinks = parseLinks();
+		// Les identifiants de tags supprimés entre-temps sont oubliés ici.
+		const knownTagIds = entries.tagsOf({ tagIds }).map((tag) => tag.id);
 		const image = file ? await prepareImage(file) : imageRemoved ? null : undefined;
-		const saved = await saveEntry(user.uid, dek, { name, links: parsedLinks, image }, entry);
+		const saved = await saveEntry(user.uid, dek, { name, links: parsedLinks, tagIds: knownTagIds, image }, entry);
 		upsertEntry(saved);
 		await goto(`/fiche/${saved.id}`, { replaceState: true });
 	});
@@ -119,6 +130,21 @@
 
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
+			<h2 class="card-title text-base"><Icon name="tag" /> Tags</h2>
+			{#if entries.tags?.length}
+				<TagPicker tags={entries.tags} bind:selected={tagIds} label="Tags de la fiche" />
+			{:else if entries.tags}
+				<p class="text-base-content/60 text-sm">
+					Aucun tag pour l'instant. <a class="link link-primary" href="/tags">Créer des tags</a>
+				</p>
+			{:else}
+				<span class="loading loading-dots loading-sm"></span>
+			{/if}
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
 			<h2 class="card-title text-base"><Icon name="image" /> Image</h2>
 			{#if preview}
 				<div class="relative self-start">
@@ -139,6 +165,7 @@
 		</div>
 	</section>
 
+	<ErrorAlert message={loadError} />
 	<ErrorAlert message={form.error} />
 	<div class="flex gap-2">
 		<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy}>

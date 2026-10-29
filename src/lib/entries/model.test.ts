@@ -8,9 +8,11 @@ import {
 	fitWithin,
 	fitsInDoc,
 	linkTitle,
+	matchesFilter,
 	matchesSearch,
 	parseLinkUrl,
-	parseNameList
+	parseNameList,
+	parseTagName
 } from './model';
 
 describe('parseLinkUrl', () => {
@@ -56,6 +58,34 @@ describe('parseNameList', () => {
 
 	it('tronque les noms trop longs', () => {
 		expect(parseNameList('x'.repeat(MAX_NAME_LENGTH + 50), []).names[0]).toHaveLength(MAX_NAME_LENGTH);
+	});
+});
+
+describe('tags', () => {
+	const tags = new Map([
+		['t1', 'Administratif'],
+		['t2', 'Santé']
+	]);
+	const entry = { name: 'Mutuelle', tagIds: ['t1', 't2', 'supprimé'] };
+
+	it('filtre : tous les tags sélectionnés sont requis', () => {
+		expect(matchesFilter(entry, '', ['t1'], tags)).toBe(true);
+		expect(matchesFilter(entry, '', ['t1', 't2'], tags)).toBe(true);
+		expect(matchesFilter({ name: 'Banque', tagIds: ['t1'] }, '', ['t1', 't2'], tags)).toBe(false);
+		expect(matchesFilter({ name: 'Banque' }, '', [], tags)).toBe(true);
+	});
+
+	it('le texte cherche aussi dans les tags, sans casse ni accents', () => {
+		expect(matchesFilter(entry, 'sante', [], tags)).toBe(true);
+		expect(matchesFilter(entry, 'mutu', [], tags)).toBe(true);
+		expect(matchesFilter(entry, 'supprimé', [], tags)).toBe(false);
+	});
+
+	it('parseTagName nettoie et refuse vide ou doublon', () => {
+		const existing = [{ id: 't1', name: 'Administratif' }];
+		expect(parseTagName('  Vie   pratique ', existing)).toBe('Vie pratique');
+		expect(() => parseTagName('   ', existing)).toThrow();
+		expect(() => parseTagName('administratif', existing)).toThrow();
 	});
 });
 

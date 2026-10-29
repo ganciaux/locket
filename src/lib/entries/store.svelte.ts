@@ -1,16 +1,20 @@
 /**
- * Fiches déchiffrées en mémoire, chargées une fois après le déverrouillage puis tenues à jour localement.
- * Vidées dès que la session est verrouillée : rien de déchiffré ne survit à la DEK.
+ * Fiches et tags déchiffrés en mémoire, chargés une fois après le déverrouillage puis tenus à jour localement.
+ * Vidés dès que la session est verrouillée : rien de déchiffré ne survit à la DEK.
  */
 import { session } from '$lib/auth/session.svelte';
 import { bytesToUrl } from './images';
-import { byName, matchesSearch } from './model';
+import { type Tag, byName, matchesFilter, parseTagName } from './model';
 import { listEntries, type EntrySummary } from './repository';
+import { getTags, saveTags } from './tags';
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
 let items = $state.raw<ListItem[] | null>(null);
+let tags = $state.raw<Tag[] | null>(null);
 let loading: Promise<void> | null = null;
+
+const tagNames = $derived(new Map((tags ?? []).map((tag) => [tag.id, tag.name])));
 
 const withThumbUrl = (entry: EntrySummary): ListItem => ({
 	...entry,
@@ -22,6 +26,7 @@ const revoke = (item: ListItem | undefined) => item?.thumbUrl && URL.revokeObjec
 function clear() {
 	items?.forEach(revoke);
 	items = null;
+	tags = null;
 	loading = null;
 }
 
@@ -35,21 +40,34 @@ export const entries = {
 	get items() {
 		return items;
 	},
-	search(query: string): ListItem[] {
-		return (items ?? []).filter((item) => matchesSearch(item.name, query));
+	/** Catalogue trié par nom. */
+	get tags() {
+		return tags;
+	},
+	search(query: string, selectedTagIds: string[] = []): ListItem[] {
+		return (items ?? []).filter((item) => matchesFilter(item, query, selectedTagIds, tagNames));
 	},
 	find(id: string): ListItem | undefined {
 		return items?.find((item) => item.id === id);
+	},
+	/** Tags connus d'une fiche (les identifiants de tags supprimés sont ignorés). */
+	tagsOf(entry: { tagIds?: string[] }): Tag[] {
+		return (tags ?? []).filter((tag) => entry.tagIds?.includes(tag.id));
+	},
+	countWithTag(tagId: string): number {
+		return (items ?? []).filter((item) => item.tagIds?.includes(tagId)).length;
 	}
 };
 
-/** Charge la liste une seule fois par session déverrouillée. */
+/** Charge fiches et tags une seule fois par session déverrouillée. */
 export function loadEntries(): Promise<void> {
 	const { user, dek } = session;
 	if (!user || !dek) return Promise.resolve();
-	loading ??= listEntries(user.uid, dek).then(
-		(list) => {
-			if (session.dek === dek) items = list.map(withThumbUrl).sort(byName);
+	loading ??= Promise.all([listEntries(user.uid, dek), getTags(user.uid, dek)]).then(
+		([list, catalog]) => {
+			if (session.dek !== dek) return;
+			items = list.map(withThumbUrl).sort(byName);
+			tags = catalog.sort(byName);
 		},
 		(error) => {
 			loading = null; // permet de réessayer
@@ -72,4 +90,30 @@ export function removeEntry(id: string): void {
 	if (!items) return;
 	revoke(items.find((item) => item.id === id));
 	items = items.filter((item) => item.id !== id);
+}
+
+// ---------------------------------------------------------------------------
+// Administration des tags
+
+/** Le catalogue est réécrit en entier : il doit être chargé, sinon on écraserait les tags existants. */
+function loadedTags(): Tag[] {
+	if (!tags) throw new Error('Tags pas encore chargés.');
+	return tags;
+}
+
+async function replaceTags(next: Tag[]): Promise<void> {
+	const { user, dek } = session;
+	if (!user || !dek) throw new Error('Session verrouillée.');
+	await saveTags(user.uid, dek, next);
+	tags = [...next].sort(byName);
+}
+
+export async function addTag(input: string): Promise<void> {
+	const current = loadedTags();
+	await replaceTags([...current, { id: crypto.randomUUID(), name: parseTagName(input, current) }]);
+}
+
+/** Retire le tag du catalogue ; les fiches qui le portent l'oublient à leur prochaine modification. */
+export async function deleteTag(id: string): Promise<void> {
+	await replaceTags(loadedTags().filter((tag) => tag.id !== id));
 }

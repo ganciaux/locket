@@ -8,6 +8,7 @@ import { Bytes, doc, getDoc } from 'firebase/firestore';
 import { generateDek, randomBytes } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
 import { createEntries, deleteEntry, getImage, listEntries, saveEntry } from './repository';
+import { getTags, saveTags } from './tags';
 
 let uid: string;
 let dek: CryptoKey;
@@ -24,6 +25,7 @@ describe('fiches (émulateurs)', () => {
 		const created = await saveEntry(uid, dek, {
 			name: 'Banque',
 			links: [{ url: 'https://example.com/', label: 'Site' }],
+			tagIds: ['tag-1'],
 			image
 		});
 
@@ -33,20 +35,21 @@ describe('fiches (émulateurs)', () => {
 		expect(JSON.stringify(raw)).not.toContain('Banque');
 
 		const [listed] = await listEntries(uid, dek);
-		expect(listed).toMatchObject({ id: created.id, name: 'Banque', imageType: 'image/webp' });
+		expect(listed).toMatchObject({ id: created.id, name: 'Banque', imageType: 'image/webp', tagIds: ['tag-1'] });
 		expect(listed.thumb).toEqual(image.thumb);
 		expect(await getImage(uid, dek, created.id)).toEqual(image.image);
 
 		// Modification sans toucher à l'image : IV neuf pour data, image conservée.
-		const updated = await saveEntry(uid, dek, { name: 'Banque en ligne', links: [] }, listed);
+		const updated = await saveEntry(uid, dek, { name: 'Banque en ligne', links: [], tagIds: [] }, listed);
 		const rawAfter = (await getDoc(doc(db, 'users', uid, 'entries', created.id))).data()!;
 		expect(rawAfter.data.iv.isEqual(raw.data.iv)).toBe(false);
 		expect(updated.createdAt).toBe(created.createdAt);
+		expect(updated.tagIds).toBeUndefined();
 		expect(updated.thumb).toEqual(image.thumb);
 		expect(await getImage(uid, dek, created.id)).toEqual(image.image);
 
 		// Suppression de l'image seule.
-		const noImage = await saveEntry(uid, dek, { name: 'Banque en ligne', links: [], image: null }, updated);
+		const noImage = await saveEntry(uid, dek, { name: 'Banque en ligne', links: [], tagIds: [], image: null }, updated);
 		expect(noImage.imageType).toBeUndefined();
 		expect(await getImage(uid, dek, created.id)).toBeNull();
 
@@ -64,9 +67,19 @@ describe('fiches (émulateurs)', () => {
 		await Promise.all(created.map((e) => deleteEntry(uid, e.id)));
 	}, 30_000);
 
+	it('enregistre le catalogue de tags chiffré', async () => {
+		expect(await getTags(uid, dek)).toEqual([]);
+		const tags = [{ id: 'tag-1', name: 'Santé' }];
+		await saveTags(uid, dek, tags);
+		const raw = (await getDoc(doc(db, 'users', uid, 'meta', 'tags'))).data()!;
+		expect(raw.data.data).toBeInstanceOf(Bytes);
+		expect(JSON.stringify(raw)).not.toContain('Santé');
+		expect(await getTags(uid, dek)).toEqual(tags);
+	});
+
 	it('refuse un chiffré déplacé dans une autre fiche (AAD)', async () => {
-		const a = await saveEntry(uid, dek, { name: 'A', links: [], image });
-		const b = await saveEntry(uid, dek, { name: 'B', links: [], image });
+		const a = await saveEntry(uid, dek, { name: 'A', links: [], tagIds: [], image });
+		const b = await saveEntry(uid, dek, { name: 'B', links: [], tagIds: [], image });
 		const rawA = (await getDoc(doc(db, 'users', uid, 'images', a.id))).data()!;
 		const { setDoc } = await import('firebase/firestore');
 		await setDoc(doc(db, 'users', uid, 'images', b.id), rawA);
@@ -76,7 +89,7 @@ describe('fiches (émulateurs)', () => {
 	});
 
 	it('règles : un autre utilisateur ne peut rien lire', async () => {
-		const mine = await saveEntry(uid, dek, { name: 'Privée', links: [] });
+		const mine = await saveEntry(uid, dek, { name: 'Privée', links: [], tagIds: [] });
 		await signOut(auth);
 		await createUserWithEmailAndPassword(auth, `x${Date.now()}@example.com`, 'jeton-de-test-5678');
 		await expect(getDoc(doc(db, 'users', uid, 'entries', mine.id))).rejects.toMatchObject({

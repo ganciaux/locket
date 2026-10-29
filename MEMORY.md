@@ -32,6 +32,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Préférences | Thème (auto/clair/sombre) et ouverture des liens (nouvel onglet par défaut) en `localStorage`, par appareil | Le bon réglage diffère entre PC et iPhone (PWA) ; rien de sensible |
 | Interface | Tailwind CSS 4 + daisyUI 5 (thèmes `light`/`dark`, accent indigo), icônes SVG inline (`Icon.svelte`), composants `Field` et `ErrorAlert` | Rendu soigné sans JS tiers ni CDN : pur CSS généré au build, compatible CSP stricte. Pico jugé trop générique, Material trop lourd et peu adapté à iOS |
 | Import de noms | `/fiche/import` : un nom par ligne (texte collé ou `.txt`), doublons ignorés (existants ou répétés, sans casse ni accents), lots de 400 écritures | Création rapide de fiches à compléter ensuite. Distinct de la sauvegarde/restauration (étape 8) |
+| Tags | Catalogue chiffré `users/{uid}/meta/tags` = `{ data }` (JSON `[{ id, name }]`, AAD `meta/tags`) ; les fiches ne portent que `tagIds` (UUID) dans leur `data` chiffré. Admin `/tags` (ajout, suppression) ; filtre ET par pastilles + recherche texte dans les noms de tags | Rien en clair, aucune sémantique côté app. Supprimer un tag ne réécrit pas les fiches : l'id orphelin est ignoré à l'affichage et retiré à la prochaine modification. Renommage non fait (facile, sur demande) |
 
 ## À vérifier avant la mise en production
 
