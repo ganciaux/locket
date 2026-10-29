@@ -10,22 +10,19 @@
 		dark --prefersdark;
 }
 
-/*
- * Accent laiton/ambre, repris du logo (amber-700 en clair, amber-400 en sombre pour garder le contraste).
- * Pas de rouge : il se confondrait avec `error`, utilisé pour les suppressions.
- */
+/* Accent rouge bordeaux, repris du bandeau du chapeau du logo (plus clair en sombre pour garder le contraste). */
 @plugin 'daisyui/theme' {
 	name: 'light';
 	default: true;
-	--color-primary: oklch(55.5% 0.163 48.998);
-	--color-primary-content: oklch(98.7% 0.022 95.277);
+	--color-primary: oklch(44% 0.17 22);
+	--color-primary-content: oklch(98% 0.01 22);
 }
 
 @plugin 'daisyui/theme' {
 	name: 'dark';
 	prefersdark: true;
-	--color-primary: oklch(82.8% 0.189 84.429);
-	--color-primary-content: oklch(27.9% 0.077 45.635);
+	--color-primary: oklch(64% 0.19 25);
+	--color-primary-content: oklch(20% 0.06 22);
 }
 
 /* 16 px minimum sur les champs : en dessous, Safari iOS zoome à la saisie. */

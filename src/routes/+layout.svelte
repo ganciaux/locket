@@ -26,7 +26,7 @@
 </svelte:head>
 
 {#snippet brand()}
-	<img src="/pwa-192x192.png" alt="" class="size-8 rounded-lg" />
+	<img src="/logo-256.png" alt="" class="size-8" />
 	<span>Wanted Archive</span>
 {/snippet}
 
@@ -34,7 +34,10 @@
 {#snippet authShell(content: Snippet)}
 	<div class="bg-base-200 grid min-h-dvh place-items-center p-4">
 		<div class="w-full max-w-sm">
-			<p class="mb-4 flex items-center justify-center gap-2 text-2xl font-bold">{@render brand()}</p>
+			<div class="mb-4 flex flex-col items-center gap-2 text-2xl font-bold">
+				<img src="/logo-256.png" alt="" class="size-24 drop-shadow-md" />
+				<span>Wanted Archive</span>
+			</div>
 			<div class="card bg-base-100 shadow-xl">
 				<div class="card-body gap-4">{@render content()}</div>
 			</div>
