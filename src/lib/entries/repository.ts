@@ -47,6 +47,7 @@ export async function getImage(uid: string, dek: CryptoKey, id: string): Promise
 }
 
 export type EntryInput = {
+	collectionId: string;
 	name: string;
 	links: Link[];
 	tagIds: string[];
@@ -69,6 +70,7 @@ export async function saveEntry(
 	const keepImage = input.image === undefined;
 	const imageType = keepImage ? existing?.imageType : input.image?.type;
 	const data: EntryData = {
+		collectionId: input.collectionId,
 		name: input.name.trim(),
 		links: input.links,
 		createdAt: existing?.createdAt ?? now,
@@ -98,15 +100,20 @@ export async function saveEntry(
 /** Un lot Firestore accepte 500 écritures ; on reste en dessous. */
 const IMPORT_BATCH_SIZE = 400;
 
-/** Crée des fiches sans lien ni image (import d'une liste de noms), par lots. */
-export async function createEntries(uid: string, dek: CryptoKey, names: string[]): Promise<EntrySummary[]> {
+/** Crée des fiches sans lien ni image (import d'une liste de noms) dans une collection, par lots. */
+export async function createEntries(
+	uid: string,
+	dek: CryptoKey,
+	collectionId: string,
+	names: string[]
+): Promise<EntrySummary[]> {
 	const created: EntrySummary[] = [];
 	for (let start = 0; start < names.length; start += IMPORT_BATCH_SIZE) {
 		const batch = writeBatch(db);
 		for (const name of names.slice(start, start + IMPORT_BATCH_SIZE)) {
 			const id = doc(entriesRef(uid)).id;
 			const now = Date.now();
-			const data: EntryData = { name, links: [], createdAt: now, updatedAt: now };
+			const data: EntryData = { collectionId, name, links: [], createdAt: now, updatedAt: now };
 			batch.set(entryRef(uid, id), { data: toStored(await encryptJson(dek, data, `${id}/data`)) } satisfies StoredEntry);
 			created.push({ ...data, id });
 		}

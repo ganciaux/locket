@@ -63,6 +63,7 @@
 {:else if entries.items && !entry}
 	<p class="alert alert-warning alert-soft">Fiche introuvable.</p>
 {:else if entry}
+	{@const collection = entries.collections?.find((c) => c.id === entry.collectionId)}
 	<article class="card bg-base-100 overflow-hidden shadow-sm">
 		{#if entry.imageType}
 			<figure class="bg-base-200 relative">
@@ -73,6 +74,11 @@
 			</figure>
 		{/if}
 		<div class="card-body gap-4">
+			{#if collection}
+				<p class="text-base-content/60 -mb-3 flex items-center gap-1 text-xs">
+					<Icon name="folder" class="size-3" />{collection.name}
+				</p>
+			{/if}
 			<h1 class="card-title text-2xl break-words">{entry.name}</h1>
 
 			{#if entries.tagsOf(entry).length}

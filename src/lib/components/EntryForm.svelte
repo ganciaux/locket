@@ -22,6 +22,12 @@
 	let links = $state((entry?.links ?? []).map((l) => ({ url: l.url, label: l.label ?? '' })));
 	// svelte-ignore state_referenced_locally
 	let tagIds = $state([...(entry?.tagIds ?? [])]);
+	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
+	// svelte-ignore state_referenced_locally
+	let chosenCollectionId = $state(entry?.collectionId ?? '');
+	const collectionId = $derived(chosenCollectionId || entries.active?.id || '');
+	const collectionTags = $derived(entries.tagsIn(collectionId));
+	let tagsDropped = $state(false);
 	let file = $state<File | null>(null);
 	let loadError = $state('');
 
@@ -48,6 +54,13 @@
 		imageRemoved = true;
 	}
 
+	// Les tags appartiennent à une collection : en changer les retire de la fiche.
+	function changeCollection(event: Event) {
+		chosenCollectionId = (event.currentTarget as HTMLSelectElement).value;
+		tagsDropped = tagIds.length > 0;
+		tagIds = [];
+	}
+
 	function parseLinks(): Link[] {
 		return links
 			.filter((l) => l.url.trim())
@@ -63,11 +76,17 @@
 		const { user, dek } = session;
 		if (!user || !dek) throw new Error('Session verrouillée.');
 		if (!entries.tags) throw new Error('Tags pas encore chargés.');
+		if (!entries.collections?.some((c) => c.id === collectionId)) throw new Error('Choisissez une collection.');
 		const parsedLinks = parseLinks();
 		// Les identifiants de tags supprimés entre-temps sont oubliés ici.
-		const knownTagIds = entries.tagsOf({ tagIds }).map((tag) => tag.id);
+		const knownTagIds = entries.tagsOf({ collectionId, tagIds }).map((tag) => tag.id);
 		const image = file ? await prepareImage(file) : imageRemoved ? null : undefined;
-		const saved = await saveEntry(user.uid, dek, { name, links: parsedLinks, tagIds: knownTagIds, image }, entry);
+		const saved = await saveEntry(
+			user.uid,
+			dek,
+			{ collectionId, name, links: parsedLinks, tagIds: knownTagIds, image },
+			entry
+		);
 		upsertEntry(saved);
 		await goto(`/fiche/${saved.id}`, { replaceState: true });
 	});
@@ -79,6 +98,15 @@
 			<Field label="Nom">
 				<input class="input input-lg w-full" bind:value={name} maxlength={MAX_NAME_LENGTH} required />
 			</Field>
+			{#if entries.collections && entries.collections.length > 1}
+				<Field label="Collection">
+					<select class="select w-full" value={collectionId} onchange={changeCollection}>
+						{#each entries.collections as collection (collection.id)}
+							<option value={collection.id}>{collection.name}</option>
+						{/each}
+					</select>
+				</Field>
+			{/if}
 		</div>
 	</section>
 
@@ -131,11 +159,16 @@
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="card-title text-base"><Icon name="tag" /> Tags</h2>
-			{#if entries.tags?.length}
-				<TagPicker tags={entries.tags} bind:selected={tagIds} label="Tags de la fiche" />
+			{#if tagsDropped}
+				<p role="status" class="text-base-content/70 text-xs">
+					Les tags de l'ancienne collection ont été retirés : chaque collection a les siens.
+				</p>
+			{/if}
+			{#if collectionTags.length}
+				<TagPicker tags={collectionTags} bind:selected={tagIds} label="Tags de la fiche" />
 			{:else if entries.tags}
 				<p class="text-base-content/60 text-sm">
-					Aucun tag pour l'instant. <a class="link link-primary" href="/tags">Créer des tags</a>
+					Aucun tag dans cette collection. <a class="link link-primary" href="/tags">Créer des tags</a>
 				</p>
 			{:else}
 				<span class="loading loading-dots loading-sm"></span>

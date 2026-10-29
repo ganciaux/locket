@@ -1,9 +1,10 @@
 <script lang="ts">
-	// Administration des tags : ajout, renommage et suppression. Le catalogue est chiffré comme les fiches.
+	// Administration des tags de la collection active : ajout, renommage et suppression.
+	// Le catalogue est chiffré comme les fiches.
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { MAX_TAG_LENGTH } from '$lib/entries/model';
-	import { addTag, deleteTag, entries, loadEntries, renameTag } from '$lib/entries/store.svelte';
+	import { MAX_LABEL_LENGTH } from '$lib/entries/model';
+	import { addTag, deleteTag, entries, loadEntries, renameTag, selectCollection } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
@@ -38,13 +39,29 @@
 </script>
 
 <a href="/parametres" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
-<h1 class="mb-4 text-2xl font-bold">Tags</h1>
+<h1 class="mb-2 text-2xl font-bold">Tags</h1>
 
 <ErrorAlert message={error} />
 
-{#if !error && !entries.tags}
+{#if !error && !entries.collections}
 	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
-{:else if entries.tags}
+{:else if !entries.active}
+	<p class="text-base-content/60 py-8 text-center">
+		Les tags sont propres à chaque collection. <a class="link link-primary" href="/collections">Créez d'abord une collection</a>.
+	</p>
+{:else if entries.tags && entries.collections}
+	<label class="text-base-content/70 mb-4 flex items-center gap-2 text-sm">
+		Collection
+		<select
+			class="select select-sm w-auto"
+			value={entries.active.id}
+			onchange={(e) => ((editId = confirmId = null), selectCollection(e.currentTarget.value))}
+		>
+			{#each entries.collections as collection (collection.id)}
+				<option value={collection.id}>{collection.name}</option>
+			{/each}
+		</select>
+	</label>
 	<div class="flex flex-col gap-4">
 		<form class="card bg-base-100 shadow-sm" onsubmit={addForm.submit}>
 			<div class="card-body gap-3">
@@ -53,7 +70,7 @@
 						class="input join-item w-full"
 						placeholder="Nouveau tag"
 						aria-label="Nouveau tag"
-						maxlength={MAX_TAG_LENGTH}
+						maxlength={MAX_LABEL_LENGTH}
 						bind:value={name}
 						required
 					/>
@@ -67,7 +84,7 @@
 		</form>
 
 		{#if entries.tags.length === 0}
-			<p class="text-base-content/60 py-8 text-center">Aucun tag pour l'instant.</p>
+			<p class="text-base-content/60 py-8 text-center">Aucun tag dans « {entries.active.name} » pour l'instant.</p>
 		{:else}
 			<ul class="card bg-base-100 divide-base-200 divide-y shadow-sm">
 				{#each entries.tags as tag (tag.id)}
@@ -80,7 +97,7 @@
 									<input
 										class="input input-sm join-item w-full"
 										aria-label="Nouveau nom du tag"
-										maxlength={MAX_TAG_LENGTH}
+										maxlength={MAX_LABEL_LENGTH}
 										bind:value={editName}
 										required
 										autofocus

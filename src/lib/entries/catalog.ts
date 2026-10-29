@@ -5,9 +5,9 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { type Encrypted, decryptJson, encryptJson } from '$lib/crypto/crypto';
 import { db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
-import type { Tag } from './model';
+import type { Collection, Tag } from './model';
 
-function encryptedCatalog<T>(name: 'tags') {
+function encryptedCatalog<T>(name: 'tags' | 'collections') {
 	const context = `meta/${name}`;
 	const ref = (uid: string) => doc(db, 'users', uid, 'meta', name);
 
@@ -34,3 +34,5 @@ function encryptedCatalog<T>(name: 'tags') {
 }
 
 export const tagCatalog = encryptedCatalog<Tag>('tags');
+/** L'ordre du tableau est l'ordre d'affichage choisi par l'utilisateur. */
+export const collectionCatalog = encryptedCatalog<Collection>('collections');

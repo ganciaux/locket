@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
+	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
-	import { NO_TAG_FILTER, type SortOrder, type TagFilter, linkTitle } from '$lib/entries/model';
-	import { entries, loadEntries } from '$lib/entries/store.svelte';
+	import { MAX_LABEL_LENGTH, NO_TAG_FILTER, type SortOrder, type TagFilter, linkTitle } from '$lib/entries/model';
+	import { addCollection, entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
+	import { formAction } from '$lib/form.svelte';
 	import { type CardSize, prefs } from '$lib/prefs.svelte';
 
 	// Classes écrites en entier : Tailwind ne détecte pas les noms de classes construits dynamiquement.
@@ -43,6 +45,15 @@
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
 	const filtering = $derived(!!query.trim() || tagFiltering);
 
+	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
+	const resetTagFilter = () => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode });
+
+	let collectionName = $state('');
+	const firstCollection = formAction(async () => {
+		await addCollection(collectionName);
+		collectionName = '';
+	});
+
 	// « Sans tag » et les tags sélectionnés s'excluent : cocher l'un décoche l'autre.
 	function toggleUntagged() {
 		tagFilter.untagged = !tagFilter.untagged;
@@ -51,23 +62,48 @@
 </script>
 
 <!-- items-baseline : le compteur s'aligne sur le texte du titre, pas sur sa boîte (jambages compris). -->
-<div class="mb-4 flex items-baseline gap-2">
-	<h1 class="text-2xl font-bold">Mes fiches</h1>
-	{#if entries.items?.length}<span class="badge badge-primary badge-sm">{entries.items.length}</span>{/if}
-	<a class="btn btn-ghost btn-sm ml-auto self-center" href="/fiche/import"><Icon name="import" class="size-4" /> Importer</a>
+<div class="mb-4 flex items-center gap-2">
+	{#if entries.active}
+		<CollectionSwitcher onselect={resetTagFilter} />
+		<a class="btn btn-ghost btn-sm shrink-0" href="/fiche/import"><Icon name="import" class="size-4" /> Importer</a>
+	{:else}
+		<h1 class="text-2xl font-bold">Mes fiches</h1>
+	{/if}
 </div>
 
 <ErrorAlert message={error} />
 
-{#if !error && !entries.items}
+{#if !error && !entries.collections}
 	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
-{:else if entries.items?.length === 0}
+{:else if entries.collections?.length === 0}
+	<form class="card bg-base-100 mx-auto max-w-md shadow-sm" onsubmit={firstCollection.submit}>
+		<div class="card-body gap-4">
+			<h2 class="card-title">Créez votre première collection</h2>
+			<p class="text-base-content/70 text-sm">
+				Chaque fiche appartient à une collection (Manga, Chanteurs, Sportifs…), avec ses propres tags. Vous
+				passerez de l'une à l'autre depuis le titre de la liste.
+			</p>
+			<div class="join w-full">
+				<input
+					class="input join-item w-full"
+					placeholder="Nom de la collection"
+					aria-label="Nom de la collection"
+					maxlength={MAX_LABEL_LENGTH}
+					bind:value={collectionName}
+					required
+				/>
+				<button class="btn btn-primary join-item" disabled={firstCollection.busy}>Créer</button>
+			</div>
+			<ErrorAlert message={firstCollection.error} />
+		</div>
+	</form>
+{:else if entries.activeItems?.length === 0}
 	<div class="flex flex-col items-center gap-4 py-16 text-center">
 		<Icon name="image" class="text-base-content/30 size-16" />
-		<p class="text-base-content/70">Aucune fiche pour l'instant.</p>
-		<a class="btn btn-primary" href="/fiche/nouvelle"><Icon name="plus" /> Créer ma première fiche</a>
+		<p class="text-base-content/70">Aucune fiche dans « {entries.active?.name} » pour l'instant.</p>
+		<a class="btn btn-primary" href="/fiche/nouvelle"><Icon name="plus" /> Créer une fiche</a>
 	</div>
-{:else if entries.items}
+{:else if entries.activeItems}
 	{#if remindBackup}
 		<div role="status" class="alert alert-warning alert-soft mb-3">
 			<span class="text-sm">
@@ -83,7 +119,7 @@
 	{/if}
 	<label class="input mb-3 w-full">
 		<Icon name="search" class="size-4 opacity-50" />
-		<input type="search" placeholder="Rechercher (nom ou tag)" aria-label="Rechercher" bind:value={query} />
+		<input type="search" placeholder="Rechercher dans {entries.active?.name} (nom ou tag)" aria-label="Rechercher" bind:value={query} />
 	</label>
 
 	<div class="mb-4 flex flex-col gap-2">
@@ -217,11 +253,13 @@
 	</ul>
 {/if}
 
-<a
-	href="/fiche/nouvelle"
-	class="btn btn-primary btn-circle btn-lg fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-lg"
-	aria-label="Nouvelle fiche"
-	title="Nouvelle fiche"
->
-	<Icon name="plus" class="size-7" />
-</a>
+{#if entries.active}
+	<a
+		href="/fiche/nouvelle"
+		class="btn btn-primary btn-circle btn-lg fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-lg"
+		aria-label="Nouvelle fiche"
+		title="Nouvelle fiche"
+	>
+		<Icon name="plus" class="size-7" />
+	</a>
+{/if}

@@ -12,9 +12,10 @@ import {
 	linkTitle,
 	matchesFilter,
 	matchesSearch,
+	moveItem,
+	parseLabel,
 	parseLinkUrl,
 	parseNameList,
-	parseTagName,
 	sortBy
 } from './model';
 
@@ -101,11 +102,27 @@ describe('tags', () => {
 		expect(matchesFilter(entry, 'supprimé', NO_TAG_FILTER, tags)).toBe(false);
 	});
 
-	it('parseTagName nettoie et refuse vide ou doublon', () => {
+	it('parseLabel nettoie et refuse vide ou doublon', () => {
 		const existing = [{ id: 't1', name: 'Administratif' }];
-		expect(parseTagName('  Vie   pratique ', existing)).toBe('Vie pratique');
-		expect(() => parseTagName('   ', existing)).toThrow();
-		expect(() => parseTagName('administratif', existing)).toThrow();
+		expect(parseLabel('  Vie   pratique ', existing)).toBe('Vie pratique');
+		expect(() => parseLabel('   ', existing)).toThrow();
+		expect(() => parseLabel('administratif', existing)).toThrow();
+	});
+});
+
+describe('moveItem', () => {
+	it('échange avec le voisin, sans modifier la liste d’origine', () => {
+		const list = ['a', 'b', 'c'];
+		expect(moveItem(list, 1, -1)).toEqual(['b', 'a', 'c']);
+		expect(moveItem(list, 1, 1)).toEqual(['a', 'c', 'b']);
+		expect(list).toEqual(['a', 'b', 'c']);
+	});
+
+	it('ne bouge pas au-delà des extrémités', () => {
+		const list = ['a', 'b'];
+		expect(moveItem(list, 0, -1)).toBe(list);
+		expect(moveItem(list, 1, 1)).toBe(list);
+		expect(moveItem(list, 5, -1)).toBe(list);
 	});
 });
 

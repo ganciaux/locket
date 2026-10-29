@@ -91,8 +91,16 @@
 
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
+			<h2 class="card-title text-lg">Collections</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">Manga, Chanteurs, Sportifs… : chaque fiche appartient à une collection.</p>
+			<a class="btn btn-outline btn-primary self-start" href="/collections"><Icon name="folder" class="size-4" /> Gérer les collections</a>
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
 			<h2 class="card-title text-lg">Tags</h2>
-			<p class="text-base-content/60 -mt-1 text-sm">Libellés libres pour classer et filtrer vos fiches, chiffrés comme elles.</p>
+			<p class="text-base-content/60 -mt-1 text-sm">Libellés libres propres à chaque collection, pour classer et filtrer vos fiches, chiffrés comme elles.</p>
 			<a class="btn btn-outline btn-primary self-start" href="/tags"><Icon name="tag" class="size-4" /> Gérer les tags</a>
 		</div>
 	</section>

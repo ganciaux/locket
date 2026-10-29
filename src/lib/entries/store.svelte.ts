@@ -1,20 +1,38 @@
 /**
- * Fiches et tags déchiffrés en mémoire, chargés une fois après le déverrouillage puis tenus à jour localement.
+ * Fiches, collections et tags déchiffrés en mémoire, chargés une fois après le déverrouillage puis tenus à jour localement.
  * Vidés dès que la session est verrouillée : rien de déchiffré ne survit à la DEK.
+ * La liste, la recherche et les tags proposés sont ceux de la collection active (préférence propre à l'appareil).
  */
 import { session } from '$lib/auth/session.svelte';
+import { prefs } from '$lib/prefs.svelte';
+import { collectionCatalog, tagCatalog } from './catalog';
 import { bytesToUrl } from './images';
-import { NO_TAG_FILTER, type SortOrder, type Tag, type TagFilter, byName, matchesFilter, parseTagName, sortBy } from './model';
+import {
+	NO_TAG_FILTER,
+	type Collection,
+	type SortOrder,
+	type Tag,
+	type TagFilter,
+	byName,
+	matchesFilter,
+	moveItem,
+	parseLabel,
+	sortBy
+} from './model';
 import { listEntries, type EntrySummary } from './repository';
-import { tagCatalog } from './catalog';
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
 let items = $state.raw<ListItem[] | null>(null);
 let tags = $state.raw<Tag[] | null>(null);
+let collections = $state.raw<Collection[] | null>(null);
 let loading: Promise<void> | null = null;
 
 const tagNames = $derived(new Map((tags ?? []).map((tag) => [tag.id, tag.name])));
+// Collection choisie sur cet appareil ; si elle n'existe plus (ou jamais choisie), la première.
+const active = $derived(collections && (collections.find((c) => c.id === prefs.collectionId) ?? collections[0] ?? null));
+const activeItems = $derived(items && items.filter((item) => item.collectionId === active?.id));
+const activeTags = $derived(tags && tags.filter((tag) => tag.collectionId === active?.id));
 
 const withThumbUrl = (entry: EntrySummary): ListItem => ({
 	...entry,
@@ -27,6 +45,7 @@ function clear() {
 	items?.forEach(revoke);
 	items = null;
 	tags = null;
+	collections = null;
 	loading = null;
 }
 
@@ -37,39 +56,63 @@ $effect.root(() => {
 });
 
 export const entries = {
+	/** Toutes les fiches, toutes collections confondues (pour retrouver une fiche par son id). */
 	get items() {
 		return items;
 	},
-	/** Catalogue trié par nom. */
-	get tags() {
-		return tags;
+	/** Fiches de la collection active, triées par nom. */
+	get activeItems() {
+		return activeItems;
 	},
-	/** `items` reste trié par nom ; un autre ordre est appliqué à la copie filtrée. */
+	/** Dans l'ordre choisi par l'utilisateur. */
+	get collections() {
+		return collections;
+	},
+	/** null tant que rien n'est chargé, ou si aucune collection n'existe encore. */
+	get active() {
+		return active;
+	},
+	/** Tags de la collection active, triés par nom. */
+	get tags() {
+		return activeTags;
+	},
+	tagsIn(collectionId: string): Tag[] {
+		return (tags ?? []).filter((tag) => tag.collectionId === collectionId);
+	},
+	/** Dans la collection active ; `activeItems` reste trié par nom, un autre ordre est appliqué à la copie filtrée. */
 	search(query: string, filter: TagFilter = NO_TAG_FILTER, order: SortOrder = 'name'): ListItem[] {
-		const found = (items ?? []).filter((item) => matchesFilter(item, query, filter, tagNames));
+		const found = (activeItems ?? []).filter((item) => matchesFilter(item, query, filter, tagNames));
 		return order === 'name' ? found : found.sort(sortBy(order));
 	},
 	find(id: string): ListItem | undefined {
 		return items?.find((item) => item.id === id);
 	},
-	/** Tags connus d'une fiche (les identifiants de tags supprimés sont ignorés). */
-	tagsOf(entry: { tagIds?: string[] }): Tag[] {
-		return (tags ?? []).filter((tag) => entry.tagIds?.includes(tag.id));
+	/** Tags connus d'une fiche : ceux de sa collection (les identifiants de tags supprimés sont ignorés). */
+	tagsOf(entry: { collectionId: string; tagIds?: string[] }): Tag[] {
+		return entries.tagsIn(entry.collectionId).filter((tag) => entry.tagIds?.includes(tag.id));
 	},
 	countWithTag(tagId: string): number {
 		return (items ?? []).filter((item) => item.tagIds?.includes(tagId)).length;
+	},
+	countIn(collectionId: string): number {
+		return (items ?? []).filter((item) => item.collectionId === collectionId).length;
 	}
 };
 
-/** Charge fiches et tags une seule fois par session déverrouillée. */
+/** Charge fiches, collections et tags une seule fois par session déverrouillée. */
 export function loadEntries(): Promise<void> {
 	const { user, dek } = session;
 	if (!user || !dek) return Promise.resolve();
-	loading ??= Promise.all([listEntries(user.uid, dek), tagCatalog.get(user.uid, dek)]).then(
-		([list, catalog]) => {
+	loading ??= Promise.all([
+		listEntries(user.uid, dek),
+		collectionCatalog.get(user.uid, dek),
+		tagCatalog.get(user.uid, dek)
+	]).then(
+		([list, collectionList, tagList]) => {
 			if (session.dek !== dek) return;
 			items = list.map(withThumbUrl).sort(byName);
-			tags = catalog.sort(byName);
+			collections = collectionList;
+			tags = tagList.sort(byName);
 		},
 		(error) => {
 			loading = null; // permet de réessayer
@@ -100,34 +143,85 @@ export function removeEntry(id: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Administration des tags
+// Administration. Chaque catalogue est réécrit en entier : il doit être chargé, sinon on l'écraserait.
 
-/** Le catalogue est réécrit en entier : il doit être chargé, sinon on écraserait les tags existants. */
-function loadedTags(): Tag[] {
-	if (!tags) throw new Error('Tags pas encore chargés.');
-	return tags;
+function unlocked() {
+	const { user, dek } = session;
+	if (!user || !dek) throw new Error('Session verrouillée.');
+	return { uid: user.uid, dek };
+}
+
+function loaded<T>(catalog: T[] | null): T[] {
+	if (!catalog) throw new Error('Catalogue pas encore chargé.');
+	return catalog;
+}
+
+export function selectCollection(id: string): void {
+	prefs.collectionId = id;
+}
+
+async function replaceCollections(next: Collection[]): Promise<void> {
+	const { uid, dek } = unlocked();
+	await collectionCatalog.save(uid, dek, next);
+	collections = next;
+}
+
+/** Ajoutée en fin de liste ; la toute première devient la collection active. */
+export async function addCollection(input: string): Promise<void> {
+	const current = loaded(collections);
+	const created = { id: crypto.randomUUID(), name: parseLabel(input, current) };
+	await replaceCollections([...current, created]);
+	if (current.length === 0) selectCollection(created.id);
+}
+
+export async function renameCollection(id: string, input: string): Promise<void> {
+	const current = loaded(collections);
+	const name = parseLabel(input, current.filter((c) => c.id !== id));
+	await replaceCollections(current.map((c) => (c.id === id ? { ...c, name } : c)));
+}
+
+export async function moveCollection(id: string, delta: -1 | 1): Promise<void> {
+	const current = loaded(collections);
+	const next = moveItem(current, current.findIndex((c) => c.id === id), delta);
+	if (next !== current) await replaceCollections(next);
+}
+
+/** Uniquement vide : aucune fiche ne peut perdre sa collection. Ses tags disparaissent avec elle. */
+export async function deleteCollection(id: string): Promise<void> {
+	const count = entries.countIn(id);
+	if (count) throw new Error(`Cette collection contient encore ${count} fiche${count > 1 ? 's' : ''}.`);
+	const currentTags = loaded(tags);
+	await replaceCollections(loaded(collections).filter((c) => c.id !== id));
+	// Écrit après les collections : en cas d'échec, des tags orphelins restent, invisibles et sans effet.
+	if (currentTags.some((tag) => tag.collectionId === id))
+		await replaceTags(currentTags.filter((tag) => tag.collectionId !== id));
 }
 
 async function replaceTags(next: Tag[]): Promise<void> {
-	const { user, dek } = session;
-	if (!user || !dek) throw new Error('Session verrouillée.');
-	await tagCatalog.save(user.uid, dek, next);
+	const { uid, dek } = unlocked();
+	await tagCatalog.save(uid, dek, next);
 	tags = [...next].sort(byName);
 }
 
+/** Dans la collection active ; un même nom peut exister dans deux collections. */
 export async function addTag(input: string): Promise<void> {
-	const current = loadedTags();
-	await replaceTags([...current, { id: crypto.randomUUID(), name: parseTagName(input, current) }]);
+	const current = loaded(tags);
+	if (!active) throw new Error('Aucune collection.');
+	const collectionId = active.id;
+	const name = parseLabel(input, current.filter((tag) => tag.collectionId === collectionId));
+	await replaceTags([...current, { id: crypto.randomUUID(), name, collectionId }]);
 }
 
 /** Les fiches ne stockent que l'identifiant : renommer ne touche que le catalogue. */
 export async function renameTag(id: string, input: string): Promise<void> {
-	const current = loadedTags();
-	const name = parseTagName(input, current.filter((tag) => tag.id !== id));
-	await replaceTags(current.map((tag) => (tag.id === id ? { ...tag, name } : tag)));
+	const current = loaded(tags);
+	const tag = current.find((t) => t.id === id);
+	if (!tag) return;
+	const name = parseLabel(input, current.filter((t) => t.collectionId === tag.collectionId && t.id !== id));
+	await replaceTags(current.map((t) => (t.id === id ? { ...t, name } : t)));
 }
 
 /** Retire le tag du catalogue ; les fiches qui le portent l'oublient à leur prochaine modification. */
 export async function deleteTag(id: string): Promise<void> {
-	await replaceTags(loadedTags().filter((tag) => tag.id !== id));
+	await replaceTags(loaded(tags).filter((tag) => tag.id !== id));
 }

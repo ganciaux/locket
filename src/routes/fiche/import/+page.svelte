@@ -13,10 +13,10 @@
 	let text = $state('');
 	let error = $state('');
 
-	// Les fiches existantes servent à écarter les doublons.
+	// Les fiches de la collection servent à écarter les doublons : un même nom peut exister ailleurs.
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
-	const parsed = $derived(parseNameList(text, (entries.items ?? []).map((item) => item.name)));
+	const parsed = $derived(parseNameList(text, (entries.activeItems ?? []).map((item) => item.name)));
 
 	async function readFile(event: Event) {
 		const file = (event.currentTarget as HTMLInputElement).files?.[0];
@@ -26,8 +26,9 @@
 	const form = formAction(async () => {
 		const { user, dek } = session;
 		if (!user || !dek) throw new Error('Session verrouillée.');
-		if (!entries.items) throw new Error('Fiches existantes pas encore chargées.');
-		upsertEntries(await createEntries(user.uid, dek, parsed.names));
+		if (!entries.activeItems) throw new Error('Fiches existantes pas encore chargées.');
+		if (!entries.active) throw new Error('Créez d’abord une collection.');
+		upsertEntries(await createEntries(user.uid, dek, entries.active.id, parsed.names));
 		await goto('/', { replaceState: true });
 	});
 </script>
@@ -39,7 +40,8 @@
 <form class="card bg-base-100 shadow-sm" onsubmit={form.submit}>
 	<div class="card-body gap-4">
 		<p class="text-base-content/70 text-sm">
-			Un nom par ligne : chaque nom devient une fiche, sans lien ni image, que vous pourrez compléter ensuite.
+			Un nom par ligne : chaque nom devient une fiche de la collection
+			<strong>{entries.active?.name ?? '…'}</strong>, sans lien ni image, que vous pourrez compléter ensuite.
 		</p>
 
 		<Field label="Noms">
@@ -68,7 +70,7 @@
 
 		<ErrorAlert message={form.error} />
 		<div class="flex gap-2">
-			<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy || !entries.items || !parsed.names.length}>
+			<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy || !entries.active || !parsed.names.length}>
 				{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Import…{:else}Importer{/if}
 			</button>
 			<a class="btn btn-ghost" href="/">Annuler</a>

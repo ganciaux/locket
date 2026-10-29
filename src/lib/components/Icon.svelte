@@ -5,6 +5,7 @@
 		close: 'M6 6l12 12M18 6 6 18',
 		back: 'M15 18l-6-6 6-6',
 		chevronDown: 'M6 9l6 6 6-6',
+		chevronUp: 'M6 15l6-6 6 6',
 		search: 'M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM20 20l-4-4',
 		lock: 'M7 11V7a5 5 0 0 1 10 0v4M5 11h14v10H5z',
 		settings: 'M4 6h9M17 6h3M15 4v4M4 12h3M11 12h9M9 10v4M4 18h11M19 18h1M17 16v4',
@@ -16,7 +17,8 @@
 		copy: 'M8 8h12v12H8zM4 16V4h12',
 		import: 'M12 4v11M7 10l5 5 5-5M4 20h16',
 		tag: 'M3 12V4h8l10 10-8 8zM7.5 7.5h.01',
-		check: 'M5 12l5 5 9-10'
+		check: 'M5 12l5 5 9-10',
+		folder: 'M3 6h6l2 2h10v11H3z'
 	} as const;
 
 	export type IconName = keyof typeof PATHS;

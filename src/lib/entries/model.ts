@@ -4,20 +4,25 @@ export type Link = { url: string; label?: string };
 
 /** Contenu du champ chiffré `data` (JSON). */
 export type EntryData = {
+	/** Une fiche appartient toujours à une seule collection. */
+	collectionId: string;
 	name: string;
 	links: Link[];
 	createdAt: number;
 	updatedAt: number;
 	/** Type MIME de l'image et de la miniature, absent si la fiche n'a pas d'image. */
 	imageType?: string;
-	/** Identifiants du catalogue de tags ; un identifiant inconnu (tag supprimé) est ignoré. */
+	/** Tags de sa collection ; un identifiant inconnu (tag supprimé) est ignoré. */
 	tagIds?: string[];
 };
 
 export type Entry = EntryData & { id: string };
 
-/** Tag libre : l'app ne connaît que son identifiant aléatoire et le libellé choisi par l'utilisateur. */
-export type Tag = { id: string; name: string };
+/** Regroupement exclusif des fiches (Manga, Chanteurs…) ; l'ordre du catalogue est l'ordre d'affichage. */
+export type Collection = { id: string; name: string };
+
+/** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
+export type Tag = { id: string; name: string; collectionId: string };
 
 /**
  * Normalise une URL saisie et refuse tout ce qui n'est pas http(s).
@@ -79,15 +84,26 @@ export function matchesFilter(
 	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tagNames.get(id)!, query));
 }
 
-export const MAX_TAG_LENGTH = 40;
+export const MAX_LABEL_LENGTH = 40;
 
-/** Nettoie un libellé de tag ; lève une erreur affichable s'il est vide ou déjà pris. */
-export function parseTagName(input: string, existing: Tag[]): string {
-	const name = input.trim().replace(/\s+/g, ' ').slice(0, MAX_TAG_LENGTH);
-	if (!name) throw new Error('Le tag ne peut pas être vide.');
-	if (existing.some((tag) => searchKey(tag.name) === searchKey(name)))
-		throw new Error(`Le tag « ${name} » existe déjà.`);
+/**
+ * Nettoie le nom d'un tag ou d'une collection ; lève une erreur affichable s'il est vide
+ * ou déjà pris parmi `existing` (sans casse ni accents).
+ */
+export function parseLabel(input: string, existing: { name: string }[]): string {
+	const name = input.trim().replace(/\s+/g, ' ').slice(0, MAX_LABEL_LENGTH);
+	if (!name) throw new Error('Le nom ne peut pas être vide.');
+	if (existing.some((item) => searchKey(item.name) === searchKey(name))) throw new Error(`« ${name} » existe déjà.`);
 	return name;
+}
+
+/** Déplace l'élément `index` d'un cran (`-1` vers le haut, `1` vers le bas) ; inchangé aux extrémités. */
+export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
+	const target = index + delta;
+	if (index < 0 || index >= list.length || target < 0 || target >= list.length) return list;
+	const next = [...list];
+	[next[index], next[target]] = [next[target], next[index]];
+	return next;
 }
 
 export const byName = (a: { name: string }, b: { name: string }): number =>
