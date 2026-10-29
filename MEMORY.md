@@ -57,6 +57,6 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), logo (coffre) de l’utilisateur partout, fixé au déploiement ; son illustration du livre en fond d’écran fondu (`background.jpg`) ; nom affiché « Stash » (ex-Locket, puis Wanted Archive)
 7. [x] Sécurité : CSP stricte (`kit.csp` en hash + en-têtes `firebase.json`), code émulateurs hors prod, verrouillage auto
 8. [x] Sauvegarde : export / import JSON chiffré, restauration dans un compte recréé — testé contre les émulateurs
-9. [ ] README en français
+9. [x] README en français
 
 Après l’étape 9 : voir [AUDIT.md](AUDIT.md) (revue du 2026-10-29).
