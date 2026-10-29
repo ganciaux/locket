@@ -31,7 +31,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Images | Canvas : 1600 px / 300 px ; qualité puis taille réduites par paliers jusqu'à < 900 Ko | Limite Firestore de 1 Mio par document |
 | Liste | Chargée et déchiffrée une fois par déverrouillage, cache mémoire vidé au verrouillage ; tri par nom ; recherche sans casse ni accents | Pas de rechargement de toutes les miniatures à chaque navigation |
 | Préférences | Thème (auto/clair/sombre), ouverture des liens (nouvel onglet par défaut) et taille des cartes S/M/L (M par défaut) en `localStorage`, par appareil | Le bon réglage diffère entre PC et iPhone (PWA) ; rien de sensible |
-| Interface | Tailwind CSS 4 + daisyUI 5 (thèmes `light`/`dark`, accent indigo), icônes SVG inline (`Icon.svelte`), composants `Field` et `ErrorAlert` | Rendu soigné sans JS tiers ni CDN : pur CSS généré au build, compatible CSP stricte. Pico jugé trop générique, Material trop lourd et peu adapté à iOS |
+| Interface | Tailwind CSS 4 + daisyUI 5 (thèmes `light`/`dark`, accent laiton/ambre repris du logo), icônes SVG inline (`Icon.svelte`), composants `Field` et `ErrorAlert` | Rendu soigné sans JS tiers ni CDN : pur CSS généré au build, compatible CSP stricte. Pico jugé trop générique, Material trop lourd et peu adapté à iOS |
 | Import de noms | `/fiche/import` : un nom par ligne (texte collé ou `.txt`), doublons ignorés (existants ou répétés, sans casse ni accents), lots de 400 écritures | Création rapide de fiches à compléter ensuite. Distinct de la sauvegarde/restauration (étape 8) |
 | Tags | Catalogue chiffré `users/{uid}/meta/tags` = `{ data }` (JSON `[{ id, name }]`, AAD `meta/tags`) ; les fiches ne portent que `tagIds` (UUID) dans leur `data` chiffré. Admin `/tags` (ajout, renommage, suppression). Filtre par pastilles : **OU par défaut**, bascule OU / ET, pastille « Sans tag » exclusive ; aucun tag sélectionné = pas de filtre ; la recherche texte porte aussi sur les noms de tags | Rien en clair, aucune sémantique côté app. Renommer ou supprimer un tag ne réécrit pas les fiches (elles ne portent que l'id) : un id orphelin est ignoré à l'affichage et retiré à la prochaine modification |
 
@@ -54,7 +54,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
    — déployé et validé en ligne le 2026-10-29 (PC + Safari iPhone), récupération par lien email comprise
 4. [x] Fiches : CRUD Firestore (`Bytes`), liste avec miniatures, recherche locale — testé contre les émulateurs ; interface à valider à la main
 5. [x] Images : redimensionnement canvas, plafond 900 Ko chiffré — canvas à valider dans le navigateur (PC + iPhone)
-6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), icônes provisoires (cadenas) en attendant celle de l'utilisateur
+6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), icônes tirées du logo « Wanted Archive » fourni par l’utilisateur (`static/`, fixées au déploiement)
 7. [ ] Sécurité : CSP stricte (hashes SvelteKit), revue des logs
 8. [x] Sauvegarde : export / import JSON chiffré, restauration dans un compte recréé — testé contre les émulateurs
 9. [ ] README en français

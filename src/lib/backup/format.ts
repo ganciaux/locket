@@ -68,9 +68,9 @@ export function parseBackup(text: string): Backup {
 	try {
 		raw = JSON.parse(text);
 	} catch {
-		throw new Error('Ce fichier n’est pas une sauvegarde Locket.');
+		throw new Error('Ce fichier n’est pas une sauvegarde Wanted Archive.');
 	}
-	if (!isObject(raw) || raw.format !== BACKUP_FORMAT) throw new Error('Ce fichier n’est pas une sauvegarde Locket.');
+	if (!isObject(raw) || raw.format !== BACKUP_FORMAT) throw new Error('Ce fichier n’est pas une sauvegarde Wanted Archive.');
 	if (raw.version !== BACKUP_VERSION) throw new Error('Version de sauvegarde non prise en charge.');
 	if (typeof raw.createdAt !== 'string' || typeof raw.includesImages !== 'boolean') throw new Error(INVALID);
 	if (!isObject(raw.keyring) || !Array.isArray(raw.entries)) throw new Error(INVALID);

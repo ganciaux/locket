@@ -1,6 +1,5 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { lock, session } from '$lib/auth/session.svelte';
@@ -22,13 +21,13 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
-	<title>Locket</title>
+	<link rel="icon" type="image/png" href="/favicon-48x48.png" />
+	<title>Wanted Archive</title>
 </svelte:head>
 
 {#snippet brand()}
-	<Icon name="lock" class="text-primary size-6" />
-	<span>Locket</span>
+	<img src="/pwa-192x192.png" alt="" class="size-8 rounded-lg" />
+	<span>Wanted Archive</span>
 {/snippet}
 
 <!-- Pages de connexion : une carte centrée. -->

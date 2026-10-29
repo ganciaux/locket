@@ -2,6 +2,8 @@
 
 PWA de fiches (nom, liens, image) chiffrées de bout en bout. Firebase ne voit jamais de donnée en clair,
 ni le mot de passe, ni une clé. Décisions et avancement : voir [MEMORY.md](MEMORY.md).
+Nom affiché : **Wanted Archive** ; « locket » reste l'identifiant interne (HKDF `locket/*`, format de sauvegarde,
+clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sauvegardes existantes.
 
 ## Stack
 - SvelteKit 2 (pas 3 : `@vite-pwa/sveltekit` ne le supporte pas) + Svelte 5 runes + TypeScript strict + Vite.

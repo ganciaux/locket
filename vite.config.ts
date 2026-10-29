@@ -13,15 +13,15 @@ export default defineConfig({
 			registerType: 'prompt', // pas de rechargement surprise : il effacerait la DEK en pleine saisie
 			kit: { adapterFallback: 'index.html', spa: true },
 			manifest: {
-				name: 'Locket',
-				short_name: 'Locket',
+				name: 'Wanted Archive',
+				short_name: 'Wanted Archive',
 				description: 'Vos fiches chiffrées de bout en bout.',
 				lang: 'fr',
 				start_url: '/',
 				scope: '/',
 				display: 'standalone',
-				background_color: '#4f46e5',
-				theme_color: '#4f46e5',
+				background_color: '#1c1917',
+				theme_color: '#b45309',
 				icons: [
 					{ src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
 					{ src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },

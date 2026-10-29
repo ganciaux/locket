@@ -10,19 +10,22 @@
 		dark --prefersdark;
 }
 
-/* Accent indigo (indigo-600 en clair, indigo-400 en sombre pour garder le contraste). */
+/*
+ * Accent laiton/ambre, repris du logo (amber-700 en clair, amber-400 en sombre pour garder le contraste).
+ * Pas de rouge : il se confondrait avec `error`, utilisé pour les suppressions.
+ */
 @plugin 'daisyui/theme' {
 	name: 'light';
 	default: true;
-	--color-primary: oklch(51.1% 0.262 276.966);
-	--color-primary-content: oklch(98.5% 0.01 277);
+	--color-primary: oklch(55.5% 0.163 48.998);
+	--color-primary-content: oklch(98.7% 0.022 95.277);
 }
 
 @plugin 'daisyui/theme' {
 	name: 'dark';
 	prefersdark: true;
-	--color-primary: oklch(67.3% 0.182 276.935);
-	--color-primary-content: oklch(20% 0.06 277);
+	--color-primary: oklch(82.8% 0.189 84.429);
+	--color-primary-content: oklch(27.9% 0.077 45.635);
 }
 
 /* 16 px minimum sur les champs : en dessous, Safari iOS zoome à la saisie. */
