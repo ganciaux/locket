@@ -105,13 +105,14 @@
 	</div>
 {:else if entries.activeItems}
 	{#if remindBackup}
-		<div role="status" class="alert alert-warning alert-soft mb-3">
+		<!-- flex-wrap : sur mobile, les boutons passent sous le texte au lieu de déborder de l'écran. -->
+		<div role="status" class="alert alert-warning alert-soft mb-3 flex flex-wrap items-center">
 			<span class="text-sm">
 				{backupInfo.lastAt
 					? `Dernière sauvegarde il y a ${daysSince(backupInfo.lastAt, Date.now())} jours.`
 					: 'Aucune sauvegarde depuis cet appareil.'}
 			</span>
-			<div class="flex gap-2">
+			<div class="ml-auto flex gap-2">
 				<button class="btn btn-ghost btn-sm" onclick={remindLater}>Plus tard</button>
 				<a class="btn btn-sm" href="/sauvegarde">Sauvegarder</a>
 			</div>
