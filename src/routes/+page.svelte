@@ -6,6 +6,19 @@
 	import { NO_TAG_FILTER, type TagFilter, linkTitle } from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
+	import { type CardSize, prefs } from '$lib/prefs.svelte';
+
+	// Classes écrites en entier : Tailwind ne détecte pas les noms de classes construits dynamiquement.
+	const GRID: Record<CardSize, string> = {
+		small: 'grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6',
+		medium: 'grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4',
+		large: 'grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3'
+	};
+	const SIZES: { value: CardSize; label: string; title: string }[] = [
+		{ value: 'small', label: 'S', title: 'Petites cartes' },
+		{ value: 'medium', label: 'M', title: 'Cartes moyennes' },
+		{ value: 'large', label: 'L', title: 'Grandes cartes' }
+	];
 
 	let query = $state('');
 	let tagFilter = $state<TagFilter>({ ...NO_TAG_FILTER });
@@ -46,9 +59,9 @@
 		<input type="search" placeholder="Rechercher (nom ou tag)" aria-label="Rechercher" bind:value={query} />
 	</label>
 
-	{#if entries.tags?.length}
-		<div class="mb-4 flex flex-col gap-2">
-			<div class="flex items-center gap-2">
+	<div class="mb-4 flex flex-col gap-2">
+		<div class="flex flex-wrap items-center gap-2">
+			{#if entries.tags?.length}
 				<span class="text-base-content/60 text-xs">Tags</span>
 				<div class="join" role="radiogroup" aria-label="Mode de filtre des tags">
 					<input
@@ -71,11 +84,27 @@
 					/>
 				</div>
 				{#if tagFiltering}
-					<button class="btn btn-ghost btn-xs ml-auto" onclick={() => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode })}>
+					<button class="btn btn-ghost btn-xs" onclick={() => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode })}>
 						Effacer
 					</button>
 				{/if}
+			{/if}
+			<span class="text-base-content/60 ml-auto text-xs">Taille</span>
+			<div class="join" role="radiogroup" aria-label="Taille des cartes">
+				{#each SIZES as size (size.value)}
+					<input
+						class="join-item btn btn-xs"
+						type="radio"
+						name="card-size"
+						value={size.value}
+						aria-label={size.label}
+						title={size.title}
+						bind:group={prefs.cardSize}
+					/>
+				{/each}
 			</div>
+		</div>
+		{#if entries.tags?.length}
 			<TagPicker
 				tags={entries.tags}
 				bind:selected={tagFilter.tagIds}
@@ -93,15 +122,15 @@
 					</button>
 				{/snippet}
 			</TagPicker>
-		</div>
-	{/if}
+		{/if}
+	</div>
 
 	{#if results.length === 0 && filtering}
 		<p class="text-base-content/60 py-8 text-center">Aucune fiche ne correspond.</p>
 	{/if}
 
 	<!-- items-start : une carte dont on ouvre les liens s'allonge sans étirer ses voisines. -->
-	<ul class="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 md:grid-cols-4">
+	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
 			<li class="card bg-base-100 overflow-hidden shadow-sm transition hover:shadow-md">
 				<a href="/fiche/{entry.id}" class="block">
@@ -109,12 +138,20 @@
 						{#if entry.thumbUrl}
 							<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
 						{:else}
-							<span class="text-primary text-5xl font-bold" aria-hidden="true">
+							<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
 								{entry.name.charAt(0).toUpperCase()}
 							</span>
 						{/if}
 					</figure>
-					<h2 class="truncate px-3 pt-3 pb-2 text-sm font-semibold">{entry.name}</h2>
+					<h2
+						class="truncate font-semibold {prefs.cardSize === 'small'
+							? 'px-2 pt-2 pb-1 text-xs'
+							: prefs.cardSize === 'large'
+								? 'px-4 pt-4 pb-2 text-base'
+								: 'px-3 pt-3 pb-2 text-sm'}"
+					>
+						{entry.name}
+					</h2>
 					{#if entry.tagIds?.length}
 						{@const entryTags = entries.tagsOf(entry)}
 						<div class="flex flex-wrap gap-1 px-3 pb-2">

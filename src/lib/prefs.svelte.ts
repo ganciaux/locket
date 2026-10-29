@@ -3,10 +3,11 @@
  * Le thème est aussi appliqué avant le premier rendu par le script inline de `app.html` (même clé).
  */
 export type Theme = 'auto' | 'light' | 'dark';
-type Prefs = { theme: Theme; linksInNewTab: boolean };
+export type CardSize = 'small' | 'medium' | 'large';
+type Prefs = { theme: Theme; linksInNewTab: boolean; cardSize: CardSize };
 
 const STORAGE_KEY = 'locket.prefs';
-const DEFAULTS: Prefs = { theme: 'auto', linksInNewTab: true };
+const DEFAULTS: Prefs = { theme: 'auto', linksInNewTab: true, cardSize: 'medium' };
 
 function load(): Prefs {
 	try {
