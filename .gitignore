@@ -27,3 +27,6 @@ vite.config.ts.timestamp-*
 
 # Claude Code : consignes propres à chaque poste
 CLAUDE.local.md
+
+# Cache de déploiement Firebase Hosting
+.firebase/
