@@ -5,8 +5,8 @@
  * Le SDK web lit les documents en entier : l'image à part évite de la télécharger pour afficher la liste.
  * AAD = "<id>/<champ>" : un chiffré déplacé vers une autre fiche ou un autre champ ne se déchiffre plus.
  */
-import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { decrypt, decryptJson, encrypt, encryptJson } from '$lib/crypto/crypto';
+import { collection, doc, getDoc, getDocs, limit, query, writeBatch } from 'firebase/firestore';
+import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson } from '$lib/crypto/crypto';
 import type { Bytes } from '$lib/crypto/encoding';
 import { db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import { type Entry, type EntryData, type Link, fitsInDoc } from './model';
@@ -120,4 +120,65 @@ export async function deleteEntry(uid: string, id: string): Promise<void> {
 	batch.delete(entryRef(uid, id));
 	batch.delete(imageRef(uid, id));
 	await batch.commit();
+}
+
+// ---------------------------------------------------------------------------
+// Sauvegarde : documents bruts (toujours chiffrés), sans passer par la DEK.
+
+export type StoredEntryCopy = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted };
+
+export async function readStoredEntries(uid: string, includeImages: boolean): Promise<StoredEntryCopy[]> {
+	const [entrySnaps, imageSnaps] = await Promise.all([
+		getDocs(entriesRef(uid)),
+		includeImages ? getDocs(collection(db, 'users', uid, 'images')) : null
+	]);
+	const images = new Map(imageSnaps?.docs.map((d) => [d.id, fromStored((d.data() as StoredImage).image)]));
+	return entrySnaps.docs.map((d) => {
+		const stored = d.data() as StoredEntry;
+		const image = images.get(d.id);
+		return {
+			id: d.id,
+			data: fromStored(stored.data),
+			...(stored.thumb && { thumb: fromStored(stored.thumb) }),
+			...(image && { image })
+		};
+	});
+}
+
+export async function hasEntries(uid: string): Promise<boolean> {
+	return !(await getDocs(query(entriesRef(uid), limit(1)))).empty;
+}
+
+/** Un lot Firestore : 500 écritures et ~10 Mo par requête au plus ; on garde de la marge. */
+const MAX_BATCH_WRITES = 400;
+const MAX_BATCH_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Écrit des fiches restaurées telles quelles (même id, donc même AAD) : remplace ou ajoute, ne supprime rien.
+ * Avec les images : l'image est restaurée, ou supprimée si la fiche n'en avait pas.
+ * Sans les images (sauvegarde légère) : les images en place ne sont pas touchées.
+ */
+export async function writeStoredEntries(
+	uid: string,
+	entries: StoredEntryCopy[],
+	includesImages: boolean
+): Promise<void> {
+	let batch = writeBatch(db);
+	let writes = 0;
+	let bytes = 0;
+	for (const entry of entries) {
+		const size = entry.data.data.length + (entry.thumb?.data.length ?? 0) + (entry.image?.data.length ?? 0);
+		if (writes + 2 > MAX_BATCH_WRITES || (writes > 0 && bytes + size > MAX_BATCH_BYTES)) {
+			await batch.commit();
+			batch = writeBatch(db);
+			writes = bytes = 0;
+		}
+		const stored: StoredEntry = { data: toStored(entry.data), ...(entry.thumb && { thumb: toStored(entry.thumb) }) };
+		batch.set(entryRef(uid, entry.id), stored);
+		if (entry.image) batch.set(imageRef(uid, entry.id), { image: toStored(entry.image) } satisfies StoredImage);
+		else if (includesImages) batch.delete(imageRef(uid, entry.id));
+		writes += 2;
+		bytes += size;
+	}
+	if (writes) await batch.commit();
 }

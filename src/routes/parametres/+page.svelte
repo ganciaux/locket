@@ -70,6 +70,14 @@
 	</section>
 
 	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-lg">Sauvegarde</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">Exporter vos fiches chiffrées dans un fichier, ou les restaurer.</p>
+			<a class="btn btn-outline btn-primary self-start" href="/sauvegarde"><Icon name="import" class="size-4" /> Sauvegarder / restaurer</a>
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-4">
 			<h2 class="card-title text-lg">Changer de mot de passe</h2>
 			<p class="text-base-content/60 -mt-2 text-sm">Vos fiches ne sont pas rechiffrées : seule votre clé l'est.</p>

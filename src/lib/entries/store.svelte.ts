@@ -77,6 +77,11 @@ export function loadEntries(): Promise<void> {
 	return loading;
 }
 
+/** Après une restauration : tout sera rechargé (et déchiffré) à la prochaine lecture. */
+export function resetEntries(): void {
+	clear();
+}
+
 export function upsertEntries(changed: EntrySummary[]): void {
 	if (!items) return; // la liste sera chargée en entier plus tard
 	const ids = new Set(changed.map((entry) => entry.id));

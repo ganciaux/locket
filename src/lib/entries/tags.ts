@@ -3,18 +3,25 @@
  * Les fiches ne portent que des identifiants, dans leur propre JSON chiffré.
  */
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { decryptJson, encryptJson } from '$lib/crypto/crypto';
+import { type Encrypted, decryptJson, encryptJson } from '$lib/crypto/crypto';
 import { db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import type { Tag } from './model';
 
 const TAGS_CONTEXT = 'meta/tags';
 const tagsRef = (uid: string) => doc(db, 'users', uid, 'meta', 'tags');
 
-export async function getTags(uid: string, dek: CryptoKey): Promise<Tag[]> {
+/** Catalogue tel que stocké (chiffré), pour la sauvegarde ; null s'il n'existe pas encore. */
+export async function readStoredTags(uid: string): Promise<Encrypted | null> {
 	const snapshot = await getDoc(tagsRef(uid));
-	if (!snapshot.exists()) return [];
-	const { data } = snapshot.data() as { data: StoredEncrypted };
-	return decryptJson<Tag[]>(dek, fromStored(data), TAGS_CONTEXT);
+	return snapshot.exists() ? fromStored((snapshot.data() as { data: StoredEncrypted }).data) : null;
+}
+
+export const decryptTags = (dek: CryptoKey, encrypted: Encrypted): Promise<Tag[]> =>
+	decryptJson<Tag[]>(dek, encrypted, TAGS_CONTEXT);
+
+export async function getTags(uid: string, dek: CryptoKey): Promise<Tag[]> {
+	const stored = await readStoredTags(uid);
+	return stored ? decryptTags(dek, stored) : [];
 }
 
 /** Réécrit tout le catalogue (IV neuf) : quelques Ko au plus, plus simple qu'une mise à jour fine. */

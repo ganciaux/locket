@@ -44,7 +44,7 @@ const KEYRING_MISMATCH =
 // Trousseau : users/{uid}
 
 type StoredKeyring = { wrappedDek: StoredEncrypted; recoveryDek: StoredEncrypted };
-type Keyring = { wrappedDek: Encrypted; recoveryDek: Encrypted };
+export type Keyring = { wrappedDek: Encrypted; recoveryDek: Encrypted };
 
 const keyringRef = (uid: string) => doc(db, 'users', uid);
 
@@ -215,4 +215,48 @@ export async function recoverWithKey(recoveryKey: string, newPassword: string): 
 		throw error;
 	}
 	setUnlocked(user, await unwrapDek(rewrapped, next.kek));
+}
+
+// ---------------------------------------------------------------------------
+// Sauvegarde
+
+/** Trousseau du compte connecté, tel que stocké (chiffré) : il accompagne les fiches dans une sauvegarde. */
+export const readCurrentKeyring = (): Promise<Keyring> => readKeyring(currentUser().uid);
+
+/** Ancienne DEK d'une sauvegarde, extractible pour être réemballée. */
+async function unwrapBackupDek(backup: Keyring, email: string, secret: string): Promise<CryptoKey> {
+	try {
+		return await unwrapDek(backup.recoveryDek, await deriveRecoveryKek(secret), true);
+	} catch {
+		// pas une clé de récupération valable pour cette sauvegarde : on essaie comme mot de passe
+	}
+	try {
+		const { kek } = await deriveKeys(secret, email);
+		return await unwrapDek(backup.wrappedDek, kek, true);
+	} catch {
+		throw new Error('Ni ce mot de passe ni cette clé de récupération n’ouvrent cette sauvegarde.');
+	}
+}
+
+/**
+ * Restauration dans un compte recréé : le compte adopte la DEK de la sauvegarde.
+ * `oldSecret` : mot de passe de l'époque (même email) ou clé de récupération de l'ancien compte.
+ * La copie « clé de récupération » de la sauvegarde est reprise telle quelle : l'ancienne clé redevient la bonne.
+ * Le compte doit être vide (vérifié par l'appelant) : ses fiches éventuelles deviendraient illisibles.
+ */
+export async function adoptBackupKeyring(backup: Keyring, currentPassword: string, oldSecret: string): Promise<CryptoKey> {
+	const user = currentUser();
+	const current = await deriveKeys(currentPassword, user.email);
+	// Vérifié avant toute écriture : un mot de passe mal tapé verrouillerait le compte.
+	const { wrappedDek } = await readKeyring(user.uid);
+	await orFail(unwrapDek(wrappedDek, current.kek), WRONG_PASSWORD);
+
+	const oldDek = await unwrapBackupDek(backup, user.email, oldSecret);
+	const rewrapped = await wrapDek(oldDek, current.kek);
+	const keyring: StoredKeyring = { wrappedDek: toStored(rewrapped), recoveryDek: toStored(backup.recoveryDek) };
+	await setDoc(keyringRef(user.uid), keyring);
+
+	const dek = await unwrapDek(rewrapped, current.kek);
+	setUnlocked(user, dek);
+	return dek;
 }

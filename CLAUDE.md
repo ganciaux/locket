@@ -37,6 +37,8 @@ ni le mot de passe, ni une clé. Décisions et avancement : voir [MEMORY.md](MEM
 - IV aléatoire neuf à chaque chiffrement, y compris en modification.
 - AAD = `"<entryId>/<champ>"` (`data`, `thumb`, `image`) : un chiffré n'est valable qu'à son emplacement.
 - Firestore : uniquement du type `Bytes`, pas de base64 ; aucune donnée en clair hors uid et ids de documents.
+- Sauvegarde : uniquement des documents chiffrés (base64 dans le fichier) ; jamais d'export en clair.
+  Tout id lu depuis un fichier est validé avant de servir de chemin Firestore.
 - Ne jamais utiliser `sendPasswordResetEmail` : sa page hébergée par Firebase recevrait le vrai mot de passe.
   Récupération = connexion par lien email (`/action`) + clé de récupération (voir MEMORY.md).
 
