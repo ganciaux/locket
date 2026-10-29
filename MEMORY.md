@@ -41,6 +41,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 1. [x] Squelette SvelteKit + config Firebase (rules, émulateurs)
 2. [x] Module crypto + tests Vitest
 3. [x] Auth : inscription (clé de récupération affichée une fois), connexion, déverrouillage, changement de mot de passe, récupération
+   — déployé et validé en ligne le 2026-10-29 (PC + Safari iPhone), récupération par lien email comprise
 4. [ ] Fiches : CRUD Firestore (`Bytes`), liste avec miniatures, recherche locale
 5. [ ] Images : redimensionnement canvas, plafond 900 Ko chiffré
 6. [ ] PWA : manifest, service worker, icônes, iOS
