@@ -58,3 +58,5 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 7. [ ] Sécurité : CSP stricte (hashes SvelteKit), revue des logs
 8. [x] Sauvegarde : export / import JSON chiffré, restauration dans un compte recréé — testé contre les émulateurs
 9. [ ] README en français
+
+Après l’étape 9 : voir [AUDIT.md](AUDIT.md) (revue du 2026-10-29).
