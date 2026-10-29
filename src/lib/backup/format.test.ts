@@ -8,6 +8,7 @@ const sample: Backup = {
 	createdAt: '2026-10-29T10:00:00.000Z',
 	includesImages: true,
 	keyring: { wrappedDek: enc(48), recoveryDek: enc(48) },
+	collections: enc(),
 	tags: enc(),
 	entries: [
 		{ id: 'abc123', data: enc(), thumb: enc(500), image: enc(5000) },
@@ -20,8 +21,10 @@ describe('sauvegarde', () => {
 		expect(parseBackup(serializeBackup(sample))).toEqual(sample);
 	});
 
-	it('accepte une sauvegarde sans tags', () => {
-		expect(parseBackup(serializeBackup({ ...sample, tags: null })).tags).toBeNull();
+	it('accepte une sauvegarde sans collections ni tags', () => {
+		const parsed = parseBackup(serializeBackup({ ...sample, collections: null, tags: null }));
+		expect(parsed.collections).toBeNull();
+		expect(parsed.tags).toBeNull();
 	});
 
 	it('refuse un fichier qui n’est pas une sauvegarde', () => {
@@ -29,10 +32,12 @@ describe('sauvegarde', () => {
 		expect(() => parseBackup('{"format":"autre"}')).toThrow(/pas une sauvegarde/);
 	});
 
-	it('refuse une version inconnue', () => {
-		const raw = JSON.parse(serializeBackup(sample));
-		raw.version = 99;
-		expect(() => parseBackup(JSON.stringify(raw))).toThrow(/Version/);
+	it('refuse une version inconnue, y compris la v1 (sans collections)', () => {
+		for (const version of [1, 99]) {
+			const raw = JSON.parse(serializeBackup(sample));
+			raw.version = version;
+			expect(() => parseBackup(JSON.stringify(raw)), String(version)).toThrow(/Version/);
+		}
 	});
 
 	it('refuse un identifiant qui ressemble à un chemin, ou en double', () => {

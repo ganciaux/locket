@@ -8,7 +8,7 @@ import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
 import { auth } from '$lib/firebase';
 import { deleteEntry, listEntries, saveEntry } from '$lib/entries/repository';
-import { tagCatalog } from '$lib/entries/catalog';
+import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
 import { OldKeyRequired, createBackup, restoreBackup } from './backup';
 import { parseBackup } from './format';
 
@@ -25,9 +25,10 @@ describe('sauvegarde (émulateurs)', () => {
 		const email = `b${Date.now()}@example.com`;
 		const oldRecoveryKey = await signUp(email, PASSWORD);
 		let { uid, dek } = current();
-		await tagCatalog.save(uid, dek, [{ id: 'tag-1', name: 'Santé' }]);
-		const kept = await saveEntry(uid, dek, { name: 'Mutuelle', links: [], tagIds: ['tag-1'] });
-		const removed = await saveEntry(uid, dek, { name: 'Banque', links: [], tagIds: [] });
+		await collectionCatalog.save(uid, dek, [{ id: 'col-1', name: 'Papiers' }]);
+		await tagCatalog.save(uid, dek, [{ id: 'tag-1', name: 'Santé', collectionId: 'col-1' }]);
+		const kept = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: ['tag-1'] });
+		const removed = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Banque', links: [], tagIds: [] });
 
 		const backup = parseBackup(await createBackup(true));
 		expect(backup.entries).toHaveLength(2);
@@ -53,7 +54,8 @@ describe('sauvegarde (émulateurs)', () => {
 		({ uid, dek } = current());
 		const restored = await listEntries(uid, dek);
 		expect(restored.find((e) => e.id === kept.id)).toMatchObject({ name: 'Mutuelle', tagIds: ['tag-1'] });
-		expect(await tagCatalog.get(uid, dek)).toEqual([{ id: 'tag-1', name: 'Santé' }]);
+		expect(await collectionCatalog.get(uid, dek)).toEqual([{ id: 'col-1', name: 'Papiers' }]);
+		expect(await tagCatalog.get(uid, dek)).toEqual([{ id: 'tag-1', name: 'Santé', collectionId: 'col-1' }]);
 
 		// L'ancienne clé de récupération est de nouveau la bonne.
 		const { recoveryDek } = await readCurrentKeyring();
@@ -63,13 +65,13 @@ describe('sauvegarde (émulateurs)', () => {
 	it('compte recréé avec un autre email : la clé de récupération suffit ; un compte non vide est refusé', async () => {
 		const oldRecoveryKey = await signUp(`c${Date.now()}@example.com`, PASSWORD);
 		let { uid, dek } = current();
-		await saveEntry(uid, dek, { name: 'Impôts', links: [], tagIds: [] });
+		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Impôts', links: [], tagIds: [] });
 		const backup = parseBackup(await createBackup(false));
 		await signOut(auth);
 
 		await signUp(`d${Date.now()}@example.com`, PASSWORD);
 		({ uid, dek } = current());
-		await saveEntry(uid, dek, { name: 'Déjà là', links: [], tagIds: [] });
+		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Déjà là', links: [], tagIds: [] });
 		await expect(restoreBackup(backup, { currentPassword: PASSWORD, oldSecret: oldRecoveryKey })).rejects.toThrow(
 			/compte vide/
 		);

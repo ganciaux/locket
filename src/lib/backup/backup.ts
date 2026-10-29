@@ -6,10 +6,10 @@
  */
 import { adoptBackupKeyring, readCurrentKeyring } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
-import { decryptJson } from '$lib/crypto/crypto';
+import { type Encrypted, decryptJson } from '$lib/crypto/crypto';
 import { hasEntries, readStoredEntries, writeStoredEntries } from '$lib/entries/repository';
 import { resetEntries } from '$lib/entries/store.svelte';
-import { tagCatalog } from '$lib/entries/catalog';
+import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
 import { type Backup, serializeBackup } from './format';
 
 function unlockedSession() {
@@ -20,19 +20,28 @@ function unlockedSession() {
 
 export async function createBackup(includeImages: boolean): Promise<string> {
 	const { uid } = unlockedSession();
-	const [keyring, tags, entries] = await Promise.all([
+	const [keyring, collections, tags, entries] = await Promise.all([
 		readCurrentKeyring(),
+		collectionCatalog.readStored(uid),
 		tagCatalog.readStored(uid),
 		readStoredEntries(uid, includeImages)
 	]);
-	return serializeBackup({ createdAt: new Date().toISOString(), includesImages: includeImages, keyring, tags, entries });
+	return serializeBackup({
+		createdAt: new Date().toISOString(),
+		includesImages: includeImages,
+		keyring,
+		collections,
+		tags,
+		entries
+	});
 }
 
-/** La sauvegarde se déchiffre-t-elle avec cette DEK ? On essaie sur une fiche (ou le catalogue de tags). */
+/** La sauvegarde se déchiffre-t-elle avec cette DEK ? On essaie sur une fiche, sinon sur un catalogue. */
 async function opensWith(backup: Backup, dek: CryptoKey): Promise<boolean> {
 	const [first] = backup.entries;
 	try {
 		if (first) await decryptJson(dek, first.data, `${first.id}/data`);
+		else if (backup.collections) await collectionCatalog.decrypt(dek, backup.collections);
 		else if (backup.tags) await tagCatalog.decrypt(dek, backup.tags);
 		return true;
 	} catch {
@@ -50,10 +59,29 @@ export class OldKeyRequired extends Error {
 export type OldKey = { currentPassword: string; oldSecret: string };
 export type RestoreResult = { restored: number; adopted: boolean };
 
+type Catalog<T> = {
+	decrypt(dek: CryptoKey, encrypted: Encrypted): Promise<T[]>;
+	get(uid: string, dek: CryptoKey): Promise<T[]>;
+	save(uid: string, dek: CryptoKey, items: T[]): Promise<void>;
+};
+
+async function mergeCatalog<T extends { id: string }>(
+	catalog: Catalog<T>,
+	uid: string,
+	dek: CryptoKey,
+	fromFile: Encrypted | null,
+	replace: boolean
+): Promise<void> {
+	const fromBackup = fromFile ? await catalog.decrypt(dek, fromFile) : [];
+	const current = replace ? [] : await catalog.get(uid, dek);
+	const currentIds = new Set(current.map((item) => item.id));
+	await catalog.save(uid, dek, [...current, ...fromBackup.filter((item) => !currentIds.has(item.id))]);
+}
+
 export async function restoreBackup(backup: Backup, oldKey?: OldKey): Promise<RestoreResult> {
 	const { uid } = unlockedSession();
 	let { dek } = unlockedSession();
-	if (!backup.entries.length && !backup.tags) throw new Error('Cette sauvegarde est vide.');
+	if (!backup.entries.length && !backup.collections && !backup.tags) throw new Error('Cette sauvegarde est vide.');
 
 	let adopted = false;
 	if (!(await opensWith(backup, dek))) {
@@ -67,13 +95,11 @@ export async function restoreBackup(backup: Backup, oldKey?: OldKey): Promise<Re
 		adopted = true;
 	}
 
-	// Compte recréé : son catalogue éventuel (autre clé) serait illisible, il est toujours remplacé.
-	if (backup.tags || adopted) {
-		const fromBackup = backup.tags ? await tagCatalog.decrypt(dek, backup.tags) : [];
-		const current = adopted ? [] : await tagCatalog.get(uid, dek);
-		const currentIds = new Set(current.map((tag) => tag.id));
-		await tagCatalog.save(uid, dek, [...current, ...fromBackup.filter((tag) => !currentIds.has(tag.id))]);
-	}
+	// Catalogues fusionnés par id (ceux du compte d'abord, ordre conservé). Compte recréé : ses catalogues
+	// éventuels (autre clé) seraient illisibles, ils sont toujours remplacés.
+	if (backup.collections || adopted)
+		await mergeCatalog(collectionCatalog, uid, dek, backup.collections, adopted);
+	if (backup.tags || adopted) await mergeCatalog(tagCatalog, uid, dek, backup.tags, adopted);
 	await writeStoredEntries(uid, backup.entries, backup.includesImages);
 	resetEntries();
 	return { restored: backup.entries.length, adopted };

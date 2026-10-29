@@ -6,7 +6,8 @@ import type { Encrypted } from '$lib/crypto/crypto';
 import { fromBase64, toBase64 } from '$lib/crypto/encoding';
 
 export const BACKUP_FORMAT = 'locket-backup';
-export const BACKUP_VERSION = 1;
+/** 2 : collections. Les sauvegardes v1 (sans collections) ne sont plus lues : il n'en existe aucune. */
+export const BACKUP_VERSION = 2;
 
 type EncryptedText = { iv: string; data: string };
 
@@ -18,6 +19,8 @@ export type Backup = {
 	includesImages: boolean;
 	/** Les deux copies emballées de la DEK : permettent la restauration dans un compte recréé. */
 	keyring: { wrappedDek: Encrypted; recoveryDek: Encrypted };
+	/** Catalogues chiffrés (`meta/collections`, `meta/tags`) ; null s'ils n'existent pas encore. */
+	collections: Encrypted | null;
 	tags: Encrypted | null;
 	entries: BackupEntry[];
 };
@@ -31,6 +34,7 @@ export function serializeBackup(backup: Backup): string {
 		createdAt: backup.createdAt,
 		includesImages: backup.includesImages,
 		keyring: { wrappedDek: encode(backup.keyring.wrappedDek), recoveryDek: encode(backup.keyring.recoveryDek) },
+		collections: backup.collections && encode(backup.collections),
 		tags: backup.tags && encode(backup.tags),
 		entries: backup.entries.map((e) => ({
 			id: e.id,
@@ -62,6 +66,7 @@ function decode(value: unknown): Encrypted {
 }
 
 const decodeOptional = (value: unknown): Encrypted | undefined => (value === undefined ? undefined : decode(value));
+const decodeNullable = (value: unknown): Encrypted | null => (value === null || value === undefined ? null : decode(value));
 
 export function parseBackup(text: string): Backup {
 	let raw: unknown;
@@ -89,7 +94,8 @@ export function parseBackup(text: string): Backup {
 		createdAt: raw.createdAt,
 		includesImages: raw.includesImages,
 		keyring: { wrappedDek: decode(raw.keyring.wrappedDek), recoveryDek: decode(raw.keyring.recoveryDek) },
-		tags: raw.tags === null || raw.tags === undefined ? null : decode(raw.tags),
+		collections: decodeNullable(raw.collections),
+		tags: decodeNullable(raw.tags),
 		entries
 	};
 }
