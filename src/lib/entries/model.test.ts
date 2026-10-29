@@ -6,6 +6,7 @@ import {
 	encodeUnderLimit,
 	fitWithin,
 	fitsInDoc,
+	linkTitle,
 	matchesSearch,
 	parseLinkUrl
 } from './model';
@@ -25,6 +26,14 @@ describe('parseLinkUrl', () => {
 	it('refuse le vide et les URL invalides', () => {
 		expect(parseLinkUrl('   ')).toBeNull();
 		expect(parseLinkUrl('https://')).toBeNull();
+	});
+});
+
+describe('linkTitle', () => {
+	it('préfère le libellé, sinon le domaine sans www', () => {
+		expect(linkTitle({ url: 'https://www.example.com/a', label: 'Mon compte' })).toBe('Mon compte');
+		expect(linkTitle({ url: 'https://www.example.com/a/b?c=1' })).toBe('example.com');
+		expect(linkTitle({ url: 'https://app.example.com/' })).toBe('app.example.com');
 	});
 });
 

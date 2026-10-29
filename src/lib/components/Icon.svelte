@@ -4,6 +4,7 @@
 		plus: 'M12 5v14M5 12h14',
 		close: 'M6 6l12 12M18 6 6 18',
 		back: 'M15 18l-6-6 6-6',
+		chevronDown: 'M6 9l6 6 6-6',
 		search: 'M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM20 20l-4-4',
 		lock: 'M7 11V7a5 5 0 0 1 10 0v4M5 11h14v10H5z',
 		settings: 'M4 6h9M17 6h3M15 4v4M4 12h3M11 12h9M9 10v4M4 18h11M19 18h1M17 16v4',

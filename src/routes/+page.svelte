@@ -1,6 +1,8 @@
 <script lang="ts">
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { linkTitle } from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
@@ -37,13 +39,11 @@
 		<p class="text-base-content/60 py-8 text-center">Aucune fiche ne correspond à « {query} ».</p>
 	{/if}
 
-	<ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+	<!-- items-start : une carte dont on ouvre les liens s'allonge sans étirer ses voisines. -->
+	<ul class="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 md:grid-cols-4">
 		{#each results as entry (entry.id)}
-			<li>
-				<a
-					href="/fiche/{entry.id}"
-					class="card bg-base-100 h-full overflow-hidden shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-				>
+			<li class="card bg-base-100 overflow-hidden shadow-sm transition hover:shadow-md">
+				<a href="/fiche/{entry.id}" class="block">
 					<figure class="bg-primary/10 aspect-square">
 						{#if entry.thumbUrl}
 							<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
@@ -53,16 +53,26 @@
 							</span>
 						{/if}
 					</figure>
-					<div class="card-body p-3">
-						<h2 class="truncate text-sm font-semibold">{entry.name}</h2>
-						{#if entry.links.length}
-							<p class="text-base-content/60 flex items-center gap-1 text-xs">
-								<Icon name="link" class="size-3" />
-								{entry.links.length} lien{entry.links.length > 1 ? 's' : ''}
-							</p>
-						{/if}
-					</div>
+					<h2 class="truncate px-3 pt-3 pb-2 text-sm font-semibold">{entry.name}</h2>
 				</a>
+
+				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
+				{#if entry.links.length}
+					<details class="group border-base-200 border-t">
+						<summary
+							class="text-base-content/60 hover:bg-base-200 flex cursor-pointer list-none items-center gap-1 px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"
+						>
+							<Icon name="link" class="size-3" />
+							<span class="flex-1">{entry.links.length} lien{entry.links.length > 1 ? 's' : ''}</span>
+							<Icon name="chevronDown" class="size-4 transition group-open:rotate-180" />
+						</summary>
+						<ul class="flex flex-col gap-1 px-3 pb-3 text-sm">
+							{#each entry.links as link, i (i)}
+								<li class="truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
+							{/each}
+						</ul>
+					</details>
+				{/if}
 			</li>
 		{/each}
 	</ul>

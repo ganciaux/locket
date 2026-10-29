@@ -30,6 +30,16 @@ export function parseLinkUrl(input: string): string | null {
 	}
 }
 
+/** Texte court d'un lien : son libellé, sinon le nom de domaine (sans « www. »). */
+export function linkTitle(link: Link): string {
+	if (link.label) return link.label;
+	try {
+		return new URL(link.url).hostname.replace(/^www\./, '');
+	} catch {
+		return link.url;
+	}
+}
+
 /** Insensible à la casse et aux accents : « ecole » trouve « École ». */
 export const searchKey = (text: string): string =>
 	text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
