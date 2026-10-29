@@ -55,7 +55,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 4. [x] Fiches : CRUD Firestore (`Bytes`), liste avec miniatures, recherche locale — testé contre les émulateurs ; interface à valider à la main
 5. [x] Images : redimensionnement canvas, plafond 900 Ko chiffré — canvas à valider dans le navigateur (PC + iPhone)
 6. [x] PWA : manifest, service worker (app seulement, jamais de données), mise à jour proposée par un bandeau (pas de rechargement auto : il verrouillerait l'app), logo (coffre) de l’utilisateur partout, fixé au déploiement ; son illustration du livre en fond d’écran fondu (`background.jpg`) ; nom affiché « Stash » (ex-Locket, puis Wanted Archive)
-7. [ ] Sécurité : CSP stricte (hashes SvelteKit), revue des logs
+7. [x] Sécurité : CSP stricte (`kit.csp` en hash + en-têtes `firebase.json`), code émulateurs hors prod, verrouillage auto
 8. [x] Sauvegarde : export / import JSON chiffré, restauration dans un compte recréé — testé contre les émulateurs
 9. [ ] README en français
 

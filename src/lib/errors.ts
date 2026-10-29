@@ -5,6 +5,8 @@ const MESSAGES: Record<string, string> = {
 	'auth/wrong-password': 'Email ou mot de passe incorrect.',
 	'auth/user-not-found': 'Email ou mot de passe incorrect.',
 	'auth/email-already-in-use': 'Un compte existe déjà avec cet email.',
+	// Création de comptes désactivée dans la console Firebase (app personnelle).
+	'auth/admin-restricted-operation': 'Les inscriptions sont fermées.',
 	'auth/invalid-email': 'Adresse email invalide.',
 	'auth/too-many-requests': 'Trop de tentatives. Réessayez dans quelques minutes.',
 	'auth/network-request-failed': 'Connexion réseau impossible.',

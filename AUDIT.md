@@ -5,17 +5,15 @@ vont dans [MEMORY.md](MEMORY.md).
 
 ## 1. Sécurité (avant un usage sérieux)
 
-- [ ] **Fermer les inscriptions** si l'app est personnelle : n'importe qui peut créer un compte et consommer
-      le quota Firestore Spark (1 Go), sans voir nos données. Simple : règles limitées à notre uid ;
-      plus propre : désactiver la création de comptes dans la console. *Simple.* Question ouverte : app pour moi seul ?
-- [ ] **CSP stricte** dans `firebase.json` (étape 7) : hashes des scripts inline (SvelteKit + thème de `app.html`),
-      `img-src 'self' blob:`, domaines Firebase. Principale barrière restante contre un script qui lirait la DEK. *Intermédiaire.*
-- [ ] **Retirer le code des émulateurs du build de prod** (`emulatorRecoveryLink`, `connect*Emulator`) :
-      inactif mais présent dans le bundle. *Simple.*
-- [ ] **Verrouillage automatique après inactivité** (ex. 5 min, réglable dans Paramètres) : la DEK reste en mémoire
-      tant que l'onglet est ouvert. *Simple.*
-- [ ] **Console Firebase** : protection contre l'énumération d'emails, liste des domaines autorisés. *Simple.*
-- [ ] **TLS du poste Windows** : retirer `NODE_TLS_REJECT_UNAUTHORIZED=0` et `strict-ssl=false`,
+- [ ] **Fermer les inscriptions** : app personnelle (décidé le 2026-10-29). Sinon n'importe qui peut créer un compte
+      et consommer le quota Firestore Spark (1 Go), sans voir nos données. Action console, voir plus bas. *Simple.*
+- [x] **CSP stricte** (étape 7) : `kit.csp` en `<meta>` (hash du script de démarrage recalculé à chaque build),
+      thème dans `static/theme.js`, `initializeAuth` sans module popup/redirection (pas d'iframe ni de script Google) ;
+      `frame-ancestors`, `nosniff`, `no-referrer`, HSTS en en-têtes `firebase.json`.
+- [x] **Code des émulateurs retiré du build de prod** (`import.meta.env.DEV`).
+- [x] **Verrouillage automatique après inactivité** : réglable dans Paramètres, 5 min par défaut.
+- [ ] **Console Firebase** : protection contre l'énumération d'emails, domaines autorisés (voir plus bas). *Simple.*
+- [ ] **TLS du poste Windows** (reporté) : retirer `NODE_TLS_REJECT_UNAUTHORIZED=0` et `strict-ssl=false`,
       passer par `NODE_OPTIONS=--use-system-ca` (voir `CLAUDE.local.md`). *Simple.*
 
 ## 2. Confort
@@ -36,3 +34,11 @@ vont dans [MEMORY.md](MEMORY.md).
 - Cache hors ligne des fiches : chiffré sur l'appareil + synchronisation, beaucoup de complexité pour peu de gain.
 - Changement d'email : l'email sert de sel à la dérivation, il faudrait refaire tout le trousseau.
 - Partage depuis Safari vers l'app : iOS ne le permet pas aux PWA.
+
+## Actions console Firebase (à faire à la main)
+
+- [ ] Authentication > Paramètres > Actions des utilisateurs : décocher « Activer la création (inscription) ».
+      Pour restaurer une sauvegarde dans un compte recréé, la réactiver le temps de l'inscription.
+- [ ] Authentication > Paramètres > Protection contre l'énumération des adresses e-mail : activer.
+- [ ] Authentication > Paramètres > Domaines autorisés : garder `locket-403b5.web.app` et `locket-403b5.firebaseapp.com`,
+      retirer `localhost` (le dev passe par les émulateurs).
