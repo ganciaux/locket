@@ -4,7 +4,7 @@
  */
 import { session } from '$lib/auth/session.svelte';
 import { bytesToUrl } from './images';
-import { NO_TAG_FILTER, type Tag, type TagFilter, byName, matchesFilter, parseTagName } from './model';
+import { NO_TAG_FILTER, type SortOrder, type Tag, type TagFilter, byName, matchesFilter, parseTagName, sortBy } from './model';
 import { listEntries, type EntrySummary } from './repository';
 import { getTags, saveTags } from './tags';
 
@@ -44,8 +44,10 @@ export const entries = {
 	get tags() {
 		return tags;
 	},
-	search(query: string, filter: TagFilter = NO_TAG_FILTER): ListItem[] {
-		return (items ?? []).filter((item) => matchesFilter(item, query, filter, tagNames));
+	/** `items` reste trié par nom ; un autre ordre est appliqué à la copie filtrée. */
+	search(query: string, filter: TagFilter = NO_TAG_FILTER, order: SortOrder = 'name'): ListItem[] {
+		const found = (items ?? []).filter((item) => matchesFilter(item, query, filter, tagNames));
+		return order === 'name' ? found : found.sort(sortBy(order));
 	},
 	find(id: string): ListItem | undefined {
 		return items?.find((item) => item.id === id);

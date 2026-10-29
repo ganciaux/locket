@@ -93,6 +93,18 @@ export function parseTagName(input: string, existing: Tag[]): string {
 export const byName = (a: { name: string }, b: { name: string }): number =>
 	a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
 
+export type SortOrder = 'name' | 'created' | 'updated';
+type Sortable = { name: string; createdAt: number; updatedAt: number };
+
+/** Par nom (A→Z), ou du plus récent au plus ancien ; à date égale, par nom. */
+export const sortBy =
+	(order: SortOrder) =>
+	(a: Sortable, b: Sortable): number => {
+		if (order === 'created') return b.createdAt - a.createdAt || byName(a, b);
+		if (order === 'updated') return b.updatedAt - a.updatedAt || byName(a, b);
+		return byName(a, b);
+	};
+
 // ---------------------------------------------------------------------------
 // Import d'une liste de noms
 

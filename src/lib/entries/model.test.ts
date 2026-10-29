@@ -14,7 +14,8 @@ import {
 	matchesSearch,
 	parseLinkUrl,
 	parseNameList,
-	parseTagName
+	parseTagName,
+	sortBy
 } from './model';
 
 describe('parseLinkUrl', () => {
@@ -119,6 +120,18 @@ describe('recherche et tri', () => {
 	it('trie par nom à la française', () => {
 		const names = ['zèbre', 'Éléphant', 'avion'].map((name) => ({ name })).sort(byName);
 		expect(names.map((n) => n.name)).toEqual(['avion', 'Éléphant', 'zèbre']);
+	});
+
+	it('trie par création ou modification, du plus récent au plus ancien, puis par nom', () => {
+		const list = [
+			{ name: 'b', createdAt: 1, updatedAt: 5 },
+			{ name: 'a', createdAt: 1, updatedAt: 2 },
+			{ name: 'c', createdAt: 3, updatedAt: 1 }
+		];
+		const order = (o: 'name' | 'created' | 'updated') => [...list].sort(sortBy(o)).map((e) => e.name);
+		expect(order('name')).toEqual(['a', 'b', 'c']);
+		expect(order('created')).toEqual(['c', 'a', 'b']);
+		expect(order('updated')).toEqual(['b', 'a', 'c']);
 	});
 });
 
