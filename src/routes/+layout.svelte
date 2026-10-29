@@ -34,10 +34,7 @@
 {#snippet authShell(content: Snippet)}
 	<div class="bg-base-200 grid min-h-dvh place-items-center p-4">
 		<div class="w-full max-w-sm">
-			<div class="mb-4 flex flex-col items-center gap-2 text-2xl font-bold">
-				<img src="/logo-256.png" alt="" class="size-24 drop-shadow-md" />
-				<span>Wanted Archive</span>
-			</div>
+			<img src="/logo-256.png" alt="Wanted Archive" title="Wanted Archive" class="mx-auto mb-4 size-24 drop-shadow-md" />
 			<div class="card bg-base-100 shadow-xl">
 				<div class="card-body gap-4">{@render content()}</div>
 			</div>

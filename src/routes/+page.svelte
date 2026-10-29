@@ -38,8 +38,10 @@
 </script>
 
 <div class="mb-4 flex items-center gap-2">
-	<h1 class="text-2xl font-bold">Mes fiches</h1>
-	{#if entries.items?.length}<span class="badge badge-ghost">{entries.items.length}</span>{/if}
+	<h1 class="flex items-center gap-2 text-2xl leading-none font-bold">
+		Mes fiches
+		{#if entries.items?.length}<span class="badge badge-neutral badge-sm">{entries.items.length}</span>{/if}
+	</h1>
 	<a class="btn btn-ghost btn-sm ml-auto" href="/fiche/import"><Icon name="import" class="size-4" /> Importer</a>
 </div>
 
@@ -114,7 +116,7 @@
 				{#snippet before()}
 					<button
 						type="button"
-						class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-neutral' : 'badge-outline badge-neutral'}"
+						class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-primary' : 'badge-outline border-dashed'}"
 						aria-pressed={tagFilter.untagged}
 						onclick={toggleUntagged}
 					>
