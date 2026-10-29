@@ -38,7 +38,8 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - Le vrai mot de passe ne quitte jamais le navigateur : Firebase Auth reçoit le jeton dérivé (`deriveKeys().authToken`).
 - La DEK vit en mémoire uniquement, non extractible (sauf dans `rewrapDek`, le temps de réemballer).
 - IV aléatoire neuf à chaque chiffrement, y compris en modification.
-- AAD = `"<entryId>/<champ>"` (`data`, `thumb`, `image`) : un chiffré n'est valable qu'à son emplacement.
+- AAD = `"<entryId>/<champ>"` (`data`, `thumb`, `image`), `meta/tags` ou `meta/collections` pour les catalogues :
+  un chiffré n'est valable qu'à son emplacement.
 - Firestore : uniquement du type `Bytes`, pas de base64 ; aucune donnée en clair hors uid et ids de documents.
 - Sauvegarde : uniquement des documents chiffrés (base64 dans le fichier) ; jamais d'export en clair.
   Tout id lu depuis un fichier est validé avant de servir de chemin Firestore.

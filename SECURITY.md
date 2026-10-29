@@ -24,6 +24,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 |---|---|---|
 | Contenu des fiches (nom, liens, dates, tags associés) | Firestore `users/{uid}/entries/{id}.data` | AES-GCM-256 avec la DEK |
 | Images et miniatures | `users/{uid}/images/{id}.image`, `entries/{id}.thumb` | AES-GCM-256 avec la DEK |
+| Noms et ordre des collections | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
 | Noms des tags | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |
 | DEK (clé de données) | Firestore, sous forme emballée (2 copies) ; en clair seulement en mémoire, non extractible | Emballée par la KEK (mot de passe) et par la clé de récupération |
 | Mot de passe | Jamais stocké ni transmis | Seul un jeton dérivé est envoyé à Firebase Auth |
@@ -43,7 +44,7 @@ maître ──HKDF "locket/kek"──► KEK (emballe la DEK)
 maître ──HKDF "locket/auth"──► jeton envoyé à Firebase Auth comme « mot de passe »
 clé de récupération (256 bits aléatoires) ──HKDF "locket/recovery"──► KEK de récupération (2e emballage)
 DEK aléatoire AES-GCM-256 ──► chiffre chaque champ, IV aléatoire de 12 octets à chaque écriture,
-                              AAD = "<id>/<champ>" (data, thumb, image) ou "meta/tags"
+                              AAD = "<id>/<champ>" (data, thumb, image), "meta/tags" ou "meta/collections"
 ```
 
 ## 4. Attaquants et ce qu'ils obtiennent

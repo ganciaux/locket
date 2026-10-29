@@ -1,6 +1,6 @@
 # Stash
 
-PWA personnelle de fiches (nom, liens, image, tags) **chiffrées de bout en bout**. Tout est chiffré dans le
+PWA personnelle de fiches (nom, liens, image, tags), rangées en collections, **chiffrées de bout en bout**. Tout est chiffré dans le
 navigateur avant d'arriver dans Firebase. Firebase ne voit jamais de donnée en clair, ni le mot de passe, ni une clé.
 
 - Code : SvelteKit 2 (SPA statique), Svelte 5, TypeScript, Tailwind CSS 4 + daisyUI 5.
