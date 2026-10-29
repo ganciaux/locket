@@ -5,12 +5,20 @@
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { formAction } from '$lib/form.svelte';
-	import { prefs, type Theme } from '$lib/prefs.svelte';
+	import { type AutoLock, prefs, type Theme } from '$lib/prefs.svelte';
 
 	const THEMES: { value: Theme; label: string }[] = [
 		{ value: 'auto', label: 'Auto' },
 		{ value: 'light', label: 'Clair' },
 		{ value: 'dark', label: 'Sombre' }
+	];
+
+	const AUTO_LOCKS: { value: AutoLock; label: string }[] = [
+		{ value: 1, label: '1 min' },
+		{ value: 5, label: '5 min' },
+		{ value: 15, label: '15 min' },
+		{ value: 30, label: '30 min' },
+		{ value: 0, label: 'Jamais' }
 	];
 
 	let currentPassword = $state('');
@@ -59,6 +67,25 @@
 				</span>
 				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.linksInNewTab} />
 			</label>
+
+			<div class="flex flex-col gap-2">
+				<span class="flex flex-col">
+					<span class="text-sm font-medium">Verrouillage automatique</span>
+					<span class="text-base-content/60 text-xs">Après ce délai sans utilisation, le mot de passe est redemandé.</span>
+				</span>
+				<div class="join" role="radiogroup" aria-label="Verrouillage automatique">
+					{#each AUTO_LOCKS as option (option.value)}
+						<input
+							class="join-item btn btn-sm"
+							type="radio"
+							name="auto-lock"
+							value={option.value}
+							aria-label={option.label}
+							bind:group={prefs.autoLockMinutes}
+						/>
+					{/each}
+				</div>
+			</div>
 		</div>
 	</section>
 

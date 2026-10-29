@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { lock, session } from '$lib/auth/session.svelte';
+	import AutoLock from '$lib/components/AutoLock.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Unlock from '$lib/components/Unlock.svelte';
 	import UpdateBanner from '$lib/components/UpdateBanner.svelte';
@@ -50,6 +51,7 @@
 {:else if !session.dek}
 	{@render authShell(unlockScreen)}
 {:else}
+	<AutoLock />
 	<div class="min-h-dvh">
 		<header class="navbar bg-base-100 sticky top-0 z-10 pt-[calc(0.5rem+env(safe-area-inset-top))] shadow-sm">
 			<div class="flex-1">
