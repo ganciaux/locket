@@ -21,9 +21,13 @@
 	let password = $state('');
 	let confirmation = $state('');
 	let recoveryKey = $state('');
+	// Le changement de mot de passe exige une connexion récente : on se connecte toujours par le lien,
+	// même si une session (ancienne) existe déjà dans ce navigateur.
+	let signedInByLink = $state(false);
 
 	const linkForm = formAction(async () => {
 		await signInWithRecoveryLink(email, link);
+		signedInByLink = true;
 		// Lien consommé : inutile de le garder dans l'historique.
 		replaceState('/action', {});
 	});
@@ -39,7 +43,7 @@
 
 {#if !session.ready}
 	<p>Chargement…</p>
-{:else if session.user}
+{:else if signedInByLink && session.user}
 	<p>Compte : <strong>{session.user.email}</strong></p>
 	<form onsubmit={recoveryForm.submit}>
 		<input type="email" autocomplete="username" value={session.user.email} hidden readonly />

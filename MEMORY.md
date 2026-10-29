@@ -22,7 +22,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Mot de passe | 12 caractères minimum | Seul rempart contre une attaque hors ligne sur `wrappedDek` |
 | Session (code) | DEK rattachée à l'uid (`session.svelte.ts`) | Pas de course avec `onAuthStateChanged` lors d'un changement d'utilisateur |
 | Changement de mot de passe | Réauthentification → Firestore → `updatePassword` ; si ce dernier échoue, l'ancienne `wrappedDek` est remise | Garder Auth et trousseau cohérents ; la clé de récupération reste le filet de sécurité |
-| Récupération (code) | 2 étapes sur `/action` : connexion par le lien (email redemandé s'il est ouvert dans un autre navigateur), puis clé + nouveau mot de passe. Clé fausse → rien n'est modifié, on réessaie sans nouveau lien. Lien pour un email sans compte → le compte créé par Firebase est supprimé | Le lien est à usage unique ; sur iPhone il s'ouvre dans Safari, pas dans la PWA |
+| Récupération (code) | 2 étapes sur `/action` : connexion par le lien **toujours**, même si une session existe déjà (`updatePassword` exige une connexion récente, quelques minutes ; bug constaté en ligne le 2026-10-29), email redemandé s'il est ouvert dans un autre navigateur ; puis clé + nouveau mot de passe. Clé fausse → rien n'est modifié, on réessaie sans nouveau lien. Lien pour un email sans compte → le compte créé par Firebase est supprimé | Le lien est à usage unique ; sur iPhone il s'ouvre dans Safari, pas dans la PWA |
 | Inscription ratée | Si l'écriture du trousseau échoue, le compte Auth est supprimé | Un compte sans trousseau est inutilisable |
 
 ## À vérifier avant la mise en production

@@ -18,6 +18,7 @@ import {
 	type User
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { FirebaseError } from 'firebase/app';
 import {
 	type Encrypted,
 	deriveKeys,
@@ -205,6 +206,13 @@ export async function recoverWithKey(recoveryKey: string, newPassword: string): 
 	const next = await deriveKeys(newPassword, user.email);
 	const { wrappedDek, recoveryDek } = await readKeyring(user.uid);
 	const rewrapped = await orFail(rewrapDek(recoveryDek, recoveryKek, next.kek), WRONG_RECOVERY_KEY);
-	await replacePassword(user, wrappedDek, rewrapped, next.authToken);
+	try {
+		await replacePassword(user, wrappedDek, rewrapped, next.authToken);
+	} catch (error) {
+		// La connexion par le lien n'est « récente » que quelques minutes.
+		if (error instanceof FirebaseError && error.code === 'auth/requires-recent-login')
+			throw new Error('Le lien a expiré. Demandez-en un nouveau depuis « Mot de passe oublié ».');
+		throw error;
+	}
 	setUnlocked(user, await unwrapDek(rewrapped, next.kek));
 }
