@@ -14,6 +14,7 @@
 		external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
 		image: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 8.5a1 1 0 1 0 0 .01',
 		copy: 'M8 8h12v12H8zM4 16V4h12',
+		import: 'M12 4v11M7 10l5 5 5-5M4 20h16',
 		check: 'M5 12l5 5 9-10'
 	} as const;
 

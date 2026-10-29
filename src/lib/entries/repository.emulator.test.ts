@@ -7,7 +7,7 @@ import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Bytes, doc, getDoc } from 'firebase/firestore';
 import { generateDek, randomBytes } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
-import { deleteEntry, getImage, listEntries, saveEntry } from './repository';
+import { createEntries, deleteEntry, getImage, listEntries, saveEntry } from './repository';
 
 let uid: string;
 let dek: CryptoKey;
@@ -53,6 +53,16 @@ describe('fiches (émulateurs)', () => {
 		await deleteEntry(uid, created.id);
 		expect(await listEntries(uid, dek)).toEqual([]);
 	});
+
+	it('importe une liste de noms en plusieurs lots', async () => {
+		const names = Array.from({ length: 450 }, (_, i) => `Fiche ${i}`);
+		const created = await createEntries(uid, dek, names);
+		expect(created).toHaveLength(450);
+		const listed = await listEntries(uid, dek);
+		expect(listed.map((e) => e.name).sort()).toEqual([...names].sort());
+		expect(listed.every((e) => e.links.length === 0 && !e.imageType)).toBe(true);
+		await Promise.all(created.map((e) => deleteEntry(uid, e.id)));
+	}, 30_000);
 
 	it('refuse un chiffré déplacé dans une autre fiche (AAD)', async () => {
 		const a = await saveEntry(uid, dek, { name: 'A', links: [], image });

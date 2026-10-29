@@ -14,9 +14,10 @@
 	const results = $derived(entries.search(query));
 </script>
 
-<div class="mb-4 flex items-baseline gap-2">
+<div class="mb-4 flex items-center gap-2">
 	<h1 class="text-2xl font-bold">Mes fiches</h1>
 	{#if entries.items?.length}<span class="badge badge-ghost">{entries.items.length}</span>{/if}
+	<a class="btn btn-ghost btn-sm ml-auto" href="/fiche/import"><Icon name="import" class="size-4" /> Importer</a>
 </div>
 
 <ErrorAlert message={error} />

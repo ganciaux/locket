@@ -59,11 +59,14 @@ export function loadEntries(): Promise<void> {
 	return loading;
 }
 
-export function upsertEntry(entry: EntrySummary): void {
+export function upsertEntries(changed: EntrySummary[]): void {
 	if (!items) return; // la liste sera chargée en entier plus tard
-	revoke(items.find((item) => item.id === entry.id));
-	items = [...items.filter((item) => item.id !== entry.id), withThumbUrl(entry)].sort(byName);
+	const ids = new Set(changed.map((entry) => entry.id));
+	items.filter((item) => ids.has(item.id)).forEach(revoke);
+	items = [...items.filter((item) => !ids.has(item.id)), ...changed.map(withThumbUrl)].sort(byName);
 }
+
+export const upsertEntry = (entry: EntrySummary): void => upsertEntries([entry]);
 
 export function removeEntry(id: string): void {
 	if (!items) return;

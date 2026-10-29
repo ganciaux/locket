@@ -93,6 +93,26 @@ export async function saveEntry(
 	return { ...data, id, thumb };
 }
 
+/** Un lot Firestore accepte 500 écritures ; on reste en dessous. */
+const IMPORT_BATCH_SIZE = 400;
+
+/** Crée des fiches sans lien ni image (import d'une liste de noms), par lots. */
+export async function createEntries(uid: string, dek: CryptoKey, names: string[]): Promise<EntrySummary[]> {
+	const created: EntrySummary[] = [];
+	for (let start = 0; start < names.length; start += IMPORT_BATCH_SIZE) {
+		const batch = writeBatch(db);
+		for (const name of names.slice(start, start + IMPORT_BATCH_SIZE)) {
+			const id = doc(entriesRef(uid)).id;
+			const now = Date.now();
+			const data: EntryData = { name, links: [], createdAt: now, updatedAt: now };
+			batch.set(entryRef(uid, id), { data: toStored(await encryptJson(dek, data, `${id}/data`)) } satisfies StoredEntry);
+			created.push({ ...data, id });
+		}
+		await batch.commit();
+	}
+	return created;
+}
+
 export async function deleteEntry(uid: string, id: string): Promise<void> {
 	const batch = writeBatch(db);
 	batch.delete(entryRef(uid, id));

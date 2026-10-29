@@ -31,6 +31,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Liste | Chargée et déchiffrée une fois par déverrouillage, cache mémoire vidé au verrouillage ; tri par nom ; recherche sans casse ni accents | Pas de rechargement de toutes les miniatures à chaque navigation |
 | Préférences | Thème (auto/clair/sombre) et ouverture des liens (nouvel onglet par défaut) en `localStorage`, par appareil | Le bon réglage diffère entre PC et iPhone (PWA) ; rien de sensible |
 | Interface | Tailwind CSS 4 + daisyUI 5 (thèmes `light`/`dark`, accent indigo), icônes SVG inline (`Icon.svelte`), composants `Field` et `ErrorAlert` | Rendu soigné sans JS tiers ni CDN : pur CSS généré au build, compatible CSP stricte. Pico jugé trop générique, Material trop lourd et peu adapté à iOS |
+| Import de noms | `/fiche/import` : un nom par ligne (texte collé ou `.txt`), doublons ignorés (existants ou répétés, sans casse ni accents), lots de 400 écritures | Création rapide de fiches à compléter ensuite. Distinct de la sauvegarde/restauration (étape 8) |
 
 ## À vérifier avant la mise en production
 

@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
 	ENCODE_ATTEMPTS,
 	MAX_DOC_BYTES,
+	MAX_NAME_LENGTH,
 	byName,
 	encodeUnderLimit,
 	fitWithin,
 	fitsInDoc,
 	linkTitle,
 	matchesSearch,
-	parseLinkUrl
+	parseLinkUrl,
+	parseNameList
 } from './model';
 
 describe('parseLinkUrl', () => {
@@ -34,6 +36,26 @@ describe('linkTitle', () => {
 		expect(linkTitle({ url: 'https://www.example.com/a', label: 'Mon compte' })).toBe('Mon compte');
 		expect(linkTitle({ url: 'https://www.example.com/a/b?c=1' })).toBe('example.com');
 		expect(linkTitle({ url: 'https://app.example.com/' })).toBe('app.example.com');
+	});
+});
+
+describe('parseNameList', () => {
+	it('un nom par ligne, espaces nettoyés, lignes vides ignorées', () => {
+		expect(parseNameList('  Banque \r\n\n Impôts   en  ligne\n', [])).toEqual({
+			names: ['Banque', 'Impôts en ligne'],
+			duplicates: 0
+		});
+	});
+
+	it('ignore les doublons, existants ou dans la liste, sans casse ni accents', () => {
+		expect(parseNameList('École\necole\nBANQUE\nMutuelle', ['Banque'])).toEqual({
+			names: ['École', 'Mutuelle'],
+			duplicates: 2
+		});
+	});
+
+	it('tronque les noms trop longs', () => {
+		expect(parseNameList('x'.repeat(MAX_NAME_LENGTH + 50), []).names[0]).toHaveLength(MAX_NAME_LENGTH);
 	});
 });
 

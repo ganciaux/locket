@@ -6,7 +6,7 @@
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { prepareImage } from '$lib/entries/images';
-	import { type Link, parseLinkUrl } from '$lib/entries/model';
+	import { type Link, MAX_NAME_LENGTH, parseLinkUrl } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
 	import { type ListItem, upsertEntry } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
@@ -66,7 +66,7 @@
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-4">
 			<Field label="Nom">
-				<input class="input input-lg w-full" bind:value={name} maxlength="200" required />
+				<input class="input input-lg w-full" bind:value={name} maxlength={MAX_NAME_LENGTH} required />
 			</Field>
 		</div>
 	</section>

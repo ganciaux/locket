@@ -51,6 +51,33 @@ export const byName = (a: { name: string }, b: { name: string }): number =>
 	a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
 
 // ---------------------------------------------------------------------------
+// Import d'une liste de noms
+
+export const MAX_NAME_LENGTH = 200;
+
+/**
+ * Un nom par ligne. Ignore les lignes vides et les doublons (casse et accents ignorés),
+ * qu'ils soient déjà dans les fiches existantes ou répétés dans la liste.
+ */
+export function parseNameList(text: string, existingNames: string[]): { names: string[]; duplicates: number } {
+	const seen = new Set(existingNames.map(searchKey));
+	const names: string[] = [];
+	let duplicates = 0;
+	for (const line of text.split(/\r?\n/)) {
+		const name = line.trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH);
+		if (!name) continue;
+		const key = searchKey(name);
+		if (seen.has(key)) {
+			duplicates++;
+			continue;
+		}
+		seen.add(key);
+		names.push(name);
+	}
+	return { names, duplicates };
+}
+
+// ---------------------------------------------------------------------------
 // Taille : un document Firestore est limité à 1 Mio ; on vise 900 Ko chiffré.
 
 export const MAX_DOC_BYTES = 900 * 1024;
