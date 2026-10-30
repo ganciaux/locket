@@ -26,6 +26,8 @@
 	let siteTerms = $state<Record<string, string>>({ ...entry?.siteTerms });
 	// svelte-ignore state_referenced_locally
 	let hiddenSites = $state([...(entry?.hiddenSites ?? [])]);
+	// svelte-ignore state_referenced_locally
+	let hidden = $state(!!entry?.hidden);
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
 	let chosenCollectionId = $state(entry?.collectionId ?? '');
@@ -109,6 +111,7 @@
 				tagIds: knownTagIds,
 				siteTerms: knownSiteTerms(),
 				hiddenSites: hiddenSites.filter((id) => collectionSites.some((site) => site.id === id)),
+				hidden,
 				image
 			},
 			entry
@@ -133,6 +136,13 @@
 					</select>
 				</Field>
 			{/if}
+			<label class="flex cursor-pointer items-start justify-between gap-4">
+				<span class="flex flex-col">
+					<span class="text-sm font-medium">Cacher cette fiche</span>
+					<span class="text-base-content/60 text-xs">Elle n'apparaît dans la liste qu'avec le bouton « Cachées ».</span>
+				</span>
+				<input type="checkbox" class="toggle toggle-primary" bind:checked={hidden} />
+			</label>
 		</div>
 	</section>
 

@@ -30,9 +30,28 @@ async function decryptSummary(dek: CryptoKey, id: string, stored: StoredEntry): 
 	return { ...data, id, thumb };
 }
 
-export async function listEntries(uid: string, dek: CryptoKey): Promise<EntrySummary[]> {
+/**
+ * Une fiche illisible (altérée) n'empêche pas de lire les autres : `onUnreadable` reçoit son id.
+ * Sans `onUnreadable`, l'erreur est levée.
+ */
+export async function listEntries(
+	uid: string,
+	dek: CryptoKey,
+	onUnreadable?: (id: string) => void
+): Promise<EntrySummary[]> {
 	const snapshot = await getDocs(entriesRef(uid));
-	return Promise.all(snapshot.docs.map((d) => decryptSummary(dek, d.id, d.data() as StoredEntry)));
+	const results = await Promise.all(
+		snapshot.docs.map(async (d) => {
+			try {
+				return await decryptSummary(dek, d.id, d.data() as StoredEntry);
+			} catch (e) {
+				if (!onUnreadable) throw e;
+				onUnreadable(d.id);
+				return null;
+			}
+		})
+	);
+	return results.filter((entry) => entry !== null);
 }
 
 export async function getEntry(uid: string, dek: CryptoKey, id: string): Promise<EntrySummary | null> {
@@ -53,6 +72,7 @@ export type EntryInput = {
 	tagIds: string[];
 	siteTerms?: Record<string, string>;
 	hiddenSites?: string[];
+	hidden?: boolean;
 	/** undefined : image inchangée ; null : supprimée ; sinon : remplacée. */
 	image?: PreparedImage | null;
 };
@@ -80,7 +100,8 @@ export async function saveEntry(
 		...(imageType && { imageType }),
 		...(input.tagIds.length && { tagIds: input.tagIds }),
 		...(input.siteTerms && Object.keys(input.siteTerms).length && { siteTerms: input.siteTerms }),
-		...(input.hiddenSites?.length && { hiddenSites: input.hiddenSites })
+		...(input.hiddenSites?.length && { hiddenSites: input.hiddenSites }),
+		...(input.hidden && { hidden: true })
 	};
 
 	const batch = writeBatch(db);

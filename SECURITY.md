@@ -82,6 +82,10 @@ sauvegarde v3 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs,
 - **Liens de sites** : au clic, le nom de la fiche (ou son terme propre) part en clair vers le site, comme tout lien
   ouvert. Rien n'est appelé à l'affichage. Le terme est encodé et le domaine du modèle est fixe : une fiche ne peut pas
   rediriger vers un autre site.
+- **Fiches cachées** : un simple filtre d'affichage, propre à chaque appareil. Quiconque a la session ouverte clique sur
+  « Cachées ». Le drapeau est chiffré avec la fiche.
+- **Fiches illisibles** : la liste les signale et l'export les écarte en le disant. Une altération côté Firebase se voit
+  donc, mais la fiche d'origine n'est récupérable que depuis une sauvegarde saine.
 - **Suppression totale** : le mot de passe et le mot à taper sont contrôlés par l'app, pas par les règles Firestore. Ils
   protègent d'une fausse manœuvre ou d'un PC laissé ouvert, pas d'un client modifié disposant d'une session Firebase.
   Irréversible sans sauvegarde : le plan Spark n'en garde aucune.
@@ -99,12 +103,14 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
 
 ### Niveau 2 : outils automatiques (gratuit)
 - [x] `npm audit` : voir le journal (§ 7).
-- [ ] Dependabot (ou `npm audit` régulier) : alertes sur les dépendances.
-- [ ] [Mozilla Observatory](https://developer.mozilla.org/en-US/observatory) et
-      [securityheaders.com](https://securityheaders.com) sur https://locket-403b5.web.app.
+- [x] Dependabot : `.github/dependabot.yml`, mises à jour npm proposées chaque semaine.
+- [x] [Mozilla Observatory](https://developer.mozilla.org/en-US/observatory) et
+      [securityheaders.com](https://securityheaders.com) sur https://locket-403b5.web.app : voir le journal (§ 7).
 - [ ] OWASP ZAP, scan « baseline » (passif) du site en ligne.
-- [ ] Tests exhaustifs des règles Firestore avec `@firebase/rules-unit-testing`.
-- [ ] `/security-review` (Claude Code) avant chaque changement de crypto ou d'auth. Utile, mais pas indépendant.
+- [x] Tests des règles Firestore contre les émulateurs : autre compte et sans compte, lecture, liste, écriture et
+      suppression sur chaque emplacement (`repository.emulator.test.ts`).
+- [ ] `/security-review` ou l'agent `security-reviewer` (`.claude/agents/`) avant chaque changement de crypto ou d'auth.
+      Utile, mais pas indépendant.
 
 ### Niveau 3 : relecture humaine
 - [ ] **Relecture par un pair** compétent en crypto appliquée, sur `src/lib/crypto/` et `src/lib/auth/account.ts`.
@@ -126,5 +132,6 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
 | Date | Vérification | Résultat |
 |---|---|---|
 | 2026-10-29 | `npm audit` | 4 « high », toutes via `@grpc/grpc-js` (GHSA-m9gg-hp2v-232j, GHSA-f596-whhp-79r4), dépendance du SDK Firestore **côté Node** uniquement. Le navigateur passe par WebChannel/HTTPS et n'embarque pas gRPC. Failles côté serveur gRPC ou vérification de certificat Node : **non applicables** à l'app en ligne. `npm audit fix --force` ferait revenir `firebase` à la 9.14 : **ne pas l'appliquer**, attendre une mise à jour du SDK. |
+| 2026-10-30 | Mozilla Observatory, securityheaders.com | **A+** aux deux : Observatory 125/100, 12 tests sur 12, CSP `<meta>` reconnue (`default-src 'none'`, pas de `unsafe`). Restent en option : `Cross-Origin-Opener-Policy` (ajout conseillé, sans risque ici), COEP et CORP (non nécessaires, COEP pourrait gêner Firestore). SRI sans objet : tous les scripts viennent du site. |
 | 2026-10-30 | Fichier de sauvegarde altéré à la main | Bug trouvé : seule la 1re fiche était vérifiée, le reste écrasait des fiches saines, et l'erreur vide de Web Crypto sous Chrome laissait le loader tourner. Corrigé : tout le fichier est déchiffré avant la première écriture, y compris pour l'adoption du trousseau. Le manifeste chiffré (format v3) couvre aussi les pièces retirées, les métadonnées et le trousseau, et le contrôle a lieu dès le choix du fichier. |
 | 2026-10-29 | Bundle de prod | Aucun code d'émulateur (`demo-locket`, `127.0.0.1`) ; CSP en `<meta>` avec le hash du script de démarrage vérifié. |

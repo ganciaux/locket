@@ -16,6 +16,7 @@ type Prefs = {
 	autoLockMinutes: AutoLock;
 	/** Collection affichée : identifiant aléatoire, rien de lisible. Vide ou inconnue → la première. */
 	collectionId: string;
+	showHidden: boolean;
 };
 
 const STORAGE_KEY = 'locket.prefs';
@@ -25,7 +26,8 @@ const DEFAULTS: Prefs = {
 	cardSize: 'medium',
 	sort: 'name',
 	autoLockMinutes: 5,
-	collectionId: ''
+	collectionId: '',
+	showHidden: false
 };
 
 function load(): Prefs {

@@ -19,6 +19,8 @@ export type EntryData = {
 	siteTerms?: Record<string, string>;
 	/** Sites de la collection qui ne donnent pas de lien sur cette fiche. */
 	hiddenSites?: string[];
+	/** Rangée à l'écart : absente de la liste sauf avec le bouton « Cachées ». Simple filtre, pas une protection. */
+	hidden?: boolean;
 };
 
 export type Entry = EntryData & { id: string };

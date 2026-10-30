@@ -6,7 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { MAX_LABEL_LENGTH, NO_TAG_FILTER, type SortOrder, type TagFilter, linkTitle } from '$lib/entries/model';
-	import { addCollection, entries, loadEntries } from '$lib/entries/store.svelte';
+	import { addCollection, deleteUnreadableEntries, entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 	import { type CardSize, prefs } from '$lib/prefs.svelte';
@@ -43,6 +43,10 @@
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
 	const results = $derived(entries.search(query, tagFilter, prefs.sort));
+	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
+
+	let confirmPurge = $state(false);
+	const purge = formAction(deleteUnreadableEntries);
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
 	const filtering = $derived(!!query.trim() || tagFiltering);
 
@@ -73,6 +77,24 @@
 </div>
 
 <ErrorAlert message={error} />
+
+{#if entries.unreadableCount}
+	{@const count = entries.unreadableCount}
+	<form role="alert" class="alert alert-warning alert-soft mb-3 flex flex-wrap items-center" onsubmit={purge.submit}>
+		<span class="flex-1 text-sm">
+			{count} fiche{count > 1 ? 's' : ''} illisible{count > 1 ? 's' : ''} : données endommagées. Restaurez une sauvegarde
+			saine, ou supprimez-{count > 1 ? 'les' : 'la'}.
+		</span>
+		{#if confirmPurge}
+			<button class="btn btn-error btn-sm" disabled={purge.busy}>Supprimer définitivement</button>
+			<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmPurge = false)}>Annuler</button>
+		{:else}
+			<a class="btn btn-sm" href="/backup">Restaurer</a>
+			<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmPurge = true)}>Supprimer</button>
+		{/if}
+		<ErrorAlert message={purge.error} />
+	</form>
+{/if}
 
 {#if !error && !entries.collections}
 	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
@@ -178,8 +200,18 @@
 	<!-- Affichage : nombre de résultats, tri et taille des cartes, sur une seule ligne même à 320 px. -->
 	<div class="mb-3 flex items-center gap-2">
 		<span class="text-base-content/60 text-xs" role="status">
-			{results.length} fiche{results.length > 1 ? 's' : ''}{filtering ? ` sur ${entries.activeItems.length}` : ''}
+			{results.length} fiche{results.length > 1 ? 's' : ''}{filtering || results.length < entries.activeItems.length ? ` sur ${entries.activeItems.length}` : ''}
 		</span>
+		{#if hiddenCount}
+			<button
+				class="btn btn-xs {prefs.showHidden ? 'btn-primary' : 'btn-ghost'}"
+				aria-pressed={prefs.showHidden}
+				title={prefs.showHidden ? 'Masquer les cachées' : 'Afficher les cachées'}
+				onclick={() => (prefs.showHidden = !prefs.showHidden)}
+			>
+				Cachées ({hiddenCount})
+			</button>
+		{/if}
 		<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
 			{#each SORTS as sort (sort.value)}
 				<option value={sort.value}>{sort.label}</option>
@@ -202,13 +234,15 @@
 
 	{#if results.length === 0 && filtering}
 		<p class="text-base-content/60 py-8 text-center">Aucune fiche ne correspond.</p>
+	{:else if results.length === 0}
+		<p class="text-base-content/60 py-8 text-center">Toutes les fiches sont cachées.</p>
 	{/if}
 
 	<!-- items-start : une carte dont on ouvre les liens s'allonge sans étirer ses voisines. -->
 	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
 			{@const links = entries.linksOf(entry)}
-			<li class="card bg-base-100 overflow-hidden shadow-sm transition hover:shadow-md">
+			<li class="card bg-base-100 overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden ? 'opacity-50 hover:opacity-100' : ''}">
 				<a href="/entry/{entry.id}" class="block">
 					<figure class="bg-primary/10 aspect-square">
 						{#if entry.thumbUrl}

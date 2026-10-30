@@ -3,7 +3,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { type Collection, MAX_LABEL_LENGTH, NAME_PLACEHOLDER, type Site } from '$lib/entries/model';
-	import { deleteSite, saveSite, toggleSite } from '$lib/entries/store.svelte';
+	import { deleteSite, moveSite, saveSite, toggleSite } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
@@ -54,8 +54,28 @@
 
 	<div class="mt-3 flex flex-col gap-3">
 		<ErrorAlert message={error} />
-		{#each sites as site (site.id)}
+		{#each sites as site, i (site.id)}
 			<div class="bg-base-200 rounded-box flex items-center gap-2 p-2">
+				<div class="flex flex-col">
+					<button
+						class="btn btn-ghost btn-xs btn-square"
+						disabled={i === 0}
+						onclick={() => run(() => moveSite(collection.id, site.id, -1))}
+						aria-label="Monter {site.label}"
+						title="Monter"
+					>
+						<Icon name="chevronUp" class="size-4" />
+					</button>
+					<button
+						class="btn btn-ghost btn-xs btn-square"
+						disabled={i === sites.length - 1}
+						onclick={() => run(() => moveSite(collection.id, site.id, 1))}
+						aria-label="Descendre {site.label}"
+						title="Descendre"
+					>
+						<Icon name="chevronDown" class="size-4" />
+					</button>
+				</div>
 				<input
 					type="checkbox"
 					class="toggle toggle-primary toggle-sm"

@@ -3,10 +3,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { deleteUser, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { readCurrentKeyring, signUp } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
-import { auth } from '$lib/firebase';
+import { auth, db } from '$lib/firebase';
 import { deleteEntry, listEntries, saveEntry } from '$lib/entries/repository';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
 import { deleteAllData } from '$lib/entries/store.svelte';
@@ -31,7 +32,7 @@ describe('sauvegarde (émulateurs)', () => {
 		const kept = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: ['tag-1'] });
 		const removed = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Banque', links: [], tagIds: [] });
 
-		const backup = parseBackup(await createBackup(true));
+		const backup = parseBackup((await createBackup(true)).text);
 		expect(backup.entries).toHaveLength(2);
 
 		// 1. Même compte : le compte redevient exactement le fichier.
@@ -73,7 +74,7 @@ describe('sauvegarde (émulateurs)', () => {
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: [] });
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Banque', links: [], tagIds: [] });
 
-		const backup = parseBackup(await createBackup(true));
+		const backup = parseBackup((await createBackup(true)).text);
 		backup.entries[1].data.iv[0] ^= 1;
 
 		await expect(restoreBackup(backup)).rejects.toThrow(/endommagée/);
@@ -87,7 +88,7 @@ describe('sauvegarde (émulateurs)', () => {
 		await tagCatalog.save(uid, dek, [{ id: 'tag-1', name: 'Santé', collectionId: 'col-1' }]);
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: [] });
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Banque', links: [], tagIds: [] });
-		const text = await createBackup(true);
+		const { text } = await createBackup(true);
 
 		expect(await checkBackup(parseBackup(text))).toEqual({ entries: 2, collections: 1, tags: 1 });
 
@@ -108,13 +109,25 @@ describe('sauvegarde (émulateurs)', () => {
 		await expect(checkBackup(manifest)).rejects.toThrow(/endommagée/);
 	}, 60_000);
 
+	it('écarte de l’export une fiche illisible : le fichier reste restaurable', async () => {
+		await signUp(`h${Date.now()}@example.com`, PASSWORD);
+		const { uid, dek } = current();
+		const good = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Saine', links: [], tagIds: [] });
+		const bad = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Abîmée', links: [], tagIds: [] });
+		await setDoc(doc(db, 'users', uid, 'entries', bad.id), (await getDoc(doc(db, 'users', uid, 'entries', good.id))).data()!);
+
+		const { text, skipped } = await createBackup(true);
+		expect(skipped).toBe(1);
+		expect(await checkBackup(parseBackup(text))).toMatchObject({ entries: 1 });
+	}, 60_000);
+
 	it('supprime toutes les données après vérification du mot de passe, puis restaure', async () => {
 		await signUp(`g${Date.now()}@example.com`, PASSWORD);
 		const { uid, dek } = current();
 		await collectionCatalog.save(uid, dek, [{ id: 'col-1', name: 'Papiers' }]);
 		await tagCatalog.save(uid, dek, [{ id: 'tag-1', name: 'Santé', collectionId: 'col-1' }]);
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: [] });
-		const backup = parseBackup(await createBackup(true));
+		const backup = parseBackup((await createBackup(true)).text);
 
 		await expect(deleteAllData('faux-mot-de-passe')).rejects.toThrow(/incorrect/);
 		expect(await listEntries(uid, dek)).toHaveLength(1);
@@ -133,7 +146,7 @@ describe('sauvegarde (émulateurs)', () => {
 		const oldRecoveryKey = await signUp(`c${Date.now()}@example.com`, PASSWORD);
 		let { uid, dek } = current();
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Impôts', links: [], tagIds: [] });
-		const backup = parseBackup(await createBackup(false));
+		const backup = parseBackup((await createBackup(false)).text);
 		await signOut(auth);
 
 		await signUp(`d${Date.now()}@example.com`, PASSWORD);

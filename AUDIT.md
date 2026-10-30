@@ -29,7 +29,13 @@ vont dans [MEMORY.md](MEMORY.md).
 - [x] **Alléger les icônes** — fait (palette 256 couleurs : cache initial 2,3 Mo → 1,2 Mo) : ~470 Ko par icône 512 px ; une passe de compression PNG les ramène vers 100 Ko
       (cache initial ~2,3 Mo → ~1,3 Mo). *Simple.*
 - [x] **README en français** (étape 9) : configuration Firebase, lancement local, déploiement, installation iPhone. *Simple.*
-- [ ] **Tests de bout en bout** (plus tard) (Playwright) : inscription, déverrouillage, récupération. *Intermédiaire.*
+- [x] **Tests de bout en bout** (Playwright, `npm run test:e2e`) : inscription, déverrouillage, récupération, sites,
+      masquages, fiches cachées, sauvegarde, suppression totale, restauration. *Intermédiaire.*
+
+- [x] **Ordre des sites d'une collection** : boutons monter/descendre. *Simple.*
+- [x] **Fiches illisibles** : la liste affiche les autres, signale le nombre et propose de restaurer ou de supprimer ;
+      l'export écarte ce qui est illisible. *Simple.*
+- [x] **Fiches cachées** : drapeau sur la fiche, bouton « Cachées » sur la liste (mémorisé par appareil). *Simple.*
 
 ## Écarté
 

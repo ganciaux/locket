@@ -24,13 +24,14 @@ import {
 	parseSiteTemplate,
 	sortBy
 } from './model';
-import { deleteStoredEntriesExcept, listEntries, type EntrySummary } from './repository';
+import { deleteEntry, deleteStoredEntriesExcept, listEntries, type EntrySummary } from './repository';
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
 let items = $state.raw<ListItem[] | null>(null);
 let tags = $state.raw<Tag[] | null>(null);
 let collections = $state.raw<Collection[] | null>(null);
+let unreadableIds = $state.raw<string[]>([]);
 let loading: Promise<void> | null = null;
 
 const tagNames = $derived(new Map((tags ?? []).map((tag) => [tag.id, tag.name])));
@@ -51,6 +52,7 @@ function clear() {
 	items = null;
 	tags = null;
 	collections = null;
+	unreadableIds = [];
 	loading = null;
 }
 
@@ -84,9 +86,18 @@ export const entries = {
 	tagsIn(collectionId: string): Tag[] {
 		return (tags ?? []).filter((tag) => tag.collectionId === collectionId);
 	},
-	/** Dans la collection active ; `activeItems` reste trié par nom, un autre ordre est appliqué à la copie filtrée. */
+	/** Fiches qu'aucune clé ne peut déchiffrer : absentes de `items`, leur collection est inconnue. */
+	get unreadableCount() {
+		return unreadableIds.length;
+	},
+	/**
+	 * Dans la collection active ; `activeItems` reste trié par nom, un autre ordre est appliqué à la copie filtrée.
+	 * Les fiches cachées n'apparaissent qu'avec la préférence `showHidden`.
+	 */
 	search(query: string, filter: TagFilter = NO_TAG_FILTER, order: SortOrder = 'name'): ListItem[] {
-		const found = (activeItems ?? []).filter((item) => matchesFilter(item, query, filter, tagNames));
+		const found = (activeItems ?? []).filter(
+			(item) => (prefs.showHidden || !item.hidden) && matchesFilter(item, query, filter, tagNames)
+		);
 		return order === 'name' ? found : found.sort(sortBy(order));
 	},
 	find(id: string): ListItem | undefined {
@@ -115,14 +126,16 @@ export const entries = {
 export function loadEntries(): Promise<void> {
 	const { user, dek } = session;
 	if (!user || !dek) return Promise.resolve();
+	const unreadable: string[] = [];
 	loading ??= Promise.all([
-		listEntries(user.uid, dek),
+		listEntries(user.uid, dek, (id) => unreadable.push(id)),
 		collectionCatalog.get(user.uid, dek),
 		tagCatalog.get(user.uid, dek)
 	]).then(
 		([list, collectionList, tagList]) => {
 			if (session.dek !== dek) return;
 			items = list.map(withThumbUrl).sort(byName);
+			unreadableIds = unreadable;
 			collections = collectionList;
 			tags = tagList.sort(byName);
 		},
@@ -165,6 +178,13 @@ export function removeEntry(id: string): void {
 	if (!items) return;
 	revoke(items.find((item) => item.id === id));
 	items = items.filter((item) => item.id !== id);
+}
+
+/** Retire les fiches illisibles, avec leurs images : leur contenu n'est plus récupérable sans sauvegarde. */
+export async function deleteUnreadableEntries(): Promise<void> {
+	const { uid } = unlocked();
+	await Promise.all(unreadableIds.map((id) => deleteEntry(uid, id)));
+	unreadableIds = [];
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +257,12 @@ export async function saveSite(collectionId: string, input: { label: string; url
 			? sites.map((site) => (site.id === id ? { ...site, label, urlTemplate } : site))
 			: [...sites, { id: crypto.randomUUID(), label, urlTemplate, enabled: true }]
 	);
+}
+
+export async function moveSite(collectionId: string, id: string, delta: -1 | 1): Promise<void> {
+	const sites = entries.sitesIn(collectionId);
+	const next = moveItem(sites, sites.findIndex((site) => site.id === id), delta);
+	if (next !== sites) await replaceSites(collectionId, next);
 }
 
 export const toggleSite = (collectionId: string, id: string): Promise<void> =>

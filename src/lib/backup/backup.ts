@@ -12,7 +12,7 @@ import { type Bytes, toBase64, utf8 } from '$lib/crypto/encoding';
 import { deleteStoredEntriesExcept, hasEntries, readStoredEntries, writeStoredEntries } from '$lib/entries/repository';
 import { resetEntries } from '$lib/entries/store.svelte';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
-import { type Backup, type BackupCounts, type BackupManifest, serializeBackup } from './format';
+import { type Backup, type BackupCounts, type BackupEntry, type BackupManifest, serializeBackup } from './format';
 
 function unlockedSession() {
 	const { user, dek } = session;
@@ -20,14 +20,39 @@ function unlockedSession() {
 	return { uid: user.uid, dek };
 }
 
-export async function createBackup(includeImages: boolean): Promise<string> {
+/**
+ * Écarte ce qui ne se déchiffre pas, sinon le fichier serait refusé en entier à la restauration.
+ * Une image ou une miniature abîmée ne coûte pas la fiche. Retourne le nombre de pièces écartées.
+ */
+async function withoutUnreadable(stored: BackupEntry[], dek: CryptoKey): Promise<{ entries: BackupEntry[]; skipped: number }> {
+	const entries: BackupEntry[] = [];
+	let skipped = 0;
+	const keep = async (encrypted: Encrypted | undefined, context: string) => {
+		if (!encrypted) return undefined;
+		if (await isReadable({ encrypted, context }, dek)) return encrypted;
+		skipped++;
+		return undefined;
+	};
+	for (const entry of stored) {
+		const data = await keep(entry.data, `${entry.id}/data`);
+		if (!data) continue;
+		const thumb = await keep(entry.thumb, `${entry.id}/thumb`);
+		const image = await keep(entry.image, `${entry.id}/image`);
+		entries.push({ id: entry.id, data, ...(thumb && { thumb }), ...(image && { image }) });
+	}
+	return { entries, skipped };
+}
+
+/** `skipped` : pièces illisibles laissées hors du fichier, à signaler à l'utilisateur. */
+export async function createBackup(includeImages: boolean): Promise<{ text: string; skipped: number }> {
 	const { uid, dek } = unlockedSession();
-	const [keyring, collections, tags, entries] = await Promise.all([
+	const [keyring, collections, tags, stored] = await Promise.all([
 		readCurrentKeyring(),
 		collectionCatalog.readStored(uid),
 		tagCatalog.readStored(uid),
 		readStoredEntries(uid, includeImages)
 	]);
+	const { entries, skipped } = await withoutUnreadable(stored, dek);
 	const content: BackupContent = {
 		createdAt: new Date().toISOString(),
 		includesImages: includeImages,
@@ -42,7 +67,8 @@ export async function createBackup(includeImages: boolean): Promise<string> {
 		counts: await countContent(content, dek),
 		contentHash: await contentHash(content)
 	};
-	return serializeBackup({ ...content, manifest: await encryptJson(dek, manifest, MANIFEST_CONTEXT) });
+	const manifestCipher = await encryptJson(dek, manifest, MANIFEST_CONTEXT);
+	return { text: serializeBackup({ ...content, manifest: manifestCipher }), skipped };
 }
 
 type BackupContent = Omit<Backup, 'manifest'>;

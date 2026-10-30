@@ -4,7 +4,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { Bytes, doc, getDoc } from 'firebase/firestore';
+import { Bytes, collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { generateDek, randomBytes } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
 import { createEntries, deleteEntry, getImage, listEntries, saveEntry } from './repository';
@@ -108,21 +108,74 @@ describe('fiches (émulateurs)', () => {
 		const a = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'A', links: [], tagIds: [], image });
 		const b = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'B', links: [], tagIds: [], image });
 		const rawA = (await getDoc(doc(db, 'users', uid, 'images', a.id))).data()!;
-		const { setDoc } = await import('firebase/firestore');
 		await setDoc(doc(db, 'users', uid, 'images', b.id), rawA);
 		await expect(getImage(uid, dek, b.id)).rejects.toThrow();
 		await deleteEntry(uid, a.id);
 		await deleteEntry(uid, b.id);
 	});
 
-	it('règles : un autre utilisateur ne peut rien lire', async () => {
+	it('garde les exceptions d’une fiche : termes, sites masqués, lien masqué, fiche cachée', async () => {
+		const input = {
+			collectionId: 'col-1',
+			name: 'Cachée',
+			links: [{ url: 'https://example.com/', hidden: true }],
+			tagIds: [],
+			siteTerms: { s1: 'Johnny' },
+			hiddenSites: ['s2'],
+			hidden: true
+		};
+		const { id } = await saveEntry(uid, dek, input);
+		const [listed] = await listEntries(uid, dek);
+		expect(listed).toMatchObject({ siteTerms: input.siteTerms, hiddenSites: input.hiddenSites, hidden: true, links: input.links });
+		await saveEntry(uid, dek, { ...input, siteTerms: {}, hiddenSites: [], hidden: false }, listed);
+		const [cleared] = await listEntries(uid, dek);
+		expect(cleared.siteTerms).toBeUndefined();
+		expect(cleared.hiddenSites).toBeUndefined();
+		expect(cleared.hidden).toBeUndefined();
+		await deleteEntry(uid, id);
+	}, 60_000);
+
+	it('une fiche illisible n’empêche pas de lire les autres', async () => {
+		const good = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Saine', links: [], tagIds: [] });
+		const bad = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Abîmée', links: [], tagIds: [] });
+		// Le chiffré d'une autre fiche : l'AAD le refuse.
+		await setDoc(doc(db, 'users', uid, 'entries', bad.id), (await getDoc(doc(db, 'users', uid, 'entries', good.id))).data()!);
+
+		const unreadable: string[] = [];
+		expect((await listEntries(uid, dek, (id) => unreadable.push(id))).map((e) => e.name)).toEqual(['Saine']);
+		expect(unreadable).toEqual([bad.id]);
+		await expect(listEntries(uid, dek)).rejects.toThrow();
+		await deleteEntry(uid, good.id);
+		await deleteEntry(uid, bad.id);
+	}, 60_000);
+
+	it('règles : hors de son espace, ni lecture, ni liste, ni écriture, ni suppression', async () => {
 		const mine = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Privée', links: [], tagIds: [] });
+		const denied = { code: 'permission-denied' };
+		const paths = [
+			`users/${uid}`,
+			`users/${uid}/entries/${mine.id}`,
+			`users/${uid}/images/${mine.id}`,
+			`users/${uid}/meta/tags`,
+			`users/${uid}/meta/collections`,
+			'autre/document'
+		];
+		async function expectRefused() {
+			for (const path of paths) {
+				const ref = doc(db, path);
+				await expect(getDoc(ref), path).rejects.toMatchObject(denied);
+				await expect(setDoc(ref, { intrus: true }), path).rejects.toMatchObject(denied);
+				await expect(deleteDoc(ref), path).rejects.toMatchObject(denied);
+			}
+			for (const name of ['entries', 'images', 'meta'])
+				await expect(getDocs(collection(db, 'users', uid, name)), name).rejects.toMatchObject(denied);
+			await expect(getDocs(collection(db, 'users')), 'liste des comptes').rejects.toMatchObject(denied);
+		}
+
 		await signOut(auth);
 		await createUserWithEmailAndPassword(auth, `x${Date.now()}@example.com`, 'jeton-de-test-5678');
-		await expect(getDoc(doc(db, 'users', uid, 'entries', mine.id))).rejects.toMatchObject({
-			code: 'permission-denied'
-		});
+		await expectRefused(); // autre compte
 		await signOut(auth);
-		await expect(getDoc(doc(db, 'users', uid))).rejects.toMatchObject({ code: 'permission-denied' });
-	});
+		await expectRefused(); // sans compte
+	}, 60_000);
 });

@@ -21,8 +21,12 @@
 	let includeImages = $state(true);
 	let lastBackupAt = $state(readBackupInfo().lastAt);
 
+	let skipped = $state(0);
+
 	const exportForm = formAction(async () => {
-		const blob = new Blob([await createBackup(includeImages)], { type: 'application/json' });
+		const backup = await createBackup(includeImages);
+		skipped = backup.skipped;
+		const blob = new Blob([backup.text], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
 		const link = Object.assign(document.createElement('a'), { href: url, download: backupFileName(new Date()) });
 		link.click();
@@ -109,6 +113,12 @@
 					: 'Aucune sauvegarde depuis cet appareil.'}
 			</p>
 			<ErrorAlert message={exportForm.error} />
+			{#if skipped}
+				<p role="alert" class="alert alert-warning alert-soft text-sm">
+					{skipped} élément{skipped > 1 ? 's' : ''} illisible{skipped > 1 ? 's' : ''} (fiche, miniature ou image endommagée)
+					n'{skipped > 1 ? 'ont' : 'a'} pas été sauvegardé{skipped > 1 ? 's' : ''}.
+				</p>
+			{/if}
 			<button class="btn btn-primary self-start" disabled={exportForm.busy}>
 				{#if exportForm.busy}<span class="loading loading-spinner loading-sm"></span> Préparation…{:else}<Icon
 						name="import"
