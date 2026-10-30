@@ -15,9 +15,11 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run --project unit",
 		"emulators": "firebase emulators:start --project demo-locket",
-		"test:emulators": "vitest run --project emulators"
+		"test:emulators": "vitest run --project emulators",
+		"test:e2e": "firebase emulators:exec --only auth,firestore --project demo-locket \"playwright test\""
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.64.1",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",

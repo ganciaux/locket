@@ -38,8 +38,12 @@ s'affiche directement dans la page.
 ```sh
 npm test                 # tests unitaires (crypto, modèle, format de sauvegarde…)
 npm run test:emulators   # intégration Firestore + règles, émulateurs lancés à part
+npm run test:e2e         # parcours complets dans Chrome (Playwright) ; démarre les émulateurs et le serveur de test
 npm run check            # types (svelte-check)
 ```
+
+Les tests `test:e2e` ne visent que les émulateurs (`--mode test`, port 5174), jamais le vrai projet. Ils utilisent le
+Chrome installé sur le poste. Fermez `npm run emulators` avant de les lancer : ils ont besoin des mêmes ports.
 
 Derrière un proxy, les tests d'intégration ont besoin de `NO_PROXY=127.0.0.1,localhost` : gRPC suit `HTTPS_PROXY`.
 

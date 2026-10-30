@@ -19,6 +19,7 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - `npm run emulators` : émulateurs Auth + Firestore + Hosting (projet fictif `demo-locket`)
 - `npm test` : tests unitaires
 - `npm run test:emulators` : tests d'intégration (`*.emulator.test.ts`) contre les émulateurs lancés à part (`.env.test`)
+- `npm run test:e2e` : parcours Playwright dans Chrome (`e2e/`), démarre les émulateurs ; jamais contre la prod
 - `npm run check` : svelte-check (types)
 - `npm run build` : build statique dans `build/`
 
