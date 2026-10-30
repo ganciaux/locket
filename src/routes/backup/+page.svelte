@@ -1,12 +1,20 @@
 <script lang="ts">
 	// Sauvegarde chiffrée (export) et restauration (import). Le fichier reste illisible sans mot de passe.
-	import { type RestoreResult, OldKeyRequired, createBackup, restoreBackup } from '$lib/backup/backup';
-	import { type Backup, backupFileName, parseBackup } from '$lib/backup/format';
+	import {
+		type RestoreResult,
+		OldKeyRequired,
+		checkBackup,
+		createBackup,
+		plural,
+		restoreBackup
+	} from '$lib/backup/backup';
+	import { type Backup, type BackupCounts, backupFileName, parseBackup } from '$lib/backup/format';
 	import { readBackupInfo, recordBackup } from '$lib/backup/reminder';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { session } from '$lib/auth/session.svelte';
+	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
 	// --- Export
@@ -25,24 +33,33 @@
 
 	// --- Restauration
 	let backup = $state.raw<Backup | null>(null);
+	let counts = $state.raw<BackupCounts | null>(null);
+	let checking = $state(false);
 	let fileError = $state('');
 	let needsOldKey = $state(false);
 	let currentPassword = $state('');
 	let oldSecret = $state('');
+	let replaceConfirmed = $state(false);
 	let result = $state<RestoreResult | null>(null);
 
 	async function readFile(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		backup = null;
+		backup = counts = null;
 		fileError = '';
 		needsOldKey = false;
+		replaceConfirmed = false;
 		result = null;
 		const file = input.files?.[0];
 		if (!file) return;
+		checking = true;
 		try {
-			backup = parseBackup(await file.text());
+			const parsed = parseBackup(await file.text());
+			counts = await checkBackup(parsed);
+			backup = parsed;
 		} catch (e) {
-			fileError = e instanceof Error ? e.message : 'Fichier illisible.';
+			fileError = errorMessage(e);
+		} finally {
+			checking = false;
 		}
 	}
 
@@ -52,6 +69,7 @@
 			result = await restoreBackup(backup, needsOldKey ? { currentPassword, oldSecret } : undefined);
 			currentPassword = oldSecret = '';
 			needsOldKey = false;
+			replaceConfirmed = false;
 			backup = null;
 		} catch (e) {
 			if (e instanceof OldKeyRequired) {
@@ -104,17 +122,34 @@
 		<form class="card-body gap-4" onsubmit={restoreForm.submit}>
 			<h2 class="card-title text-lg">Restaurer</h2>
 			<p class="text-base-content/70 text-sm">
-				Les fiches du fichier remplacent celles qui ont le même identifiant et les fiches manquantes sont recréées.
-				Rien n'est supprimé.
+				La sauvegarde <strong>remplace tout le compte</strong> : fiches, collections et tags. Ce qui a été ajouté ou
+				modifié depuis cette sauvegarde est perdu.
 			</p>
-			<input type="file" accept=".json,application/json" class="file-input w-full" onchange={readFile} />
+			<input type="file" accept=".json,application/json" class="file-input w-full" disabled={checking} onchange={readFile} />
 			<ErrorAlert message={fileError} />
+			{#if checking}
+				<p class="flex items-center gap-2 text-sm"><span class="loading loading-spinner loading-sm"></span> Vérification du fichier…</p>
+			{/if}
 
 			{#if backup}
 				<p class="bg-base-200 rounded-box p-3 text-sm">
-					Sauvegarde du {formatDate(backup.createdAt)} : <strong>{backup.entries.length}</strong>
-					fiche{backup.entries.length > 1 ? 's' : ''}, {backup.includesImages ? 'avec' : 'sans'} les images.
+					Sauvegarde du {formatDate(backup.createdAt)} :
+					{#if counts}
+						<strong>{plural(counts.entries, 'fiche')}</strong>, {plural(counts.collections, 'collection')},
+						{plural(counts.tags, 'tag')}, {backup.includesImages ? 'avec' : 'sans'} les images.
+					{:else}
+						<strong>{plural(backup.entries.length, 'fiche')}</strong>, {backup.includesImages ? 'avec' : 'sans'} les images.
+					{/if}
 				</p>
+				{#if counts}
+					<p role="status" class="alert alert-success alert-soft text-sm">Fichier vérifié : complet et non modifié depuis son export.</p>
+				{:else}
+					<p class="text-base-content/70 text-sm">Fichier chiffré avec une autre clé : il sera vérifié à la restauration.</p>
+				{/if}
+				<label class="flex cursor-pointer items-start gap-3 text-sm">
+					<input type="checkbox" class="checkbox checkbox-error checkbox-sm" bind:checked={replaceConfirmed} />
+					<span>Je comprends que le contenu actuel du compte sera remplacé par cette sauvegarde.</span>
+				</label>
 			{/if}
 
 			{#if needsOldKey}
@@ -144,13 +179,17 @@
 			{#if result}
 				<p role="status" class="alert alert-success alert-soft text-sm">
 					{result.restored} fiche{result.restored > 1 ? 's' : ''} restaurée{result.restored > 1 ? 's' : ''}.
+					{#if result.removed}
+						{result.removed} fiche{result.removed > 1 ? 's' : ''} absente{result.removed > 1 ? 's' : ''} de la sauvegarde
+						supprimée{result.removed > 1 ? 's' : ''}.
+					{/if}
 					{#if result.adopted}
 						Votre clé de récupération valable est désormais celle de l'ancien compte.
 					{/if}
 					<a class="link" href="/">Voir mes fiches</a>
 				</p>
 			{/if}
-			<button class="btn btn-primary self-start" disabled={!backup || restoreForm.busy}>
+			<button class="btn btn-primary self-start" disabled={!backup || !replaceConfirmed || checking || restoreForm.busy}>
 				{#if restoreForm.busy}<span class="loading loading-spinner loading-sm"></span> Restauration…{:else}Restaurer{/if}
 			</button>
 		</form>

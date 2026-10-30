@@ -10,6 +10,7 @@ import {
 	generateRecoveryKey,
 	normalizeEmail,
 	rewrapDek,
+	sha256,
 	unwrapDek,
 	wrapDek,
 	type DerivedKeys
@@ -30,6 +31,15 @@ beforeAll(async () => {
 		deriveKeys('correct horse', 'bob@example.com')
 	]);
 }, 60_000);
+
+describe('sha256', () => {
+	it('suit le vecteur de test du NIST, morceaux mis bout à bout', async () => {
+		const hash = await sha256([utf8('a'), utf8('bc')]);
+		expect(Array.from(hash, (b) => b.toString(16).padStart(2, '0')).join('')).toBe(
+			'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+		);
+	});
+});
 
 describe('normalizeEmail', () => {
 	it('supprime les espaces et met en minuscules', () => {

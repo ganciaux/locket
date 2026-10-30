@@ -13,7 +13,8 @@ const sample: Backup = {
 	entries: [
 		{ id: 'abc123', data: enc(), thumb: enc(500), image: enc(5000) },
 		{ id: 'def-456_x', data: enc() }
-	]
+	],
+	manifest: enc()
 };
 
 describe('sauvegarde', () => {
@@ -32,12 +33,18 @@ describe('sauvegarde', () => {
 		expect(() => parseBackup('{"format":"autre"}')).toThrow(/pas une sauvegarde/);
 	});
 
-	it('refuse une version inconnue, y compris la v1 (sans collections)', () => {
-		for (const version of [1, 99]) {
+	it('refuse une version inconnue, y compris les anciennes', () => {
+		for (const version of [1, 2, 99]) {
 			const raw = JSON.parse(serializeBackup(sample));
 			raw.version = version;
 			expect(() => parseBackup(JSON.stringify(raw)), String(version)).toThrow(/Version/);
 		}
+	});
+
+	it('exige le manifeste', () => {
+		const raw = JSON.parse(serializeBackup(sample));
+		delete raw.manifest;
+		expect(() => parseBackup(JSON.stringify(raw))).toThrow(/invalide/);
 	});
 
 	it('refuse un identifiant qui ressemble à un chemin, ou en double', () => {

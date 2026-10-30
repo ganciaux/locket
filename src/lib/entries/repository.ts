@@ -161,7 +161,7 @@ const MAX_BATCH_WRITES = 400;
 const MAX_BATCH_BYTES = 8 * 1024 * 1024;
 
 /**
- * Écrit des fiches restaurées telles quelles (même id, donc même AAD) : remplace ou ajoute, ne supprime rien.
+ * Écrit des fiches restaurées telles quelles (même id, donc même AAD) : remplace ou ajoute.
  * Avec les images : l'image est restaurée, ou supprimée si la fiche n'en avait pas.
  * Sans les images (sauvegarde légère) : les images en place ne sont pas touchées.
  */
@@ -188,4 +188,20 @@ export async function writeStoredEntries(
 		bytes += size;
 	}
 	if (writes) await batch.commit();
+}
+
+/** Restauration : supprime les fiches absentes du fichier, avec leurs images. Retourne leur nombre. */
+export async function deleteStoredEntriesExcept(uid: string, keep: Set<string>): Promise<number> {
+	const ids = (await getDocs(entriesRef(uid))).docs.map((d) => d.id).filter((id) => !keep.has(id));
+	// Deux suppressions par fiche.
+	const perBatch = MAX_BATCH_WRITES / 2;
+	for (let start = 0; start < ids.length; start += perBatch) {
+		const batch = writeBatch(db);
+		for (const id of ids.slice(start, start + perBatch)) {
+			batch.delete(entryRef(uid, id));
+			batch.delete(imageRef(uid, id));
+		}
+		await batch.commit();
+	}
+	return ids.length;
 }

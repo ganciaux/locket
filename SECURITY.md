@@ -45,6 +45,7 @@ maître ──HKDF "locket/auth"──► jeton envoyé à Firebase Auth comme �
 clé de récupération (256 bits aléatoires) ──HKDF "locket/recovery"──► KEK de récupération (2e emballage)
 DEK aléatoire AES-GCM-256 ──► chiffre chaque champ, IV aléatoire de 12 octets à chaque écriture,
                               AAD = "<id>/<champ>" (data, thumb, image), "meta/tags" ou "meta/collections"
+sauvegarde v3 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs, date, SHA-256 de tout le contenu, trousseau compris)
 ```
 
 ## 4. Attaquants et ce qu'ils obtiennent
@@ -72,6 +73,9 @@ DEK aléatoire AES-GCM-256 ──► chiffre chaque champ, IV aléatoire de 12 o
   Une extension peut lire les pages déchiffrées.
 - **Ancien mot de passe dans une sauvegarde** : un fichier exporté reste ouvrable avec le mot de passe de l'époque,
   même après un changement de mot de passe.
+- **Ancienne sauvegarde valide** : le manifeste prouve qu'un fichier est intact, pas qu'il est le plus récent. Sa date
+  affichée est en revanche authentique. Restaurer remplace tout le compte : ce qui est plus récent que le fichier est
+  supprimé, après confirmation.
 - **Quota d'emails de récupération** : Firebase plafonne les emails de connexion par jour. Comme « Mot de passe oublié »
   est public, n'importe qui peut l'épuiser en demandant des liens pour notre adresse et bloquer la récupération jusqu'au
   lendemain. Pas d'accès aux données ; à attendre ou à contourner avec le dernier lien déjà reçu, s'il n'a pas été ouvert.
@@ -116,4 +120,5 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
 | Date | Vérification | Résultat |
 |---|---|---|
 | 2026-10-29 | `npm audit` | 4 « high », toutes via `@grpc/grpc-js` (GHSA-m9gg-hp2v-232j, GHSA-f596-whhp-79r4), dépendance du SDK Firestore **côté Node** uniquement. Le navigateur passe par WebChannel/HTTPS et n'embarque pas gRPC. Failles côté serveur gRPC ou vérification de certificat Node : **non applicables** à l'app en ligne. `npm audit fix --force` ferait revenir `firebase` à la 9.14 : **ne pas l'appliquer**, attendre une mise à jour du SDK. |
+| 2026-10-30 | Fichier de sauvegarde altéré à la main | Bug trouvé : seule la 1re fiche était vérifiée, le reste écrasait des fiches saines, et l'erreur vide de Web Crypto sous Chrome laissait le loader tourner. Corrigé : tout le fichier est déchiffré avant la première écriture, y compris pour l'adoption du trousseau. Le manifeste chiffré (format v3) couvre aussi les pièces retirées, les métadonnées et le trousseau, et le contrôle a lieu dès le choix du fichier. |
 | 2026-10-29 | Bundle de prod | Aucun code d'émulateur (`demo-locket`, `127.0.0.1`) ; CSP en `<meta>` avec le hash du script de démarrage vérifié. |

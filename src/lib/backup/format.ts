@@ -6,12 +6,26 @@ import type { Encrypted } from '$lib/crypto/crypto';
 import { fromBase64, toBase64 } from '$lib/crypto/encoding';
 
 export const BACKUP_FORMAT = 'locket-backup';
-/** 2 : collections. Les sauvegardes v1 (sans collections) ne sont plus lues : il n'en existe aucune. */
-export const BACKUP_VERSION = 2;
+/** 3 : manifeste chiffré (intégrité du fichier entier). Les versions précédentes ne sont pas lues : aucune n'est à conserver. */
+export const BACKUP_VERSION = 3;
 
 type EncryptedText = { iv: string; data: string };
 
 export type BackupEntry = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted };
+
+export type BackupCounts = { entries: number; collections: number; tags: number };
+
+/**
+ * Déchiffré avec la DEK (AAD `backup/manifest`). Sans elle, impossible de le recalculer après avoir modifié le fichier.
+ * Il couvre ce que l'AES-GCM de chaque champ ne voit pas : une pièce retirée ou remplacée, les métadonnées et le trousseau.
+ */
+export type BackupManifest = {
+	createdAt: string;
+	includesImages: boolean;
+	counts: BackupCounts;
+	/** Voir `contentHash` dans backup.ts. */
+	contentHash: string;
+};
 
 export type Backup = {
 	createdAt: string;
@@ -23,6 +37,7 @@ export type Backup = {
 	collections: Encrypted | null;
 	tags: Encrypted | null;
 	entries: BackupEntry[];
+	manifest: Encrypted;
 };
 
 const encode = (e: Encrypted): EncryptedText => ({ iv: toBase64(e.iv), data: toBase64(e.data) });
@@ -36,6 +51,7 @@ export function serializeBackup(backup: Backup): string {
 		keyring: { wrappedDek: encode(backup.keyring.wrappedDek), recoveryDek: encode(backup.keyring.recoveryDek) },
 		collections: backup.collections && encode(backup.collections),
 		tags: backup.tags && encode(backup.tags),
+		manifest: encode(backup.manifest),
 		entries: backup.entries.map((e) => ({
 			id: e.id,
 			data: encode(e.data),
@@ -96,7 +112,8 @@ export function parseBackup(text: string): Backup {
 		keyring: { wrappedDek: decode(raw.keyring.wrappedDek), recoveryDek: decode(raw.keyring.recoveryDek) },
 		collections: decodeNullable(raw.collections),
 		tags: decodeNullable(raw.tags),
-		entries
+		entries,
+		manifest: decode(raw.manifest)
 	};
 }
 

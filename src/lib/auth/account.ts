@@ -250,8 +250,14 @@ async function unwrapBackupDek(backup: Keyring, email: string, secret: string): 
  * `oldSecret` : mot de passe de l'époque (même email) ou clé de récupération de l'ancien compte.
  * La copie « clé de récupération » de la sauvegarde est reprise telle quelle : l'ancienne clé redevient la bonne.
  * Le compte doit être vide (vérifié par l'appelant) : ses fiches éventuelles deviendraient illisibles.
+ * `verify` contrôle le fichier avec l'ancienne DEK avant que le trousseau du compte soit remplacé.
  */
-export async function adoptBackupKeyring(backup: Keyring, currentPassword: string, oldSecret: string): Promise<CryptoKey> {
+export async function adoptBackupKeyring(
+	backup: Keyring,
+	currentPassword: string,
+	oldSecret: string,
+	verify: (oldDek: CryptoKey) => Promise<void>
+): Promise<CryptoKey> {
 	const user = currentUser();
 	const current = await deriveKeys(currentPassword, user.email);
 	// Vérifié avant toute écriture : un mot de passe mal tapé verrouillerait le compte.
@@ -259,6 +265,7 @@ export async function adoptBackupKeyring(backup: Keyring, currentPassword: strin
 	await orFail(unwrapDek(wrappedDek, current.kek), WRONG_PASSWORD);
 
 	const oldDek = await unwrapBackupDek(backup, user.email, oldSecret);
+	await verify(oldDek);
 	const rewrapped = await wrapDek(oldDek, current.kek);
 	const keyring: StoredKeyring = { wrappedDek: toStored(rewrapped), recoveryDek: toStored(backup.recoveryDek) };
 	await setDoc(keyringRef(user.uid), keyring);

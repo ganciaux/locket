@@ -116,6 +116,20 @@ export async function rewrapDek(wrapped: Encrypted, oldKek: CryptoKey, newKek: C
 }
 
 // ---------------------------------------------------------------------------
+// Empreinte
+
+/** SHA-256 de plusieurs morceaux mis bout à bout. */
+export async function sha256(chunks: Bytes[]): Promise<Bytes> {
+	const joined = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
+	let offset = 0;
+	for (const chunk of chunks) {
+		joined.set(chunk, offset);
+		offset += chunk.length;
+	}
+	return new Uint8Array(await crypto.subtle.digest('SHA-256', joined));
+}
+
+// ---------------------------------------------------------------------------
 // Chiffrement des données
 
 /**
