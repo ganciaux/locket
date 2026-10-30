@@ -72,6 +72,9 @@ DEK aléatoire AES-GCM-256 ──► chiffre chaque champ, IV aléatoire de 12 o
   Une extension peut lire les pages déchiffrées.
 - **Ancien mot de passe dans une sauvegarde** : un fichier exporté reste ouvrable avec le mot de passe de l'époque,
   même après un changement de mot de passe.
+- **Quota d'emails de récupération** : Firebase plafonne les emails de connexion par jour. Comme « Mot de passe oublié »
+  est public, n'importe qui peut l'épuiser en demandant des liens pour notre adresse et bloquer la récupération jusqu'au
+  lendemain. Pas d'accès aux données ; à attendre ou à contourner avec le dernier lien déjà reçu, s'il n'a pas été ouvert.
 - **Aperçu iOS** : le sélecteur d'apps peut montrer une capture de l'écran déverrouillé.
 
 ## 6. Plan d'audit

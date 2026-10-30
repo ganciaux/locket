@@ -9,6 +9,8 @@ const MESSAGES: Record<string, string> = {
 	'auth/admin-restricted-operation': 'Les inscriptions sont fermées.',
 	'auth/invalid-email': 'Adresse email invalide.',
 	'auth/too-many-requests': 'Trop de tentatives. Réessayez dans quelques minutes.',
+	// Plafond quotidien d'emails de connexion de Firebase.
+	'auth/quota-exceeded': 'Trop de liens envoyés aujourd’hui. Utilisez le dernier lien reçu ou réessayez demain.',
 	'auth/network-request-failed': 'Connexion réseau impossible.',
 	'auth/requires-recent-login': 'Reconnectez-vous puis réessayez.',
 	'auth/expired-action-code': 'Ce lien a expiré. Demandez-en un nouveau.',

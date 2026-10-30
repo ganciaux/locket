@@ -41,7 +41,7 @@
 	});
 </script>
 
-<h1 class="card-title">Récupérer mes fiches</h1>
+<h1 class="card-title">Récupérer votre compte</h1>
 
 {#if !session.ready}
 	<span class="loading loading-spinner text-primary"></span>
@@ -76,7 +76,7 @@
 		<ErrorAlert message={recoveryForm.error} />
 		<button class="btn btn-primary" disabled={recoveryForm.busy}>
 			{#if recoveryForm.busy}<span class="loading loading-spinner loading-sm"></span> Récupération…{:else}Récupérer
-				mes fiches{/if}
+				le compte{/if}
 		</button>
 	</form>
 {:else if hasLink}
@@ -90,6 +90,9 @@
 			{#if linkForm.busy}<span class="loading loading-spinner loading-sm"></span> Connexion…{:else}Continuer{/if}
 		</button>
 	</form>
+	{#if linkForm.error}
+		<a class="btn btn-outline" href="/mot-de-passe-oublie">Demander un nouveau lien</a>
+	{/if}
 {:else}
 	<p role="alert" class="alert alert-warning alert-soft text-sm">Ce lien est invalide ou a déjà été utilisé.</p>
 	<a class="btn btn-outline" href="/mot-de-passe-oublie">Demander un nouveau lien</a>
