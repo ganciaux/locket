@@ -15,9 +15,22 @@
 		setTimeout(() => location.reload(), 3000);
 	}
 
-	onMount(async () => {
-		const { registerSW } = await import('virtual:pwa-register');
-		updateSW = registerSW({ immediate: true, onNeedRefresh: () => (needRefresh = true) });
+	// Le navigateur ne cherche une mise à jour qu'au chargement : une PWA restée ouverte ne la verrait jamais.
+	let registration: ServiceWorkerRegistration | undefined;
+	function checkForUpdate() {
+		if (document.visibilityState === 'visible') registration?.update().catch(() => {}); // hors ligne : prochain retour
+	}
+
+	onMount(() => {
+		import('virtual:pwa-register').then(({ registerSW }) => {
+			updateSW = registerSW({
+				immediate: true,
+				onNeedRefresh: () => (needRefresh = true),
+				onRegisteredSW: (_url, reg) => (registration = reg)
+			});
+		});
+		document.addEventListener('visibilitychange', checkForUpdate);
+		return () => document.removeEventListener('visibilitychange', checkForUpdate);
 	});
 </script>
 
