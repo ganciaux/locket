@@ -20,6 +20,7 @@ import {
 	byName,
 	entryLinks,
 	findSameName,
+	restoredName,
 	isTrashExpired,
 	type CountryFilter,
 	type RatingFilter,
@@ -261,8 +262,25 @@ async function patchEntries(targets: ListItem[], patch: (entry: ListItem) => Par
 export const trashEntries = (targets: ListItem[]): Promise<void> =>
 	patchEntries(targets, () => ({ deletedAt: Date.now() }));
 
-export const restoreFromTrash = (targets: ListItem[]): Promise<void> =>
-	patchEntries(targets, () => ({ deletedAt: undefined }));
+/**
+ * Sort de la corbeille. Un nom repris entre-temps dans la collection reçoit la date et l'heure de restauration ;
+ * renvoie les nouveaux noms.
+ */
+export async function restoreFromTrash(targets: ListItem[]): Promise<string[]> {
+	const now = new Date();
+	const taken: Pick<ListItem, 'id' | 'name' | 'collectionId'>[] = [...(liveItems ?? [])];
+	const renamed = new Map<string, string>();
+	for (const entry of targets) {
+		const name = findSameName(taken, entry.collectionId, entry.name) ? restoredName(entry.name, now) : entry.name;
+		if (name !== entry.name) renamed.set(entry.id, name);
+		taken.push({ ...entry, name });
+	}
+	await patchEntries(targets, (entry) => {
+		const name = renamed.get(entry.id);
+		return { deletedAt: undefined, ...(name && { name, updatedAt: now.getTime() }) };
+	});
+	return [...renamed.values()];
+}
 
 export const setEntriesHidden = (targets: ListItem[], hidden: boolean): Promise<void> =>
 	patchEntries(targets, () => ({ hidden: hidden || undefined }));

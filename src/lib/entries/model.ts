@@ -175,6 +175,14 @@ export function findSameName<T extends { id: string; name: string; collectionId:
 	return items.find((item) => item.collectionId === collectionId && item.id !== exceptId && searchKey(item.name) === key);
 }
 
+/** Nom d'une fiche restaurée alors que le sien est pris : « École (2026-10-30 21:45:12) », heure locale. */
+export function restoredName(name: string, at: Date): string {
+	const pad = (n: number) => String(n).padStart(2, '0');
+	const date = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+	const suffix = ` (${date} ${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())})`;
+	return name.slice(0, MAX_NAME_LENGTH - suffix.length) + suffix;
+}
+
 export const MAX_LABEL_LENGTH = 40;
 
 /**

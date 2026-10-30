@@ -7,6 +7,7 @@
 	import { errorMessage } from '$lib/errors';
 
 	let error = $state('');
+	let notice = $state('');
 	let busy = $state(false);
 	let confirmId = $state<string | null>(null);
 	let confirmEmpty = $state(false);
@@ -18,6 +19,7 @@
 		if (busy) return;
 		busy = true;
 		error = '';
+		notice = '';
 		try {
 			await action();
 			confirmId = null;
@@ -27,6 +29,11 @@
 		} finally {
 			busy = false;
 		}
+	}
+
+	async function restore(entry: ListItem) {
+		const [renamed] = await restoreFromTrash([entry]);
+		if (renamed) notice = `« ${entry.name} » existait déjà : fiche restaurée sous le nom « ${renamed} ».`;
 	}
 
 	const remaining = (entry: ListItem) => {
@@ -40,6 +47,9 @@
 <p class="text-base-content/60 mb-4 text-sm">Les fiches supprimées y restent {TRASH_DAYS} jours, puis disparaissent définitivement.</p>
 
 <ErrorAlert message={error} />
+{#if notice}
+	<p class="alert alert-info alert-soft mb-4 text-sm" role="status">{notice}</p>
+{/if}
 
 {#if !error && !entries.items}
 	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
@@ -59,7 +69,7 @@
 					</button>
 					<button class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
 				{:else}
-					<button class="btn btn-primary btn-sm" disabled={busy} onclick={() => run(() => restoreFromTrash([entry]))}>Restaurer</button>
+					<button class="btn btn-primary btn-sm" disabled={busy} onclick={() => run(() => restore(entry))}>Restaurer</button>
 					<button
 						class="btn btn-ghost btn-sm btn-square text-error"
 						onclick={() => (confirmId = entry.id)}

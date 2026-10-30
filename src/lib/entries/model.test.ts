@@ -17,6 +17,7 @@ import {
 	matchesSearch,
 	moveItem,
 	findSameName,
+	restoredName,
 	parseLabel,
 	parseLinkUrl,
 	COUNTRY_CODES,
@@ -388,5 +389,19 @@ describe('findSameName', () => {
 	it('ignore la fiche modifiée et un nom vide', () => {
 		expect(findSameName(items, 'manga', 'École', 'a')).toBeUndefined();
 		expect(findSameName(items, 'manga', '   ')).toBeUndefined();
+	});
+});
+
+describe('restoredName', () => {
+	const at = new Date(2026, 9, 30, 9, 5, 7);
+
+	it('ajoute la date et l’heure locales', () => {
+		expect(restoredName('École', at)).toBe('École (2026-10-30 09:05:07)');
+	});
+
+	it('reste dans la longueur maximale', () => {
+		const name = restoredName('x'.repeat(MAX_NAME_LENGTH), at);
+		expect(name).toHaveLength(MAX_NAME_LENGTH);
+		expect(name.endsWith('(2026-10-30 09:05:07)')).toBe(true);
 	});
 });

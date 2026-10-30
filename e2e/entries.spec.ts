@@ -441,3 +441,20 @@ test('nom unique dans la collection : signalé à la saisie, refusé à l’enre
 	await page.getByRole('link', { name: 'Modifier' }).click();
 	await expect(page.getByText('Disponible')).toBeVisible();
 });
+
+test('corbeille : une fiche restaurée dont le nom est repris est renommée', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Doublon');
+	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
+	await createEntry(page, 'Doublon');
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
+	await page.getByRole('button', { name: 'Restaurer' }).click();
+	await expect(page.getByText(/fiche restaurée sous le nom « Doublon \(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\) »/)).toBeVisible();
+	await goHome(page);
+	await expect(page.locator('li.card').filter({ hasText: 'Doublon (' })).toHaveCount(1);
+	await expect(page.getByText('2 fiches', { exact: true })).toBeVisible();
+});
