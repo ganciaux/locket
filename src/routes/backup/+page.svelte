@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Sauvegarde chiffrée (export) et restauration (import). Le fichier reste illisible sans mot de passe.
 	import {
+		type BackupCheck,
 		type RestoreResult,
 		OldKeyRequired,
 		checkBackup,
@@ -8,7 +9,7 @@
 		plural,
 		restoreBackup
 	} from '$lib/backup/backup';
-	import { type Backup, type BackupCounts, backupFileName, parseBackup } from '$lib/backup/format';
+	import { type Backup, backupFileName, parseBackup } from '$lib/backup/format';
 	import { readBackupInfo, recordBackup } from '$lib/backup/reminder';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
@@ -31,13 +32,16 @@
 		const link = Object.assign(document.createElement('a'), { href: url, download: backupFileName(new Date()) });
 		link.click();
 		setTimeout(() => URL.revokeObjectURL(url), 60_000);
-		recordBackup();
-		lastBackupAt = readBackupInfo().lastAt;
+		// Un fichier incomplet ne remet pas le rappel à zéro : il ne remplace pas une vraie sauvegarde.
+		if (!backup.skipped) {
+			recordBackup();
+			lastBackupAt = readBackupInfo().lastAt;
+		}
 	});
 
 	// --- Restauration
 	let backup = $state.raw<Backup | null>(null);
-	let counts = $state.raw<BackupCounts | null>(null);
+	let counts = $state.raw<BackupCheck | null>(null);
 	let checking = $state(false);
 	let fileError = $state('');
 	let needsOldKey = $state(false);
@@ -70,7 +74,7 @@
 	const restoreForm = formAction(async () => {
 		if (!backup) return;
 		try {
-			result = await restoreBackup(backup, needsOldKey ? { currentPassword, oldSecret } : undefined);
+			result = await restoreBackup(backup, currentPassword, needsOldKey ? oldSecret : undefined);
 			currentPassword = oldSecret = '';
 			needsOldKey = false;
 			replaceConfirmed = false;
@@ -113,6 +117,12 @@
 					: 'Aucune sauvegarde depuis cet appareil.'}
 			</p>
 			<ErrorAlert message={exportForm.error} />
+			{#if session.recoveryDamaged}
+				<p role="alert" class="alert alert-warning alert-soft text-sm">
+					Votre clé de récupération ne correspond plus à ce compte : cette sauvegarde ne s'ouvrira pas avec elle.
+					<a class="link" href="/settings">Générez-en une nouvelle</a>, puis refaites une sauvegarde.
+				</p>
+			{/if}
 			{#if skipped}
 				<p role="alert" class="alert alert-warning alert-soft text-sm">
 					{skipped} élément{skipped > 1 ? 's' : ''} illisible{skipped > 1 ? 's' : ''} (fiche, miniature ou image endommagée)
@@ -151,7 +161,12 @@
 						<strong>{plural(backup.entries.length, 'fiche')}</strong>, {backup.includesImages ? 'avec' : 'sans'} les images.
 					{/if}
 				</p>
-				{#if counts}
+				{#if counts?.skipped}
+					<p role="alert" class="alert alert-warning alert-soft text-sm">
+						Fichier incomplet : {plural(counts.skipped, 'élément')} illisible{counts.skipped > 1 ? 's' : ''} à l'export
+						n'y {counts.skipped > 1 ? 'sont' : 'est'} pas. Le reste n'a pas été modifié depuis.
+					</p>
+				{:else if counts}
 					<p role="status" class="alert alert-success alert-soft text-sm">Fichier vérifié : complet et non modifié depuis son export.</p>
 				{:else}
 					<p class="text-base-content/70 text-sm">Fichier chiffré avec une autre clé : il sera vérifié à la restauration.</p>
@@ -160,6 +175,10 @@
 					<input type="checkbox" class="checkbox checkbox-error checkbox-sm" bind:checked={replaceConfirmed} />
 					<span>Je comprends que le contenu actuel du compte sera remplacé par cette sauvegarde.</span>
 				</label>
+				<input type="email" autocomplete="username" value={session.user?.email} hidden readonly />
+				<Field label="Mot de passe actuel">
+					<input class="input w-full" type="password" autocomplete="current-password" bind:value={currentPassword} required />
+				</Field>
 			{/if}
 
 			{#if needsOldKey}
@@ -173,10 +192,6 @@
 						non plus celle affichée à la création de ce compte.
 					</p>
 				</div>
-				<input type="email" autocomplete="username" value={session.user?.email} hidden readonly />
-				<Field label="Mot de passe actuel">
-					<input class="input w-full" type="password" autocomplete="current-password" bind:value={currentPassword} required />
-				</Field>
 				<Field
 					label="Ancien mot de passe ou clé de récupération de l'ancien compte"
 					hint="Le mot de passe ne fonctionne que si l'email n'a pas changé."

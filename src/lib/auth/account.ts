@@ -3,6 +3,7 @@
  * Firestore ne stocke que la DEK emballée deux fois, dans `users/{uid}` :
  *   wrappedDek  : par la KEK du mot de passe (usage courant)
  *   recoveryDek : par la clé de récupération (mot de passe oublié)
+ *   keyringCheck : empreinte de recoveryDek, chiffrée par la DEK ; révèle un recoveryDek remplacé
  */
 import {
 	EmailAuthProvider,
@@ -21,17 +22,21 @@ import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
 import {
 	type Encrypted,
+	decryptJson,
 	deriveKeys,
 	deriveRecoveryKek,
+	encryptJson,
 	generateDek,
 	generateRecoveryKey,
 	normalizeEmail,
 	rewrapDek,
+	sha256,
 	unwrapDek,
 	wrapDek
 } from '$lib/crypto/crypto';
+import { toBase64 } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
-import { setUnlocked } from './session.svelte';
+import { session, setRecoveryDamaged, setUnlocked } from './session.svelte';
 
 export const MIN_PASSWORD_LENGTH = 12;
 
@@ -43,8 +48,16 @@ const KEYRING_MISMATCH =
 // ---------------------------------------------------------------------------
 // Trousseau : users/{uid}
 
-type StoredKeyring = { wrappedDek: StoredEncrypted; recoveryDek: StoredEncrypted };
+type StoredKeyring = { wrappedDek: StoredEncrypted; recoveryDek: StoredEncrypted; keyringCheck?: StoredEncrypted };
 export type Keyring = { wrappedDek: Encrypted; recoveryDek: Encrypted };
+
+const KEYRING_CHECK_CONTEXT = 'keyring/check';
+
+/** IV de taille fixe : l'empreinte de iv + data ne peut pas être conservée en déplaçant un octet de l'un à l'autre. */
+const recoveryFingerprint = async ({ iv, data }: Encrypted) => toBase64(await sha256([iv, data]));
+
+const sealRecoveryDek = async (dek: CryptoKey, recoveryDek: Encrypted) =>
+	toStored(await encryptJson(dek, await recoveryFingerprint(recoveryDek), KEYRING_CHECK_CONTEXT));
 
 const keyringRef = (uid: string) => doc(db, 'users', uid);
 
@@ -53,6 +66,31 @@ async function readKeyring(uid: string): Promise<Keyring> {
 	if (!snapshot.exists()) throw new Error('Compte incomplet : trousseau de clés introuvable.');
 	const { wrappedDek, recoveryDek } = snapshot.data() as StoredKeyring;
 	return { wrappedDek: fromStored(wrappedDek), recoveryDek: fromStored(recoveryDek) };
+}
+
+/**
+ * Quelqu'un qui peut écrire dans Firestore pourrait remplacer `recoveryDek` sans bloquer le mot de passe : le filet de
+ * secours serait perdu en silence. Sceau absent (compte plus ancien) : il est posé ici, sur la valeur actuelle.
+ * Une panne réseau ne doit pas gêner le déverrouillage : le contrôle sera refait à la prochaine occasion.
+ */
+export async function checkRecoveryKey(): Promise<void> {
+	const { user, dek } = session;
+	if (!user || !dek) return;
+	try {
+		const snapshot = await getDoc(keyringRef(user.uid));
+		if (!snapshot.exists()) return;
+		const { recoveryDek, keyringCheck } = snapshot.data() as StoredKeyring;
+		const fingerprint = await recoveryFingerprint(fromStored(recoveryDek));
+		if (!keyringCheck) {
+			setRecoveryDamaged(false);
+			await updateDoc(keyringRef(user.uid), { keyringCheck: await sealRecoveryDek(dek, fromStored(recoveryDek)) });
+			return;
+		}
+		const sealed = await decryptJson<string>(dek, fromStored(keyringCheck), KEYRING_CHECK_CONTEXT).catch(() => null);
+		setRecoveryDamaged(sealed !== fingerprint);
+	} catch {
+		// réseau indisponible
+	}
 }
 
 const saveWrappedDek = (uid: string, wrappedDek: Encrypted) =>
@@ -106,9 +144,11 @@ export async function signUp(email: string, password: string): Promise<string> {
 		const recoveryKey = generateRecoveryKey();
 		const dek = await generateDek();
 		const wrappedDek = await wrapDek(dek, kek);
+		const recoveryDek = await wrapDek(dek, await deriveRecoveryKek(recoveryKey));
 		const keyring: StoredKeyring = {
 			wrappedDek: toStored(wrappedDek),
-			recoveryDek: toStored(await wrapDek(dek, await deriveRecoveryKek(recoveryKey)))
+			recoveryDek: toStored(recoveryDek),
+			keyringCheck: await sealRecoveryDek(dek, recoveryDek)
 		};
 		await setDoc(keyringRef(user.uid), keyring);
 		// La DEK générée est extractible (wrapKey l'exige) : la session garde une copie qui ne l'est pas.
@@ -128,6 +168,7 @@ export async function signIn(email: string, password: string): Promise<void> {
 	const { wrappedDek } = await readKeyring(user.uid);
 	// Firebase a accepté le mot de passe mais pas la DEK : récupération interrompue, par exemple.
 	setUnlocked(user, await orFail(unwrapDek(wrappedDek, kek), KEYRING_MISMATCH));
+	await checkRecoveryKey();
 }
 
 /** Session Firebase conservée mais DEK perdue : le mot de passe suffit, sans appel à Firebase Auth. */
@@ -136,6 +177,7 @@ export async function unlock(password: string): Promise<void> {
 	const { kek } = await deriveKeys(password, user.email);
 	const { wrappedDek } = await readKeyring(user.uid);
 	setUnlocked(user, await orFail(unwrapDek(wrappedDek, kek), WRONG_PASSWORD));
+	await checkRecoveryKey();
 }
 
 /** Confirme une action irréversible : lève une erreur si ce n'est pas le mot de passe du compte. */
@@ -159,6 +201,37 @@ export async function changePassword(currentPassword: string, newPassword: strin
 	// Firebase exige une connexion récente pour changer le mot de passe.
 	await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, current.authToken));
 	await replacePassword(user, wrappedDek, rewrapped, next.authToken);
+}
+
+/**
+ * Remplace la clé de récupération et renvoie la nouvelle (à afficher une seule fois). La DEK ne change pas :
+ * l'ancienne clé n'ouvre plus le compte, mais ouvre toujours les sauvegardes et copies faites avant.
+ */
+export async function rotateRecoveryKey(password: string): Promise<string> {
+	const user = currentUser();
+	const { dek } = session;
+	if (!dek) throw new Error('Session verrouillée.');
+	const { kek } = await deriveKeys(password, user.email);
+	const { wrappedDek } = await readKeyring(user.uid);
+	const recoveryKey = generateRecoveryKey();
+	const recoveryDek = await orFail(rewrapDek(wrappedDek, kek, await deriveRecoveryKek(recoveryKey)), WRONG_PASSWORD);
+	await updateDoc(keyringRef(user.uid), {
+		recoveryDek: toStored(recoveryDek),
+		keyringCheck: await sealRecoveryDek(dek, recoveryDek)
+	});
+	setRecoveryDamaged(false);
+	return recoveryKey;
+}
+
+/** Vérifie une clé notée par l'utilisateur, sans rien modifier : elle est le seul secours si le mot de passe est perdu. */
+export async function testRecoveryKey(recoveryKey: string): Promise<boolean> {
+	const { recoveryDek } = await readKeyring(currentUser().uid);
+	try {
+		await unwrapDek(recoveryDek, await deriveRecoveryKek(recoveryKey));
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +303,7 @@ export async function recoverWithKey(recoveryKey: string, newPassword: string): 
 		throw error;
 	}
 	setUnlocked(user, await unwrapDek(rewrapped, next.kek));
+	await checkRecoveryKey();
 }
 
 // ---------------------------------------------------------------------------
@@ -275,7 +349,11 @@ export async function adoptBackupKeyring(
 	const oldDek = await unwrapBackupDek(backup, user.email, oldSecret);
 	await verify(oldDek);
 	const rewrapped = await wrapDek(oldDek, current.kek);
-	const keyring: StoredKeyring = { wrappedDek: toStored(rewrapped), recoveryDek: toStored(backup.recoveryDek) };
+	const keyring: StoredKeyring = {
+		wrappedDek: toStored(rewrapped),
+		recoveryDek: toStored(backup.recoveryDek),
+		keyringCheck: await sealRecoveryDek(oldDek, backup.recoveryDek)
+	};
 	await setDoc(keyringRef(user.uid), keyring);
 
 	const dek = await unwrapDek(rewrapped, current.kek);

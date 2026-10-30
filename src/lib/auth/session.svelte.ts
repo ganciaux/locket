@@ -12,6 +12,7 @@ type Unlocked = { uid: string; dek: CryptoKey };
 
 let user = $state.raw<User | null | undefined>(undefined); // undefined : pas encore connu
 let unlocked = $state.raw<Unlocked | null>(null);
+let recoveryDamaged = $state(false);
 
 onAuthStateChanged(auth, (next) => {
 	user = next;
@@ -27,8 +28,16 @@ export const session = {
 	},
 	get dek() {
 		return unlocked && unlocked.uid === user?.uid ? unlocked.dek : null;
+	},
+	/** La copie de la DEK liée à la clé de récupération ne correspond plus à son sceau : voir `checkRecoveryKey`. */
+	get recoveryDamaged() {
+		return recoveryDamaged;
 	}
 };
+
+export function setRecoveryDamaged(damaged: boolean): void {
+	recoveryDamaged = damaged;
+}
 
 /** Appelé juste après une connexion : on n'attend pas `onAuthStateChanged` pour connaître l'utilisateur. */
 export function setUnlocked(current: User, dek: CryptoKey): void {

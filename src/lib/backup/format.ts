@@ -6,8 +6,8 @@ import type { Encrypted } from '$lib/crypto/crypto';
 import { fromBase64, toBase64 } from '$lib/crypto/encoding';
 
 export const BACKUP_FORMAT = 'locket-backup';
-/** 3 : manifeste chiffré (intégrité du fichier entier). Les versions précédentes ne sont pas lues : aucune n'est à conserver. */
-export const BACKUP_VERSION = 3;
+/** 4 : manifeste chiffré, empreinte avec longueurs. Les versions précédentes ne sont pas lues : aucune n'est à conserver. */
+export const BACKUP_VERSION = 4;
 
 type EncryptedText = { iv: string; data: string };
 
@@ -23,6 +23,8 @@ export type BackupManifest = {
 	createdAt: string;
 	includesImages: boolean;
 	counts: BackupCounts;
+	/** Pièces illisibles écartées à l'export : le fichier est alors incomplet dès l'origine. */
+	skipped: number;
 	/** Voir `contentHash` dans backup.ts. */
 	contentHash: string;
 };
@@ -65,6 +67,7 @@ export function serializeBackup(backup: Backup): string {
 // Lecture : le fichier vient de l'extérieur, on vérifie tout.
 
 const INVALID = 'Fichier de sauvegarde invalide ou endommagé.';
+const IV_LENGTH = 12;
 
 /** Identifiants Firestore générés par l'app : un chemin (« / ») permettrait d'écrire ailleurs. */
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -74,11 +77,14 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 
 function decode(value: unknown): Encrypted {
 	if (!isObject(value) || typeof value.iv !== 'string' || typeof value.data !== 'string') throw new Error(INVALID);
+	let encrypted: Encrypted;
 	try {
-		return { iv: fromBase64(value.iv), data: fromBase64(value.data) };
+		encrypted = { iv: fromBase64(value.iv), data: fromBase64(value.data) };
 	} catch {
 		throw new Error(INVALID);
 	}
+	if (encrypted.iv.length !== IV_LENGTH) throw new Error(INVALID);
+	return encrypted;
 }
 
 const decodeOptional = (value: unknown): Encrypted | undefined => (value === undefined ? undefined : decode(value));

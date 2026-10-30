@@ -13,8 +13,12 @@ vont dans [MEMORY.md](MEMORY.md).
 - [x] **Code des émulateurs retiré du build de prod** (`import.meta.env.DEV`).
 - [x] **Verrouillage automatique après inactivité** : réglable dans Paramètres, 5 min par défaut.
 - [x] **Console Firebase** (fait le 2026-10-29 ; énumération vérifiée : `INVALID_LOGIN_CREDENTIALS`) : protection contre l'énumération d'emails, domaines autorisés (voir plus bas). *Simple.*
-- [ ] **TLS du poste Windows** (reporté) : retirer `NODE_TLS_REJECT_UNAUTHORIZED=0` et `strict-ssl=false`,
-      passer par `NODE_OPTIONS=--use-system-ca` (voir `CLAUDE.local.md`). *Simple.*
+- [ ] **TLS du poste Windows** (en attente, signalé en priorité par la revue du 2026-10-30) : retirer
+      `NODE_TLS_REJECT_UNAUTHORIZED=0` et `strict-ssl=false`, passer par `NODE_OPTIONS=--use-system-ca` (voir
+      `CLAUDE.local.md`). Si un déploiement est parti de ce poste : `npm audit signatures`, refaire `firebase login`,
+      `npm ci`, redéployer. *Simple.*
+- [ ] **Email de réinitialisation externe** (en attente) : tester si un tiers peut le déclencher, et si le modèle d'email
+      de la console peut porter un avertissement (voir [SECURITY.md](SECURITY.md) § 5). *Simple.*
 
 - [ ] **Audit de sécurité réel** : plan en 3 niveaux et journal dans [SECURITY.md](SECURITY.md) (2026-10-29).
 
@@ -37,9 +41,24 @@ vont dans [MEMORY.md](MEMORY.md).
       l'export écarte ce qui est illisible. *Simple.*
 - [x] **Fiches cachées** : drapeau sur la fiche, bouton « Cachées » sur la liste (mémorisé par appareil). *Simple.*
 
+- [x] **Tester la clé de récupération** dans Paramètres, sans rien modifier. *Simple.*
+- [x] **Liens sur les cartes** : option d'affichage (repliés ou en pastilles), par appareil. *Simple.*
+- [x] **Coller une image** dans le formulaire ; le glisser-déposer passe par le champ fichier. *Simple.*
+- [x] **CI GitHub** : types, tests unitaires et build à chaque push et sur les propositions de Dependabot. *Simple.*
+
+## À décider ou plus tard
+
+- [ ] **Sélection multiple** : proposition à valider (cacher, taguer, déplacer, supprimer). *Intermédiaire.*
+- [ ] **Déverrouillage par Face ID** (plus tard) : WebAuthn PRF, 3e copie de la DEK, repli sur le mot de passe, relecture
+      crypto indispensable. *Avancé.*
+- [ ] **Lire les anciens formats de sauvegarde** dès l'usage réel, sinon une mise à jour rend des fichiers inutilisables. *Simple.*
+- [ ] **Corbeille** : suppression réversible, purge après 30 jours. *Simple à intermédiaire.*
+- [ ] **Lecture hors ligne** avec le cache Firestore (chiffrés seulement) : à réévaluer, comportement iPhone à vérifier. *Intermédiaire.*
+- [ ] **Date de dernière sauvegarde** synchronisée entre appareils, chiffrée. *Simple.*
+
 ## Écarté
 
-- Cache hors ligne des fiches : chiffré sur l'appareil + synchronisation, beaucoup de complexité pour peu de gain.
+- Recherche dans toutes les collections : non retenue (2026-10-30).
 - Changement d'email : l'email sert de sel à la dérivation, il faudrait refaire tout le trousseau.
 - Partage depuis Safari vers l'app : iOS ne le permet pas aux PWA (non retenu le 2026-10-29).
 

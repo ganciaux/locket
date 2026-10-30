@@ -31,6 +31,16 @@ export type Collection = { id: string; name: string; sites?: Site[] };
 /** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
 export type Site = { id: string; label: string; urlTemplate: string; enabled: boolean };
 
+/**
+ * Une fiche dont la collection est inconnue (catalogue perdu ou altéré) deviendrait invisible : sa collection
+ * est recréée avec un nom provisoire, à renommer. Elle n'est écrite qu'à la prochaine modification du catalogue.
+ */
+export function withRecoveredCollections(collections: Collection[], entries: { collectionId: string }[]): Collection[] {
+	const known = new Set(collections.map((c) => c.id));
+	const missing = [...new Set(entries.map((entry) => entry.collectionId))].filter((id) => !known.has(id));
+	return [...collections, ...missing.map((id, i) => ({ id, name: `Collection récupérée ${i + 1}` }))];
+}
+
 /** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
 export type Tag = { id: string; name: string; collectionId: string };
 

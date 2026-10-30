@@ -149,6 +149,48 @@ describe('fiches (émulateurs)', () => {
 		await deleteEntry(uid, bad.id);
 	}, 60_000);
 
+	it('une miniature abîmée ne rend pas la fiche illisible', async () => {
+		const a = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'A', links: [], tagIds: [], image });
+		const b = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'B', links: [], tagIds: [], image });
+		const rawB = (await getDoc(doc(db, 'users', uid, 'entries', b.id))).data()!;
+		const rawA = (await getDoc(doc(db, 'users', uid, 'entries', a.id))).data()!;
+		await setDoc(doc(db, 'users', uid, 'entries', b.id), { data: rawB.data, thumb: rawA.thumb });
+
+		const unreadable: string[] = [];
+		const listed = await listEntries(uid, dek, (id) => unreadable.push(id));
+		expect(unreadable).toEqual([]);
+		expect(listed.find((e) => e.id === b.id)).toMatchObject({ name: 'B', thumb: undefined });
+		await deleteEntry(uid, a.id);
+		await deleteEntry(uid, b.id);
+	}, 60_000);
+
+	it('un catalogue altéré ne bloque rien, mais une erreur réseau resterait levée', async () => {
+		await tagCatalog.save(uid, dek, [{ id: 't', name: 'Tag', collectionId: 'col-1' }]);
+		const stored = (await getDoc(doc(db, 'users', uid, 'meta', 'tags'))).data()!;
+		await setDoc(doc(db, 'users', uid, 'meta', 'collections'), stored); // chiffré d'un autre catalogue : refusé par l'AAD
+
+		let damaged = false;
+		expect(await collectionCatalog.getOrEmpty(uid, dek, () => (damaged = true))).toEqual([]);
+		expect(damaged).toBe(true);
+		await deleteDoc(doc(db, 'users', uid, 'meta', 'collections'));
+	}, 60_000);
+
+	it('règles : seuls des chiffrés aux emplacements prévus sont acceptés', async () => {
+		const denied = { code: 'permission-denied' };
+		const encrypted = { iv: Bytes.fromUint8Array(randomBytes(12)), data: Bytes.fromUint8Array(randomBytes(32)) };
+		const entry = doc(db, 'users', uid, 'entries', 'regles');
+		await expect(setDoc(entry, { data: { iv: 'YWJj', data: 'YWJj' } })).rejects.toMatchObject(denied);
+		await expect(setDoc(entry, { data: { ...encrypted, iv: Bytes.fromUint8Array(randomBytes(8)) } })).rejects.toMatchObject(denied);
+		await expect(setDoc(entry, { data: encrypted, nom: 'en clair' })).rejects.toMatchObject(denied);
+		await expect(setDoc(doc(db, 'users', uid, 'autre', 'x'), { data: encrypted })).rejects.toMatchObject(denied);
+		await expect(setDoc(doc(db, 'users', uid, 'meta', 'autre'), { data: encrypted })).rejects.toMatchObject(denied);
+		await expect(setDoc(doc(db, 'users', uid), { wrappedDek: encrypted })).rejects.toMatchObject(denied);
+		await setDoc(doc(db, 'users', uid), { wrappedDek: encrypted, recoveryDek: encrypted });
+		await expect(deleteDoc(doc(db, 'users', uid))).rejects.toMatchObject(denied);
+		await setDoc(entry, { data: encrypted });
+		await deleteDoc(entry);
+	}, 60_000);
+
 	it('règles : hors de son espace, ni lecture, ni liste, ni écriture, ni suppression', async () => {
 		const mine = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Privée', links: [], tagIds: [] });
 		const denied = { code: 'permission-denied' };

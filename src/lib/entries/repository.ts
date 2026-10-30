@@ -5,7 +5,7 @@
  * Le SDK web lit les documents en entier : l'image à part évite de la télécharger pour afficher la liste.
  * AAD = "<id>/<champ>" : un chiffré déplacé vers une autre fiche ou un autre champ ne se déchiffre plus.
  */
-import { collection, doc, getDoc, getDocs, limit, query, writeBatch } from 'firebase/firestore';
+import { type DocumentReference, collection, doc, getDoc, getDocs, limit, query, writeBatch } from 'firebase/firestore';
 import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson } from '$lib/crypto/crypto';
 import type { Bytes } from '$lib/crypto/encoding';
 import { db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
@@ -26,7 +26,8 @@ const imageRef = (uid: string, id: string) => doc(db, 'users', uid, 'images', id
 
 async function decryptSummary(dek: CryptoKey, id: string, stored: StoredEntry): Promise<EntrySummary> {
 	const data = await decryptJson<EntryData>(dek, fromStored(stored.data), `${id}/data`);
-	const thumb = stored.thumb ? await decrypt(dek, fromStored(stored.thumb), `${id}/thumb`) : undefined;
+	// Une miniature abîmée ne doit pas rendre illisible une fiche saine : elle s'affiche sans.
+	const thumb = stored.thumb ? await decrypt(dek, fromStored(stored.thumb), `${id}/thumb`).catch(() => undefined) : undefined;
 	return { ...data, id, thumb };
 }
 
@@ -218,15 +219,19 @@ export async function writeStoredEntries(
 /** Supprime les fiches hors de `keep`, avec leurs images (restauration, suppression totale). Retourne leur nombre. */
 export async function deleteStoredEntriesExcept(uid: string, keep: Set<string>): Promise<number> {
 	const ids = (await getDocs(entriesRef(uid))).docs.map((d) => d.id).filter((id) => !keep.has(id));
-	// Deux suppressions par fiche.
-	const perBatch = MAX_BATCH_WRITES / 2;
-	for (let start = 0; start < ids.length; start += perBatch) {
+	await deleteInBatches(ids.flatMap((id) => [entryRef(uid, id), imageRef(uid, id)]));
+	return ids.length;
+}
+
+/** Après `deleteStoredEntriesExcept` : il ne reste que d'éventuelles images orphelines, la lecture est donc légère. */
+export async function deleteRemainingImages(uid: string): Promise<void> {
+	await deleteInBatches((await getDocs(collection(db, 'users', uid, 'images'))).docs.map((d) => d.ref));
+}
+
+async function deleteInBatches(refs: DocumentReference[]): Promise<void> {
+	for (let start = 0; start < refs.length; start += MAX_BATCH_WRITES) {
 		const batch = writeBatch(db);
-		for (const id of ids.slice(start, start + perBatch)) {
-			batch.delete(entryRef(uid, id));
-			batch.delete(imageRef(uid, id));
-		}
+		for (const ref of refs.slice(start, start + MAX_BATCH_WRITES)) batch.delete(ref);
 		await batch.commit();
 	}
-	return ids.length;
 }

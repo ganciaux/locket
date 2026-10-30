@@ -42,6 +42,50 @@ test('site de collection : lien calculé, nom custom, masquage', async ({ page }
 	await expect(page.getByText('Aucun lien.')).toBeVisible();
 });
 
+test('liens sur les cartes : repliés par défaut, affichés avec l’option', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await addSite(page, 'anime', 'https://anime.fr/search?k=');
+	await createEntry(page, 'John Doe');
+
+	await goHome(page);
+	const link = page.locator('li.card').getByRole('link', { name: 'anime', exact: true });
+	await expect(page.getByText('1 lien', { exact: true })).toBeVisible();
+	await expect(link).toBeHidden();
+
+	await goSettings(page);
+	await page.getByLabel(/Afficher les liens sur les cartes/).check();
+	await goHome(page);
+	await expect(link).toBeVisible();
+	await expect(page.getByText('1 lien', { exact: true })).toHaveCount(0);
+});
+
+test('colle une image dans le formulaire, sans gêner le collage de texte', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await page.locator('a[href="/entry/new"]').first().click();
+
+	const paste = (withImage: boolean) =>
+		page.evaluate(async (image) => {
+			const data = new DataTransfer();
+			if (image) {
+				const canvas = Object.assign(document.createElement('canvas'), { width: 8, height: 8 });
+				const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+				data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
+			} else data.setData('text/plain', 'texte');
+			window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+		}, withImage);
+
+	await paste(false);
+	await expect(page.getByAltText('Aperçu')).toHaveCount(0);
+	await paste(true);
+	await expect(page.getByAltText('Aperçu')).toBeVisible();
+
+	await page.getByLabel('Nom', { exact: true }).fill('Avec image');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Avec image' })).toBeVisible();
+});
+
 test('lien custom masqué : conservé mais pas affiché', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
@@ -129,6 +173,7 @@ test('sauvegarde : fichier altéré refusé, suppression totale, puis restaurati
 	await expect(page.getByText('Fichier vérifié : complet et non modifié depuis son export.')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Restaurer' })).toBeDisabled();
 	await page.getByLabel(/Je comprends que le contenu actuel/).check();
+	await page.getByLabel('Mot de passe actuel').fill(PASSWORD);
 	await page.getByRole('button', { name: 'Restaurer' }).click();
 	await expect(page.getByText('1 fiche restaurée.')).toBeVisible();
 

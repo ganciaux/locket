@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MIN_PASSWORD_LENGTH, changePassword, checkNewPassword } from '$lib/auth/account';
+	import { MIN_PASSWORD_LENGTH, changePassword, checkNewPassword, rotateRecoveryKey, testRecoveryKey } from '$lib/auth/account';
 	import { session, signOut } from '$lib/auth/session.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
@@ -34,6 +34,33 @@
 		currentPassword = password = confirmation = '';
 		changed = true;
 	});
+
+	let rotateOpen = $state(false);
+	let rotatePassword = $state('');
+	let newRecoveryKey = $state('');
+	let copied = $state(false);
+
+	const rotate = formAction(async () => {
+		newRecoveryKey = await rotateRecoveryKey(rotatePassword);
+		rotatePassword = '';
+		rotateOpen = false;
+		copied = false;
+	});
+
+	let testOpen = $state(false);
+	let testedKey = $state('');
+	let keyValid = $state<boolean | null>(null);
+
+	const keyTest = formAction(async () => {
+		keyValid = null;
+		keyValid = await testRecoveryKey(testedKey);
+		testedKey = '';
+	});
+
+	async function copyRecoveryKey() {
+		await navigator.clipboard.writeText(newRecoveryKey);
+		copied = true;
+	}
 
 	// Suppression totale : le mot à taper évite qu'un mot de passe prérempli suffise.
 	const WIPE_WORD = 'SUPPRIMER';
@@ -85,6 +112,14 @@
 					<span class="text-base-content/60 text-xs">Recommandé sur iPhone : sinon, ouvrir un lien fait quitter l'app.</span>
 				</span>
 				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.linksInNewTab} />
+			</label>
+
+			<label class="flex cursor-pointer items-start justify-between gap-4">
+				<span class="flex flex-col">
+					<span class="text-sm font-medium">Afficher les liens sur les cartes</span>
+					<span class="text-base-content/60 text-xs">Sinon, ils restent repliés sous « N liens ».</span>
+				</span>
+				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.cardLinksExpanded} />
 			</label>
 
 			<div class="flex flex-col gap-2">
@@ -160,6 +195,81 @@
 					{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Modification…{:else}Changer le mot de passe{/if}
 				</button>
 			</form>
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-lg">Clé de récupération</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">
+				À remplacer si elle a pu être vue. L'ancienne n'ouvrira plus le compte, mais elle ouvre toujours les sauvegardes
+				faites avant : refaites-en une et supprimez les anciennes.
+			</p>
+			{#if session.recoveryDamaged}
+				<p role="alert" class="alert alert-warning alert-soft text-sm">
+					Votre clé actuelle ne correspond plus à ce compte. Générez-en une nouvelle.
+				</p>
+			{/if}
+			{#if newRecoveryKey}
+				<p role="alert" class="alert alert-warning alert-soft text-sm">
+					Elle ne sera plus jamais affichée. Notez-la sur papier ou dans un gestionnaire de mots de passe.
+				</p>
+				<p class="border-primary bg-base-200 rounded-box border-2 border-dashed p-4 text-center font-mono text-lg tracking-wide break-all">
+					{newRecoveryKey}
+				</p>
+				<div class="flex gap-2">
+					<button class="btn btn-outline btn-sm" onclick={copyRecoveryKey}>
+						<Icon name={copied ? 'check' : 'copy'} class="size-4" />
+						{copied ? 'Copiée' : 'Copier'}
+					</button>
+					<button class="btn btn-primary btn-sm" onclick={() => (newRecoveryKey = '')}>J'ai conservé ma clé</button>
+				</div>
+			{:else if rotateOpen}
+				<form class="flex flex-col gap-3" onsubmit={rotate.submit}>
+					<input type="email" autocomplete="username" value={session.user?.email} hidden readonly />
+					<Field label="Mot de passe">
+						<input class="input w-full" type="password" autocomplete="current-password" bind:value={rotatePassword} required />
+					</Field>
+					<ErrorAlert message={rotate.error} />
+					<div class="flex gap-2">
+						<button class="btn btn-primary" disabled={rotate.busy}>
+							{#if rotate.busy}<span class="loading loading-spinner loading-sm"></span> Génération…{:else}Générer une nouvelle clé{/if}
+						</button>
+						<button type="button" class="btn btn-ghost" onclick={() => ((rotateOpen = false), (rotatePassword = ''))}>Annuler</button>
+					</div>
+				</form>
+			{:else if testOpen}
+				<form class="flex flex-col gap-3" onsubmit={keyTest.submit}>
+					<Field label="Clé à tester">
+						<input
+							class="input w-full font-mono"
+							autocomplete="off"
+							autocapitalize="characters"
+							spellcheck="false"
+							placeholder="ABCD-EFGH-…"
+							bind:value={testedKey}
+							required
+						/>
+					</Field>
+					{#if keyValid === true}
+						<p role="status" class="alert alert-success alert-soft text-sm">Cette clé est la bonne.</p>
+					{:else if keyValid === false}
+						<p role="alert" class="alert alert-error alert-soft text-sm">
+							Cette clé n'ouvre pas ce compte. Vérifiez votre saisie ; si elle est juste, remplacez-la.
+						</p>
+					{/if}
+					<ErrorAlert message={keyTest.error} />
+					<div class="flex gap-2">
+						<button class="btn btn-primary" disabled={keyTest.busy}>Tester</button>
+						<button type="button" class="btn btn-ghost" onclick={() => ((testOpen = false), (keyValid = null), (testedKey = ''))}>Fermer</button>
+					</div>
+				</form>
+			{:else}
+				<div class="flex flex-wrap gap-2">
+					<button class="btn btn-outline btn-primary" onclick={() => (testOpen = true)}>Tester ma clé</button>
+					<button class="btn btn-outline btn-primary" onclick={() => (rotateOpen = true)}>Remplacer la clé</button>
+				</div>
+			{/if}
 		</div>
 	</section>
 

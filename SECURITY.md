@@ -45,7 +45,8 @@ maître ──HKDF "locket/auth"──► jeton envoyé à Firebase Auth comme �
 clé de récupération (256 bits aléatoires) ──HKDF "locket/recovery"──► KEK de récupération (2e emballage)
 DEK aléatoire AES-GCM-256 ──► chiffre chaque champ, IV aléatoire de 12 octets à chaque écriture,
                               AAD = "<id>/<champ>" (data, thumb, image), "meta/tags" ou "meta/collections"
-sauvegarde v3 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs, date, SHA-256 de tout le contenu, trousseau compris)
+sauvegarde v4 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs, date, pièces écartées, SHA-256 de tout le contenu, trousseau compris)
+sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/check", contrôlé au déverrouillage et à l'export
 ```
 
 ## 4. Attaquants et ce qu'ils obtiennent
@@ -55,10 +56,10 @@ sauvegarde v3 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs,
 | **Accès aux données Firebase** (fuite, compte console compromis, Google) | Les chiffrés et les métadonnées de la section 2 ; il peut effacer ou remplacer des documents | Le contenu ; il ne peut pas déplacer un chiffré d'une fiche ou d'un champ à l'autre (AAD) | AES-GCM + AAD ; sauvegardes chiffrées hors ligne |
 | **Même attaquant, attaque hors ligne** sur la DEK emballée | Peut tester des mots de passe à 600 000 itérations PBKDF2 chacun | Rien si le mot de passe est fort ; la clé de récupération (256 bits) est hors de portée | 12 caractères minimum ; PBKDF2 600k |
 | **Vol du fichier de sauvegarde** | Comme ci-dessus, plus l'emballage **avec le mot de passe en vigueur au moment de l'export** | Le contenu sans ce mot de passe ou la clé de récupération | Fichier chiffré, aucun export en clair |
-| **Contrôle de la boîte email** | Se connecter à Firebase par lien email, donc lire les chiffrés, et **effacer** ou corrompre les données | Le contenu : la récupération exige aussi la clé de récupération | Récupération = lien + clé ; jamais `sendPasswordResetEmail` ; sauvegardes |
-| **Script injecté dans la page** (XSS) | Pendant la session : utiliser la DEK pour tout déchiffrer et exfiltrer | — | CSP stricte (scripts du site et hash SvelteKit seulement, `connect-src` limité à Firebase) ; aucun `{@html}` ; liens limités à http(s) |
+| **Contrôle de la boîte email** | Se connecter à Firebase par lien email, donc lire les chiffrés, et **effacer** ou corrompre les données | Le contenu sans le mot de passe : la récupération exige la clé, mais il lit `wrappedDek` et peut tester des mots de passe hors ligne (ligne ci-dessus) | Récupération = lien + clé ; jamais `sendPasswordResetEmail` ; sauvegardes ; règles Firestore (types, emplacements, trousseau non supprimable) ; sceau de `recoveryDek` |
+| **Script injecté dans la page** (XSS) | Pendant la session : utiliser la DEK pour tout déchiffrer et exfiltrer | — | CSP stricte (scripts du site et hash SvelteKit seulement) ; aucun `{@html}` ; liens limités à http(s). `connect-src` n'est pas une barrière de sortie : Firestore accepte aussi un projet tiers, et une navigation reste possible |
 | **Dépendance npm compromise** (chaîne d'approvisionnement) | Tout : son code est servi par le site lui-même, la CSP ne l'arrête pas | — | Peu de dépendances, `package-lock.json`, `npm audit` (voir § 7) |
-| **PC laissé déverrouillé** | Les fiches tant que la session est ouverte | Après le verrouillage auto : il faut le mot de passe | Verrouillage après inactivité (5 min par défaut) ; DEK en mémoire seulement |
+| **PC laissé déverrouillé** | Les fiches tant que la session est ouverte | Après le verrouillage auto : le contenu, qui exige le mot de passe. La session Firebase reste ouverte : il peut lire `wrappedDek` ou effacer via un client modifié | Verrouillage après inactivité (5 min par défaut) ; DEK en mémoire seulement ; mot de passe pour les actions destructrices de l'app |
 | **Site tiers qui intègre l'app** (clickjacking) | — | — | `frame-ancestors 'none'` |
 
 ## 5. Limites connues et acceptées
@@ -86,9 +87,17 @@ sauvegarde v3 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs,
   « Cachées ». Le drapeau est chiffré avec la fiche.
 - **Fiches illisibles** : la liste les signale et l'export les écarte en le disant. Une altération côté Firebase se voit
   donc, mais la fiche d'origine n'est récupérable que depuis une sauvegarde saine.
-- **Suppression totale** : le mot de passe et le mot à taper sont contrôlés par l'app, pas par les règles Firestore. Ils
-  protègent d'une fausse manœuvre ou d'un PC laissé ouvert, pas d'un client modifié disposant d'une session Firebase.
-  Irréversible sans sauvegarde : le plan Spark n'en garde aucune.
+- **Actions destructrices** (suppression totale, restauration, purge des fiches illisibles) : le mot de passe est
+  contrôlé par l'app, pas par les règles Firestore. Il protège d'une fausse manœuvre ou d'un PC laissé ouvert, pas d'un
+  client modifié disposant d'une session Firebase. Irréversible sans sauvegarde : le plan Spark n'en garde aucune.
+- **Email de réinitialisation externe (à traiter, non testé)** : avec notre adresse et la clé API publique, un tiers
+  pourrait déclencher un vrai email `PASSWORD_RESET` de Firebase, que l'app n'utilise jamais. Y saisir son vrai mot de
+  passe l'enverrait à Firebase. **Ne jamais suivre un tel email** : passer par « Mot de passe oublié » dans l'app.
+- **Rotation limitée** : remplacer la clé de récupération protège Firestore, pas les sauvegardes ni les copies déjà
+  faites, que l'ancienne clé ouvre encore. Changer de mot de passe ne change pas la DEK : un ancien `wrappedDek` copié
+  reste ouvrable avec l'ancien mot de passe. Après une compromission grave, seule une recréation du compte suffit.
+- **Sceau de `recoveryDek`** : posé de confiance sur un compte qui n'en avait pas, et repris d'un fichier lors d'une
+  adoption : il détecte un remplacement ultérieur, pas une valeur déjà mauvaise à ce moment-là.
 - **Aperçu iOS** : le sélecteur d'apps peut montrer une capture de l'écran déverrouillé.
 
 ## 6. Plan d'audit
@@ -108,9 +117,24 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
       [securityheaders.com](https://securityheaders.com) sur https://locket-403b5.web.app : voir le journal (§ 7).
 - [x] OWASP ZAP, scan « baseline » (passif) du site en ligne : voir le journal (§ 7).
 - [x] Tests des règles Firestore contre les émulateurs : autre compte et sans compte, lecture, liste, écriture et
-      suppression sur chaque emplacement (`repository.emulator.test.ts`).
+      suppression sur chaque emplacement ; types, champs et emplacements refusés (`repository.emulator.test.ts`).
 - [ ] `/security-review` ou l'agent `security-reviewer` (`.claude/agents/`) avant chaque changement de crypto ou d'auth.
       Utile, mais pas indépendant.
+
+**Refaire les scans** (après un déploiement, sans compte, sans jamais saisir d'identifiants) :
+
+1. [Mozilla Observatory](https://developer.mozilla.org/en-US/observatory) : saisir `locket-403b5.web.app`.
+2. [securityheaders.com](https://securityheaders.com) : saisir `https://locket-403b5.web.app`, cocher « Hide results ».
+3. OWASP ZAP, avec Docker Desktop lancé (10 à 15 minutes, plus le premier téléchargement de l'image) :
+
+   ```sh
+   docker run --rm -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://locket-403b5.web.app
+   ```
+
+   Lire le total final et les lignes `FAIL-NEW` et `WARN-NEW`. Ce scan est passif et ne dépasse pas la page de connexion.
+   Ne pas utiliser le bouton « Automated Scan » de l'application ZAP : il peut lancer de vraies attaques.
+
+Résultats attendus et avertissements déjà triés : voir le journal (§ 7). Y ajouter une ligne à chaque nouveau scan.
 
 ### Niveau 3 : relecture humaine
 - [ ] **Relecture par un pair** compétent en crypto appliquée, sur `src/lib/crypto/` et `src/lib/auth/account.ts`.
@@ -132,7 +156,8 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
 | Date | Vérification | Résultat |
 |---|---|---|
 | 2026-10-29 | `npm audit` | 4 « high », toutes via `@grpc/grpc-js` (GHSA-m9gg-hp2v-232j, GHSA-f596-whhp-79r4), dépendance du SDK Firestore **côté Node** uniquement. Le navigateur passe par WebChannel/HTTPS et n'embarque pas gRPC. Failles côté serveur gRPC ou vérification de certificat Node : **non applicables** à l'app en ligne. `npm audit fix --force` ferait revenir `firebase` à la 9.14 : **ne pas l'appliquer**, attendre une mise à jour du SDK. |
+| 2026-10-30 | Agent `security-reviewer` (revue statique, non indépendante) | Aucun accès au contenu en clair trouvé. Corrigés : miniature abîmée qui rendait la fiche illisible, catalogue altéré bloquant liste et export, restauration et purge sans mot de passe, export incomplet présenté comme complet, empreinte sans longueurs, images orphelines, règles Firestore sans contrôle, absence de rotation et de sceau de `recoveryDek`. Restent ouverts : TLS du poste Windows et email de réinitialisation externe (`AUDIT.md`). |
 | 2026-10-30 | OWASP ZAP baseline (passif, sans connexion) | 0 FAIL, 62 PASS, 6 WARN, aucun exploitable. « Dangerous JS Functions » : faux positif, vérifié dans le bundle, c'est une méthode nommée `eval` d'un moteur de regex embarqué ; aucun vrai `eval`, `new Function` ni `{@html}`, et la CSP interdit `unsafe-eval`. `innerHTML` n'apparaît que dans les gabarits statiques du runtime Svelte. Cache : voulu (`immutable` pour les fichiers versionnés). Timestamp, Modern Web Application : informatifs. COEP : écarté. |
-| 2026-10-30 | Mozilla Observatory, securityheaders.com | **A+** aux deux : Observatory 125/100, 12 tests sur 12, CSP `<meta>` reconnue (`default-src 'none'`, pas de `unsafe`). `Cross-Origin-Opener-Policy: same-origin` ajouté ensuite. COEP et CORP écartés (non nécessaires, COEP pourrait gêner Firestore). SRI sans objet : tous les scripts viennent du site. |
+| 2026-10-30 | Mozilla Observatory, securityheaders.com | **A+** aux deux : Observatory 125/100, 12 tests sur 12, CSP `<meta>` reconnue (`default-src 'self'`, pas de `unsafe`). `Cross-Origin-Opener-Policy: same-origin` ajouté ensuite. COEP et CORP écartés (non nécessaires, COEP pourrait gêner Firestore). SRI sans objet : tous les scripts viennent du site. |
 | 2026-10-30 | Fichier de sauvegarde altéré à la main | Bug trouvé : seule la 1re fiche était vérifiée, le reste écrasait des fiches saines, et l'erreur vide de Web Crypto sous Chrome laissait le loader tourner. Corrigé : tout le fichier est déchiffré avant la première écriture, y compris pour l'adoption du trousseau. Le manifeste chiffré (format v3) couvre aussi les pièces retirées, les métadonnées et le trousseau, et le contrôle a lieu dès le choix du fichier. |
 | 2026-10-29 | Bundle de prod | Aucun code d'émulateur (`demo-locket`, `127.0.0.1`) ; CSP en `<meta>` avec le hash du script de démarrage vérifié. |

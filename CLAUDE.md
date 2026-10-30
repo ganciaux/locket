@@ -31,17 +31,19 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 
 ## Organisation
 - `src/lib/crypto/` : **tout** le code crypto (Web Crypto), testé. Aucun autre module n'appelle `crypto.subtle`.
-- `firestore.rules` : accès limité à `users/{uid}/**` pour `request.auth.uid == uid`.
+- `firestore.rules` : accès limité au propriétaire, emplacements et champs fixes, chiffrés `Bytes` uniquement, trousseau non supprimable.
+  Tout nouveau champ d'un document Firestore doit y être ajouté.
 - `firebase.json` : Hosting (cache, en-têtes de sécurité dont `frame-ancestors`), émulateurs.
 - `svelte.config.js` : CSP (`kit.csp` en `<meta>`, hash du script de démarrage recalculé à chaque build).
 
 ## Invariants de sécurité (ne jamais casser)
 - Aucun `console.*` de donnée déchiffrée, mot de passe, jeton ou clé.
 - Le vrai mot de passe ne quitte jamais le navigateur : Firebase Auth reçoit le jeton dérivé (`deriveKeys().authToken`).
-- La DEK vit en mémoire uniquement, non extractible (sauf dans `rewrapDek`, le temps de réemballer).
+- La DEK vit en mémoire uniquement, non extractible (sauf à la génération, dans `rewrapDek` et `unwrapBackupDek`, le temps de l'emballer).
 - IV aléatoire neuf à chaque chiffrement, y compris en modification.
 - AAD = `"<entryId>/<champ>"` (`data`, `thumb`, `image`), `meta/tags` ou `meta/collections` pour les catalogues,
-  `backup/manifest` pour le manifeste d'une sauvegarde : un chiffré n'est valable qu'à son emplacement.
+  `backup/manifest` pour le manifeste d'une sauvegarde, `keyring/check` pour le sceau de `recoveryDek` :
+  un chiffré n'est valable qu'à son emplacement.
 - Firestore : uniquement du type `Bytes`, pas de base64 ; aucune donnée en clair hors uid et ids de documents.
 - Sauvegarde : uniquement des documents chiffrés (base64 dans le fichier) ; jamais d'export en clair.
   Tout id lu depuis un fichier est validé avant de servir de chemin Firestore.

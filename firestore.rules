@@ -2,11 +2,59 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Chaque utilisateur n'accède qu'à users/{uid} et à ses sous-collections
-    // (en rules v2, {document=**} couvre aussi zéro segment, donc users/{uid} lui-même).
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
     }
+
+    // Un chiffré : IV de 12 octets et données binaires, rien en clair (pas de base64).
+    function isEncrypted(value) {
+      return value is map
+        && value.keys().hasOnly(['iv', 'data'])
+        && value.iv is bytes && value.iv.size() == 12
+        && value.data is bytes;
+    }
+
+    function isOptionalEncrypted(data, field) {
+      return !(field in data) || isEncrypted(data[field]);
+    }
+
+    function isKeyring(data) {
+      return data.keys().hasOnly(['wrappedDek', 'recoveryDek', 'keyringCheck'])
+        && isEncrypted(data.wrappedDek)
+        && isEncrypted(data.recoveryDek)
+        && isOptionalEncrypted(data, 'keyringCheck');
+    }
+
+    // Trousseau : sans lui, plus aucune connexion. L'app ne le supprime jamais.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isKeyring(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /users/{uid}/entries/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['data', 'thumb'])
+        && isEncrypted(request.resource.data.data)
+        && isOptionalEncrypted(request.resource.data, 'thumb');
+    }
+
+    match /users/{uid}/images/{id} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['image'])
+        && isEncrypted(request.resource.data.image);
+    }
+
+    match /users/{uid}/meta/{name} {
+      allow read, delete: if isOwner(uid) && name in ['tags', 'collections'];
+      allow create, update: if isOwner(uid)
+        && name in ['tags', 'collections']
+        && request.resource.data.keys().hasOnly(['data'])
+        && isEncrypted(request.resource.data.data);
+    }
+
     // Tout le reste est refusé par défaut.
   }
 }

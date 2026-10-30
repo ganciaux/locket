@@ -16,6 +16,38 @@ test('verrouille, refuse un mauvais mot de passe, puis déverrouille', async ({ 
 	await expect(page.getByRole('heading', { name: 'Créez votre première collection' })).toBeVisible();
 });
 
+test('remplace la clé de récupération depuis les paramètres', async ({ page }) => {
+	const { recoveryKey } = await signUp(page);
+	await goSettings(page);
+	await page.getByRole('button', { name: 'Remplacer la clé' }).click();
+	await page.getByLabel('Mot de passe', { exact: true }).first().fill('pas-le-bon-mot-de-passe');
+	await page.getByRole('button', { name: 'Générer une nouvelle clé' }).click();
+	await expect(page.getByText('Mot de passe incorrect.')).toBeVisible();
+
+	await page.getByLabel('Mot de passe', { exact: true }).first().fill(PASSWORD);
+	await page.getByRole('button', { name: 'Générer une nouvelle clé' }).click();
+	const key = page.locator('.font-mono');
+	await expect(key).toBeVisible();
+	expect((await key.textContent())!.trim()).not.toBe(recoveryKey);
+	await page.getByRole('button', { name: 'J’ai conservé ma clé' }).or(page.getByRole('button', { name: "J'ai conservé ma clé" })).click();
+	await expect(key).toHaveCount(0);
+});
+
+test('teste la clé de récupération sans rien modifier', async ({ page }) => {
+	const { recoveryKey } = await signUp(page);
+	await goSettings(page);
+	await page.getByRole('button', { name: 'Tester ma clé' }).click();
+	const field = page.getByLabel('Clé à tester');
+
+	await field.fill(recoveryKey.replace(/^./, (first) => (first === 'A' ? 'B' : 'A')));
+	await page.getByRole('button', { name: 'Tester', exact: true }).click();
+	await expect(page.getByText('Cette clé n’ouvre pas ce compte.').or(page.getByText(/Cette clé n'ouvre pas ce compte/))).toBeVisible();
+
+	await field.fill(recoveryKey);
+	await page.getByRole('button', { name: 'Tester', exact: true }).click();
+	await expect(page.getByText('Cette clé est la bonne.')).toBeVisible();
+});
+
 test('se déconnecte et se reconnecte', async ({ page }) => {
 	const { email } = await signUp(page);
 	await goSettings(page);

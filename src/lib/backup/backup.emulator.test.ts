@@ -3,8 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { deleteUser, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { readCurrentKeyring, signUp } from '$lib/auth/account';
+import { deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { checkRecoveryKey, readCurrentKeyring, rotateRecoveryKey, signUp } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
@@ -39,7 +39,7 @@ describe('sauvegarde (émulateurs)', () => {
 		await deleteEntry(uid, removed.id);
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Ajoutée après', links: [], tagIds: [] });
 		await tagCatalog.save(uid, dek, [{ id: 'tag-2', name: 'Ajouté après', collectionId: 'col-1' }]);
-		expect(await restoreBackup(backup)).toEqual({ restored: 2, removed: 1, adopted: false });
+		expect(await restoreBackup(backup, PASSWORD)).toEqual({ restored: 2, removed: 1, adopted: false });
 		expect((await listEntries(uid, dek)).map((e) => e.name).sort()).toEqual(['Banque', 'Mutuelle']);
 		expect(await tagCatalog.get(uid, dek)).toEqual([{ id: 'tag-1', name: 'Santé', collectionId: 'col-1' }]);
 
@@ -47,12 +47,12 @@ describe('sauvegarde (émulateurs)', () => {
 		await deleteUser(auth.currentUser!);
 		await signUp(email, PASSWORD);
 		({ uid, dek } = current());
-		await expect(restoreBackup(backup)).rejects.toBeInstanceOf(OldKeyRequired);
-		await expect(restoreBackup(backup, { currentPassword: 'faux-mot-de-passe', oldSecret: PASSWORD })).rejects.toThrow(
+		await expect(restoreBackup(backup, PASSWORD)).rejects.toBeInstanceOf(OldKeyRequired);
+		await expect(restoreBackup(backup, 'faux-mot-de-passe', PASSWORD)).rejects.toThrow(
 			/incorrect/
 		);
 
-		expect(await restoreBackup(backup, { currentPassword: PASSWORD, oldSecret: PASSWORD })).toEqual({
+		expect(await restoreBackup(backup, PASSWORD, PASSWORD)).toEqual({
 			restored: 2,
 			removed: 0,
 			adopted: true
@@ -77,7 +77,7 @@ describe('sauvegarde (émulateurs)', () => {
 		const backup = parseBackup((await createBackup(true)).text);
 		backup.entries[1].data.iv[0] ^= 1;
 
-		await expect(restoreBackup(backup)).rejects.toThrow(/endommagée/);
+		await expect(restoreBackup(backup, PASSWORD)).rejects.toThrow(/endommagée/);
 		expect((await listEntries(uid, dek)).map((e) => e.name).sort()).toEqual(['Banque', 'Mutuelle']);
 	}, 60_000);
 
@@ -90,7 +90,7 @@ describe('sauvegarde (émulateurs)', () => {
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Banque', links: [], tagIds: [] });
 		const { text } = await createBackup(true);
 
-		expect(await checkBackup(parseBackup(text))).toEqual({ entries: 2, collections: 1, tags: 1 });
+		expect(await checkBackup(parseBackup(text))).toEqual({ entries: 2, collections: 1, tags: 1, skipped: 0 });
 
 		const missingEntry = parseBackup(text);
 		missingEntry.entries.pop();
@@ -102,11 +102,72 @@ describe('sauvegarde (émulateurs)', () => {
 
 		const date = parseBackup(text);
 		date.createdAt = '2020-01-01T00:00:00.000Z';
-		await expect(restoreBackup(date)).rejects.toThrow(/modifiée/);
+		await expect(restoreBackup(date, PASSWORD)).rejects.toThrow(/modifiée/);
 
 		const manifest = parseBackup(text);
 		manifest.manifest.iv[0] ^= 1;
 		await expect(checkBackup(manifest)).rejects.toThrow(/endommagée/);
+	}, 60_000);
+
+	it('détecte un recoveryDek remplacé, et une nouvelle clé répare le compte', async () => {
+		const oldKey = await signUp(`r${Date.now()}@example.com`, PASSWORD);
+		const { uid } = current();
+		const ref = doc(db, 'users', uid);
+		await checkRecoveryKey();
+		expect(session.recoveryDamaged).toBe(false);
+
+		const original = (await getDoc(ref)).data()!;
+		await updateDoc(ref, { recoveryDek: original.wrappedDek });
+		await checkRecoveryKey();
+		expect(session.recoveryDamaged).toBe(true);
+
+		await expect(rotateRecoveryKey('faux-mot-de-passe')).rejects.toThrow(/incorrect/);
+		const newKey = await rotateRecoveryKey(PASSWORD);
+		expect(session.recoveryDamaged).toBe(false);
+		await checkRecoveryKey();
+		expect(session.recoveryDamaged).toBe(false);
+
+		const { recoveryDek } = await readCurrentKeyring();
+		await expect(unwrapDek(recoveryDek, await deriveRecoveryKek(newKey))).resolves.toBeDefined();
+		await expect(unwrapDek(recoveryDek, await deriveRecoveryKek(oldKey))).rejects.toThrow();
+	}, 60_000);
+
+	it('pose le sceau sur un compte plus ancien qui n’en a pas', async () => {
+		await signUp(`s${Date.now()}@example.com`, PASSWORD);
+		const { uid } = current();
+		const ref = doc(db, 'users', uid);
+		await updateDoc(ref, { keyringCheck: deleteField() });
+		await checkRecoveryKey();
+		expect((await getDoc(ref)).data()!.keyringCheck).toBeDefined();
+		expect(session.recoveryDamaged).toBe(false);
+	}, 60_000);
+
+	it('un fichier modifié par déplacement d’octets dans le trousseau est refusé', async () => {
+		await signUp(`m${Date.now()}@example.com`, PASSWORD);
+		const { uid, dek } = current();
+		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: [] });
+		const backup = parseBackup((await createBackup(true)).text);
+		const { recoveryDek } = backup.keyring;
+		backup.keyring.recoveryDek = {
+			iv: recoveryDek.iv.slice(1),
+			data: new Uint8Array([recoveryDek.iv[0], ...recoveryDek.data])
+		};
+		await expect(checkBackup(backup)).rejects.toThrow(/modifiée/);
+	}, 60_000);
+
+	it('écarte de l’export un catalogue illisible, et refuse de restaurer sans le bon mot de passe', async () => {
+		await signUp(`c2${Date.now()}@example.com`, PASSWORD);
+		const { uid, dek } = current();
+		await collectionCatalog.save(uid, dek, [{ id: 'col-1', name: 'Papiers' }]);
+		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: [] });
+		const good = parseBackup((await createBackup(true)).text);
+		await expect(restoreBackup(good, 'faux-mot-de-passe')).rejects.toThrow(/incorrect/);
+
+		const collections = doc(db, 'users', uid, 'meta', 'collections');
+		await setDoc(doc(db, 'users', uid, 'meta', 'tags'), (await getDoc(collections)).data()!);
+		const { text, skipped } = await createBackup(true);
+		expect(skipped).toBe(1);
+		expect(await checkBackup(parseBackup(text))).toMatchObject({ entries: 1, tags: 0, skipped: 1 });
 	}, 60_000);
 
 	it('écarte de l’export une fiche illisible : le fichier reste restaurable', async () => {
@@ -118,7 +179,7 @@ describe('sauvegarde (émulateurs)', () => {
 
 		const { text, skipped } = await createBackup(true);
 		expect(skipped).toBe(1);
-		expect(await checkBackup(parseBackup(text))).toMatchObject({ entries: 1 });
+		expect(await checkBackup(parseBackup(text))).toMatchObject({ entries: 1, skipped: 1 });
 	}, 60_000);
 
 	it('supprime toutes les données après vérification du mot de passe, puis restaure', async () => {
@@ -138,7 +199,7 @@ describe('sauvegarde (émulateurs)', () => {
 		expect(await tagCatalog.readStored(uid)).toBeNull();
 
 		// Le compte et sa DEK restent : la sauvegarde se restaure directement.
-		expect(await restoreBackup(backup)).toMatchObject({ restored: 1, adopted: false });
+		expect(await restoreBackup(backup, PASSWORD)).toMatchObject({ restored: 1, adopted: false });
 		expect((await listEntries(uid, dek)).map((e) => e.name)).toEqual(['Mutuelle']);
 	}, 60_000);
 
@@ -152,13 +213,13 @@ describe('sauvegarde (émulateurs)', () => {
 		await signUp(`d${Date.now()}@example.com`, PASSWORD);
 		({ uid, dek } = current());
 		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Déjà là', links: [], tagIds: [] });
-		await expect(restoreBackup(backup, { currentPassword: PASSWORD, oldSecret: oldRecoveryKey })).rejects.toThrow(
+		await expect(restoreBackup(backup, PASSWORD, oldRecoveryKey)).rejects.toThrow(
 			/compte vide/
 		);
 
 		const [existing] = await listEntries(uid, dek);
 		await deleteEntry(uid, existing.id);
-		expect(await restoreBackup(backup, { currentPassword: PASSWORD, oldSecret: oldRecoveryKey })).toMatchObject({
+		expect(await restoreBackup(backup, PASSWORD, oldRecoveryKey)).toMatchObject({
 			adopted: true
 		});
 		({ uid, dek } = current());

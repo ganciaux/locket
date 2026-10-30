@@ -22,9 +22,10 @@ import {
 	moveItem,
 	parseLabel,
 	parseSiteTemplate,
-	sortBy
+	sortBy,
+	withRecoveredCollections
 } from './model';
-import { deleteEntry, deleteStoredEntriesExcept, listEntries, type EntrySummary } from './repository';
+import { deleteEntry, deleteRemainingImages, deleteStoredEntriesExcept, listEntries, type EntrySummary } from './repository';
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
@@ -32,6 +33,7 @@ let items = $state.raw<ListItem[] | null>(null);
 let tags = $state.raw<Tag[] | null>(null);
 let collections = $state.raw<Collection[] | null>(null);
 let unreadableIds = $state.raw<string[]>([]);
+let catalogDamaged = $state(false);
 let loading: Promise<void> | null = null;
 
 const tagNames = $derived(new Map((tags ?? []).map((tag) => [tag.id, tag.name])));
@@ -53,6 +55,7 @@ function clear() {
 	tags = null;
 	collections = null;
 	unreadableIds = [];
+	catalogDamaged = false;
 	loading = null;
 }
 
@@ -89,6 +92,10 @@ export const entries = {
 	/** Fiches qu'aucune clé ne peut déchiffrer : absentes de `items`, leur collection est inconnue. */
 	get unreadableCount() {
 		return unreadableIds.length;
+	},
+	/** Tags ou collections illisibles : les fiches restent accessibles, leurs libellés sont perdus sans sauvegarde. */
+	get catalogDamaged() {
+		return catalogDamaged;
 	},
 	/**
 	 * Dans la collection active ; `activeItems` reste trié par nom, un autre ordre est appliqué à la copie filtrée.
@@ -127,16 +134,19 @@ export function loadEntries(): Promise<void> {
 	const { user, dek } = session;
 	if (!user || !dek) return Promise.resolve();
 	const unreadable: string[] = [];
+	let damaged = false;
+	const onDamaged = () => (damaged = true);
 	loading ??= Promise.all([
 		listEntries(user.uid, dek, (id) => unreadable.push(id)),
-		collectionCatalog.get(user.uid, dek),
-		tagCatalog.get(user.uid, dek)
+		collectionCatalog.getOrEmpty(user.uid, dek, onDamaged),
+		tagCatalog.getOrEmpty(user.uid, dek, onDamaged)
 	]).then(
 		([list, collectionList, tagList]) => {
 			if (session.dek !== dek) return;
 			items = list.map(withThumbUrl).sort(byName);
 			unreadableIds = unreadable;
-			collections = collectionList;
+			catalogDamaged = damaged;
+			collections = withRecoveredCollections(collectionList, list);
 			tags = tagList.sort(byName);
 		},
 		(error) => {
@@ -169,6 +179,7 @@ export async function deleteAllData(password: string): Promise<number> {
 	const { uid } = unlocked();
 	await verifyPassword(password);
 	const removed = await deleteStoredEntriesExcept(uid, new Set());
+	await deleteRemainingImages(uid);
 	await Promise.all([collectionCatalog.remove(uid), tagCatalog.remove(uid)]);
 	clear();
 	return removed;
@@ -180,9 +191,13 @@ export function removeEntry(id: string): void {
 	items = items.filter((item) => item.id !== id);
 }
 
-/** Retire les fiches illisibles, avec leurs images : leur contenu n'est plus récupérable sans sauvegarde. */
-export async function deleteUnreadableEntries(): Promise<void> {
+/**
+ * Retire les fiches illisibles, avec leurs images. Le mot de passe écarte le cas d'une DEK périmée (compte qui a
+ * adopté une sauvegarde sur un autre appareil) : toutes les fiches y paraîtraient illisibles.
+ */
+export async function deleteUnreadableEntries(password: string): Promise<void> {
 	const { uid } = unlocked();
+	await verifyPassword(password);
 	await Promise.all(unreadableIds.map((id) => deleteEntry(uid, id)));
 	unreadableIds = [];
 }

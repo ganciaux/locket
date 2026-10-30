@@ -25,6 +25,21 @@ function encryptedCatalog<T>(name: 'tags' | 'collections') {
 			return stored ? catalog.decrypt(dek, stored) : [];
 		},
 
+		/**
+		 * Comme `get`, mais un catalogue illisible (altéré) donne [] et appelle `onUnreadable`, pour ne pas bloquer
+		 * les fiches. Une erreur réseau reste levée : un catalogue vide par erreur serait écrasé au prochain ajout.
+		 */
+		async getOrEmpty(uid: string, dek: CryptoKey, onUnreadable: () => void): Promise<T[]> {
+			const stored = await catalog.readStored(uid);
+			if (!stored) return [];
+			try {
+				return await catalog.decrypt(dek, stored);
+			} catch {
+				onUnreadable();
+				return [];
+			}
+		},
+
 		/** Réécrit tout le catalogue (IV neuf) : quelques Ko au plus, plus simple qu'une mise à jour fine. */
 		async save(uid: string, dek: CryptoKey, items: T[]): Promise<void> {
 			await setDoc(ref(uid), { data: toStored(await encryptJson(dek, items, context)) });

@@ -34,11 +34,17 @@ describe('sauvegarde', () => {
 	});
 
 	it('refuse une version inconnue, y compris les anciennes', () => {
-		for (const version of [1, 2, 99]) {
+		for (const version of [1, 2, 3, 99]) {
 			const raw = JSON.parse(serializeBackup(sample));
 			raw.version = version;
 			expect(() => parseBackup(JSON.stringify(raw)), String(version)).toThrow(/Version/);
 		}
+	});
+
+	it('refuse un IV qui ne fait pas 12 octets', () => {
+		const raw = JSON.parse(serializeBackup(sample));
+		raw.keyring.wrappedDek.iv = 'QUJD'; // 3 octets
+		expect(() => parseBackup(JSON.stringify(raw))).toThrow(/invalide/);
 	});
 
 	it('exige le manifeste', () => {

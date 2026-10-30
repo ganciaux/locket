@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { session } from '$lib/auth/session.svelte';
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
@@ -46,7 +47,12 @@
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
 
 	let confirmPurge = $state(false);
-	const purge = formAction(deleteUnreadableEntries);
+	let purgePassword = $state('');
+	const purge = formAction(async () => {
+		await deleteUnreadableEntries(purgePassword);
+		purgePassword = '';
+		confirmPurge = false;
+	});
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
 	const filtering = $derived(!!query.trim() || tagFiltering);
 
@@ -78,6 +84,24 @@
 
 <ErrorAlert message={error} />
 
+{#if session.recoveryDamaged}
+	<p role="alert" class="alert alert-warning alert-soft mb-3 text-sm">
+		<span>
+			Votre clé de récupération ne correspond plus à ce compte, ses données ont peut-être été modifiées.
+			<a class="link" href="/settings">Générez-en une nouvelle</a> et changez votre mot de passe.
+		</span>
+	</p>
+{/if}
+
+{#if entries.catalogDamaged}
+	<p role="alert" class="alert alert-warning alert-soft mb-3 text-sm">
+		<span>
+			La liste des tags ou des collections est endommagée. Vos fiches sont intactes, mais des noms peuvent manquer.
+			<a class="link" href="/backup">Restaurez une sauvegarde</a> si vous en avez une récente.
+		</span>
+	</p>
+{/if}
+
 {#if entries.unreadableCount}
 	{@const count = entries.unreadableCount}
 	<form role="alert" class="alert alert-warning alert-soft mb-3 flex flex-wrap items-center" onsubmit={purge.submit}>
@@ -86,6 +110,15 @@
 			saine, ou supprimez-{count > 1 ? 'les' : 'la'}.
 		</span>
 		{#if confirmPurge}
+			<input
+				class="input input-sm w-full sm:w-auto"
+				type="password"
+				autocomplete="current-password"
+				placeholder="Mot de passe"
+				aria-label="Mot de passe"
+				bind:value={purgePassword}
+				required
+			/>
 			<button class="btn btn-error btn-sm" disabled={purge.busy}>Supprimer définitivement</button>
 			<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmPurge = false)}>Annuler</button>
 		{:else}
@@ -274,7 +307,13 @@
 				</a>
 
 				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
-				{#if links.length}
+				{#if links.length && prefs.cardLinksExpanded}
+					<ul class="border-base-200 flex flex-wrap gap-1 border-t p-2">
+						{#each links as link, i (i)}
+							<li class="badge badge-soft badge-sm max-w-full truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
+						{/each}
+					</ul>
+				{:else if links.length}
 					<details class="group border-base-200 border-t">
 						<summary
 							class="text-base-content/60 hover:bg-base-200 flex cursor-pointer list-none items-center gap-1 px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"

@@ -5,7 +5,7 @@
  *  - DEK différente (compte recréé) : le compte, s'il est vide, adopte la DEK de la sauvegarde
  *    grâce à l'ancien mot de passe ou à l'ancienne clé de récupération.
  */
-import { adoptBackupKeyring, readCurrentKeyring } from '$lib/auth/account';
+import { adoptBackupKeyring, checkRecoveryKey, readCurrentKeyring, verifyPassword } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { type Encrypted, decrypt, decryptJson, encryptJson, sha256 } from '$lib/crypto/crypto';
 import { type Bytes, toBase64, utf8 } from '$lib/crypto/encoding';
@@ -21,18 +21,28 @@ function unlockedSession() {
 }
 
 /**
- * Écarte ce qui ne se déchiffre pas, sinon le fichier serait refusé en entier à la restauration.
- * Une image ou une miniature abîmée ne coûte pas la fiche. Retourne le nombre de pièces écartées.
+ * `skipped` : pièces illisibles laissées hors du fichier, sinon il serait refusé en entier à la restauration.
+ * Une image ou une miniature abîmée ne coûte pas la fiche. Le nombre est scellé dans le manifeste : un fichier
+ * incomplet ne pourra pas se présenter comme complet.
  */
-async function withoutUnreadable(stored: BackupEntry[], dek: CryptoKey): Promise<{ entries: BackupEntry[]; skipped: number }> {
-	const entries: BackupEntry[] = [];
+export async function createBackup(includeImages: boolean): Promise<{ text: string; skipped: number }> {
+	const { uid, dek } = unlockedSession();
+	const [keyring, storedCollections, storedTags, stored] = await Promise.all([
+		readCurrentKeyring(),
+		collectionCatalog.readStored(uid),
+		tagCatalog.readStored(uid),
+		readStoredEntries(uid, includeImages)
+	]);
+	await checkRecoveryKey();
+
 	let skipped = 0;
-	const keep = async (encrypted: Encrypted | undefined, context: string) => {
+	const keep = async (encrypted: Encrypted | null | undefined, context: string) => {
 		if (!encrypted) return undefined;
 		if (await isReadable({ encrypted, context }, dek)) return encrypted;
 		skipped++;
 		return undefined;
 	};
+	const entries: BackupEntry[] = [];
 	for (const entry of stored) {
 		const data = await keep(entry.data, `${entry.id}/data`);
 		if (!data) continue;
@@ -40,31 +50,19 @@ async function withoutUnreadable(stored: BackupEntry[], dek: CryptoKey): Promise
 		const image = await keep(entry.image, `${entry.id}/image`);
 		entries.push({ id: entry.id, data, ...(thumb && { thumb }), ...(image && { image }) });
 	}
-	return { entries, skipped };
-}
-
-/** `skipped` : pièces illisibles laissées hors du fichier, à signaler à l'utilisateur. */
-export async function createBackup(includeImages: boolean): Promise<{ text: string; skipped: number }> {
-	const { uid, dek } = unlockedSession();
-	const [keyring, collections, tags, stored] = await Promise.all([
-		readCurrentKeyring(),
-		collectionCatalog.readStored(uid),
-		tagCatalog.readStored(uid),
-		readStoredEntries(uid, includeImages)
-	]);
-	const { entries, skipped } = await withoutUnreadable(stored, dek);
 	const content: BackupContent = {
 		createdAt: new Date().toISOString(),
 		includesImages: includeImages,
 		keyring,
-		collections,
-		tags,
+		collections: (await keep(storedCollections, 'meta/collections')) ?? null,
+		tags: (await keep(storedTags, 'meta/tags')) ?? null,
 		entries
 	};
 	const manifest: BackupManifest = {
 		createdAt: content.createdAt,
 		includesImages: content.includesImages,
 		counts: await countContent(content, dek),
+		skipped,
 		contentHash: await contentHash(content)
 	};
 	const manifestCipher = await encryptJson(dek, manifest, MANIFEST_CONTEXT);
@@ -109,7 +107,12 @@ async function contentHash(backup: BackupContent): Promise<string> {
 		{ encrypted: backup.keyring.recoveryDek, context: 'keyring/recoveryDek' }
 	];
 	const hashes: Bytes[] = [];
-	for (const { encrypted, context } of parts) hashes.push(await sha256([utf8(context), encrypted.iv, encrypted.data]));
+	for (const { encrypted, context } of parts) {
+		// Longueurs comprises : sans elles, un octet déplacé de `data` vers `iv` ne changerait pas l'empreinte.
+		const { iv, data } = encrypted;
+		const lengths = new Uint8Array(new Uint32Array([context.length, iv.length, data.length]).buffer);
+		hashes.push(await sha256([lengths, utf8(context), iv, data]));
+	}
 	return toBase64(await sha256(hashes));
 }
 
@@ -127,8 +130,11 @@ const DAMAGED = 'Sauvegarde endommagée : une partie est illisible. Rien n’a �
 
 export const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`;
 
+/** Contenu réel du fichier ; `skipped` : pièces déjà illisibles à l'export, donc absentes. */
+export type BackupCheck = BackupCounts & { skipped: number };
+
 /** Contrôle tout le fichier, sans rien écrire. Retourne son contenu réel ; lève une erreur s'il est altéré. */
-async function verifyBackup(backup: Backup, dek: CryptoKey): Promise<BackupCounts> {
+async function verifyBackup(backup: Backup, dek: CryptoKey): Promise<BackupCheck> {
 	for (const part of encryptedParts(backup)) if (!(await isReadable(part, dek))) throw new Error(DAMAGED);
 	const counts = await countContent(backup, dek);
 
@@ -151,11 +157,11 @@ async function verifyBackup(backup: Backup, dek: CryptoKey): Promise<BackupCount
 		manifest.contentHash !== (await contentHash(backup))
 	)
 		throw new Error('Sauvegarde modifiée depuis son export. Rien n’a été restauré.');
-	return counts;
+	return { ...counts, skipped: manifest.skipped };
 }
 
 /** Contrôle à la sélection du fichier. null : autre clé, le contrôle n'est possible qu'à la restauration. */
-export async function checkBackup(backup: Backup): Promise<BackupCounts | null> {
+export async function checkBackup(backup: Backup): Promise<BackupCheck | null> {
 	const { dek } = unlockedSession();
 	return (await opensWith(backup, dek)) ? verifyBackup(backup, dek) : null;
 }
@@ -173,7 +179,6 @@ export class OldKeyRequired extends Error {
 	}
 }
 
-export type OldKey = { currentPassword: string; oldSecret: string };
 export type RestoreResult = { restored: number; removed: number; adopted: boolean };
 
 type Catalog<T> = {
@@ -185,22 +190,27 @@ async function replaceCatalog<T>(catalog: Catalog<T>, uid: string, dek: CryptoKe
 	await catalog.save(uid, dek, fromFile ? await catalog.decrypt(dek, fromFile) : []);
 }
 
-export async function restoreBackup(backup: Backup, oldKey?: OldKey): Promise<RestoreResult> {
+/**
+ * `password` : mot de passe actuel, comme pour la suppression totale, car restaurer efface ce qui est plus récent.
+ * `oldSecret` : ancien mot de passe ou ancienne clé de récupération, si le fichier vient d'une autre clé.
+ */
+export async function restoreBackup(backup: Backup, password: string, oldSecret?: string): Promise<RestoreResult> {
 	const { uid } = unlockedSession();
 	let { dek } = unlockedSession();
 	if (!encryptedParts(backup).length) throw new Error('Cette sauvegarde est vide.');
+	await verifyPassword(password);
 
 	// Tout est vérifié avant la première écriture : un fichier altéré remplacerait des fiches saines.
 	let adopted = false;
 	if (await opensWith(backup, dek)) {
 		await verifyBackup(backup, dek);
 	} else {
-		if (!oldKey) throw new OldKeyRequired();
+		if (!oldSecret) throw new OldKeyRequired();
 		if (await hasEntries(uid))
 			throw new Error(
 				'Ce compte contient déjà des fiches chiffrées avec une autre clé : restaurez cette sauvegarde dans un compte vide.'
 			);
-		dek = await adoptBackupKeyring(backup.keyring, oldKey.currentPassword, oldKey.oldSecret, async (oldDek) => {
+		dek = await adoptBackupKeyring(backup.keyring, password, oldSecret, async (oldDek) => {
 			await verifyBackup(backup, oldDek);
 		});
 		adopted = true;

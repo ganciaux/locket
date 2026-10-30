@@ -19,8 +19,22 @@ import {
 	parseLinkUrl,
 	parseNameList,
 	parseSiteTemplate,
-	sortBy
+	sortBy,
+	withRecoveredCollections
 } from './model';
+
+describe('withRecoveredCollections', () => {
+	it('recrée une fois chaque collection inconnue, à la suite des autres', () => {
+		const known = [{ id: 'a', name: 'Manga' }];
+		const entries = [{ collectionId: 'a' }, { collectionId: 'b' }, { collectionId: 'b' }];
+		expect(withRecoveredCollections(known, entries)).toEqual([...known, { id: 'b', name: 'Collection récupérée 1' }]);
+	});
+
+	it('ne change rien si tout est connu', () => {
+		const known = [{ id: 'a', name: 'Manga' }];
+		expect(withRecoveredCollections(known, [{ collectionId: 'a' }])).toEqual(known);
+	});
+});
 
 describe('sites', () => {
 	const anime = { id: 's1', label: 'anime', urlTemplate: 'https://anime.fr/search?k={{name}}', enabled: true };
