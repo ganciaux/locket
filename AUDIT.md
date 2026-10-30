@@ -79,9 +79,11 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
       déplier / replier ci-dessus.
 
 ### Apparence
-- [ ] **Couleur d'accent en thème clair** : un « violet bleu » est vu, une teinte plus foncée est souhaitée. Vérifié le
-      2026-10-30 : l'accent calculé est bien le rouge bordeaux, thème forcé ou non ; aucune classe secondary/accent/info.
-      Attendre une capture pour savoir où (version en cache sur l'iPhone ? fond rosé des cartes sans image ?). *Simple.*
+- [x] **Couleur d'accent en thème clair** : indigo quand « Clair » (ou « Sombre ») est forcé dans Paramètres. Cause
+      (2026-10-30) : daisyUI déclare ses thèmes intégrés avec un sélecteur plus spécifique que nos thèmes du même nom ;
+      corrigé par des règles hors `@layer` dans `app.css`, vérifié sur le build de production. *Simple.*
+- [x] **Zone d'annonce SvelteKit** (trouvée en passant) : son attribut `style` était bloqué par la CSP, le titre de page
+      pouvait s'afficher sous l'app ; style repris dans `app.css`. *Simple.*
 - [x] **Mode sombre** : cases à cocher plutôt en blanc. *Simple.*
 
 ### À décider
