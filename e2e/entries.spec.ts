@@ -48,7 +48,7 @@ test('liens sur les cartes : dépliés par défaut, repliables', async ({ page }
 	await addSite(page, 'anime', 'https://anime.fr/search?k=');
 	await createEntry(page, 'John Doe');
 
-	await goHome(page);
+	await page.getByRole('link', { name: 'Retour', exact: true }).click();
 	const link = page.locator('li.card').getByRole('link', { name: 'anime', exact: true });
 	await expect(link).toBeVisible();
 	await expect(page.getByText('1 lien', { exact: true })).toHaveCount(0);

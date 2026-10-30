@@ -523,10 +523,9 @@
 					{#if entry.tagIds?.length}
 						{@const entryTags = entries.tagsOf(entry)}
 						<div class="flex flex-wrap gap-1 px-3 pb-2">
-							{#each entryTags.slice(0, 3) as tag (tag.id)}
+							{#each entryTags as tag (tag.id)}
 								<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
 							{/each}
-							{#if entryTags.length > 3}<span class="badge badge-ghost badge-xs">+{entryTags.length - 3}</span>{/if}
 						</div>
 					{/if}
 				</a>

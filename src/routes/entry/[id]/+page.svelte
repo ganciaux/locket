@@ -183,6 +183,7 @@
 					<button class="btn btn-outline btn-error" onclick={() => (confirmDelete = true)}>
 						<Icon name="trash" class="size-4" /> Supprimer
 					</button>
+					<a class="btn btn-ghost" href="/"><Icon name="back" class="size-4" /> Retour</a>
 				</div>
 			{/if}
 		</div>
