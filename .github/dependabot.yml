@@ -1,0 +1,10 @@
+# Une fois par semaine : propose les mises à jour npm, en regroupant les dépendances de développement.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
