@@ -21,6 +21,8 @@ export type EntryData = {
 	hiddenSites?: string[];
 	/** Rangée à l'écart : absente de la liste sauf avec le bouton « Cachées ». Simple filtre, pas une protection. */
 	hidden?: boolean;
+	/** Note de 1 à `MAX_RATING` : 5 étoiles par demi-étoile ; absente, la fiche n'est pas notée. */
+	rating?: number;
 	/** Dans la corbeille depuis cette date ; supprimée pour de bon après `TRASH_DAYS` jours. */
 	deletedAt?: number;
 };
@@ -181,8 +183,8 @@ export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
 export const byName = (a: { name: string }, b: { name: string }): number =>
 	a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
 
-export type SortOrder = 'name' | 'created' | 'updated' | 'random';
-type Sortable = { id: string; name: string; createdAt: number; updatedAt: number };
+export type SortOrder = 'name' | 'created' | 'updated' | 'random' | 'rating';
+type Sortable = { id: string; name: string; createdAt: number; updatedAt: number; rating?: number };
 
 /**
  * Rang pseudo-aléatoire d'une fiche (FNV-1a de « graine:id ») : même graine, même ordre, sans rien mémoriser ;
@@ -197,15 +199,39 @@ export function shuffleRank(id: string, seed: number): number {
 	return hash >>> 0;
 }
 
-/** Par nom (A→Z), du plus récent au plus ancien, ou mélangé selon `seed` ; à égalité, par nom. */
+/**
+ * Par nom (A→Z), du plus récent au plus ancien, de la meilleure note à la moins bonne (non notées à la fin),
+ * ou mélangé selon `seed` ; à égalité, par nom.
+ */
 export const sortBy =
 	(order: SortOrder, seed = 0) =>
 	(a: Sortable, b: Sortable): number => {
 		if (order === 'created') return b.createdAt - a.createdAt || byName(a, b);
 		if (order === 'updated') return b.updatedAt - a.updatedAt || byName(a, b);
 		if (order === 'random') return shuffleRank(a.id, seed) - shuffleRank(b.id, seed) || byName(a, b);
+		if (order === 'rating') return (b.rating ?? 0) - (a.rating ?? 0) || byName(a, b);
 		return byName(a, b);
 	};
+
+// ---------------------------------------------------------------------------
+// Note
+
+export const MAX_RATING = 10;
+
+/** Entier de 1 à `MAX_RATING`, sinon undefined (pas notée) : une valeur hors bornes ne s'enregistre pas. */
+export const parseRating = (value: unknown): number | undefined =>
+	Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_RATING ? (value as number) : undefined;
+
+/** En étoiles, à la française : 9 → « 4,5 ». */
+export const formatRating = (rating: number): string => (rating / 2).toLocaleString('fr-FR');
+
+/** `min` : note minimale (0 = pas de filtre) ; `unrated` : seulement les fiches sans note (exclusif de `min`). */
+export type RatingFilter = { min: number; unrated: boolean };
+
+export const NO_RATING_FILTER: RatingFilter = { min: 0, unrated: false };
+
+export const matchesRatingFilter = (rating: number | undefined, filter: RatingFilter): boolean =>
+	filter.unrated ? rating === undefined : !filter.min || (rating ?? 0) >= filter.min;
 
 /** Filtre sur la présence de liens affichés (sites de la collection compris). */
 export type LinkFilter = 'all' | 'with' | 'without';

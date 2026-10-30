@@ -18,8 +18,12 @@ import {
 	moveItem,
 	parseLabel,
 	parseLinkUrl,
+	NO_RATING_FILTER,
+	formatRating,
 	matchesLinkFilter,
+	matchesRatingFilter,
 	parseNameList,
+	parseRating,
 	parseSiteTemplate,
 	shuffleRank,
 	sortBy,
@@ -249,6 +253,38 @@ describe('recherche et tri', () => {
 		expect(shuffled(1)).not.toEqual(list.map((e) => e.id));
 		expect([...shuffled(1)].sort()).toEqual(list.map((e) => e.id).sort());
 		expect(shuffleRank('a', 1)).toBe(shuffleRank('a', 1));
+	});
+});
+
+describe('note', () => {
+	it('accepte un entier de 1 à 10, rien d’autre', () => {
+		expect(parseRating(1)).toBe(1);
+		expect(parseRating(10)).toBe(10);
+		for (const value of [0, 11, 4.5, -1, '8', null, undefined, NaN]) expect(parseRating(value), String(value)).toBeUndefined();
+	});
+
+	it('s’affiche en étoiles, à la française', () => {
+		expect(formatRating(9)).toBe('4,5');
+		expect(formatRating(8)).toBe('4');
+	});
+
+	it('filtre par note minimale ou sans note', () => {
+		expect(matchesRatingFilter(undefined, NO_RATING_FILTER)).toBe(true);
+		expect(matchesRatingFilter(8, { min: 8, unrated: false })).toBe(true);
+		expect(matchesRatingFilter(7, { min: 8, unrated: false })).toBe(false);
+		expect(matchesRatingFilter(undefined, { min: 6, unrated: false })).toBe(false);
+		expect(matchesRatingFilter(undefined, { min: 0, unrated: true })).toBe(true);
+		expect(matchesRatingFilter(10, { min: 0, unrated: true })).toBe(false);
+	});
+
+	it('trie de la meilleure note à la moins bonne, non notées à la fin, puis par nom', () => {
+		const list = [
+			{ id: '1', name: 'b', createdAt: 0, updatedAt: 0 },
+			{ id: '2', name: 'a', createdAt: 0, updatedAt: 0, rating: 6 },
+			{ id: '3', name: 'c', createdAt: 0, updatedAt: 0, rating: 9 },
+			{ id: '4', name: 'd', createdAt: 0, updatedAt: 0, rating: 6 }
+		];
+		expect([...list].sort(sortBy('rating')).map((e) => e.name)).toEqual(['c', 'a', 'd', 'b']);
 	});
 });
 

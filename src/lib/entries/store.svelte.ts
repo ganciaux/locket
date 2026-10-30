@@ -21,8 +21,12 @@ import {
 	entryLinks,
 	isTrashExpired,
 	type LinkFilter,
+	NO_RATING_FILTER,
+	type RatingFilter,
 	matchesFilter,
 	matchesLinkFilter,
+	matchesRatingFilter,
+	parseRating,
 	moveItem,
 	parseLabel,
 	parseSiteTemplate,
@@ -123,15 +127,19 @@ export const entries = {
 	 */
 	search(
 		query: string,
-		filter: TagFilter = NO_TAG_FILTER,
-		order: SortOrder = 'name',
-		linkFilter: LinkFilter = 'all'
+		{
+			tags = NO_TAG_FILTER,
+			links = 'all',
+			rating = NO_RATING_FILTER,
+			order = 'name'
+		}: { tags?: TagFilter; links?: LinkFilter; rating?: RatingFilter; order?: SortOrder } = {}
 	): ListItem[] {
 		const found = (activeItems ?? []).filter(
 			(item) =>
 				(prefs.showHidden || !item.hidden) &&
-				matchesFilter(item, query, filter, tagNames) &&
-				matchesLinkFilter(entries.linksOf(item).length, linkFilter)
+				matchesFilter(item, query, tags, tagNames) &&
+				matchesLinkFilter(entries.linksOf(item).length, links) &&
+				matchesRatingFilter(item.rating, rating)
 		);
 		return order === 'name' ? found : found.sort(sortBy(order, shuffleSeed));
 	},
@@ -245,6 +253,10 @@ export const restoreFromTrash = (targets: ListItem[]): Promise<void> =>
 
 export const setEntriesHidden = (targets: ListItem[], hidden: boolean): Promise<void> =>
 	patchEntries(targets, () => ({ hidden: hidden || undefined }));
+
+/** Note depuis la fiche, sans passer par le formulaire ; undefined l'efface. */
+export const rateEntry = (entry: ListItem, rating: number | undefined): Promise<void> =>
+	patchEntries([entry], () => ({ rating: parseRating(rating), updatedAt: Date.now() }));
 
 /** Ajoute ou retire ces tags, sans toucher aux autres tags des fiches. */
 export function changeEntriesTags(targets: ListItem[], tagIds: string[], mode: 'add' | 'remove'): Promise<void> {

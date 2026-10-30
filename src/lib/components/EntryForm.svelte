@@ -5,6 +5,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
 	import { type Link, MAX_NAME_LENGTH, parseLinkUrl } from '$lib/entries/model';
@@ -28,6 +29,8 @@
 	let hiddenSites = $state([...(entry?.hiddenSites ?? [])]);
 	// svelte-ignore state_referenced_locally
 	let hidden = $state(!!entry?.hidden);
+	// svelte-ignore state_referenced_locally
+	let rating = $state(entry?.rating);
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
 	let chosenCollectionId = $state(entry?.collectionId ?? '');
@@ -122,6 +125,7 @@
 				siteTerms: knownSiteTerms(),
 				hiddenSites: hiddenSites.filter((id) => collectionSites.some((site) => site.id === id)),
 				hidden,
+				rating,
 				image
 			},
 			entry
@@ -148,6 +152,15 @@
 					</select>
 				</Field>
 			{/if}
+			<div class="flex flex-col gap-1">
+				<span class="text-sm font-medium">Note</span>
+				<div class="flex items-center gap-2">
+					<Rating value={rating} onchange={(value) => (rating = value)} />
+					{#if rating}
+						<button type="button" class="btn btn-ghost btn-xs" onclick={() => (rating = undefined)}>Effacer</button>
+					{/if}
+				</div>
+			</div>
 			<label class="flex cursor-pointer items-start justify-between gap-4">
 				<span class="flex flex-col">
 					<span class="text-sm font-medium">Cacher cette fiche</span>

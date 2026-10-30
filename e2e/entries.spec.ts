@@ -242,6 +242,43 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await expect(page.getByText('Fiche A')).toHaveCount(0);
 });
 
+test('note : depuis la fiche, conservée en modification, filtre et tri', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Moyenne');
+	await page.getByRole('radio', { name: '3 sur 5' }).click();
+	await expect(page.getByText('3 / 5')).toBeVisible();
+
+	await createEntry(page, 'Excellente');
+	await page.getByRole('radio', { name: '4,5 sur 5' }).click();
+	await expect(page.getByText('4,5 / 5')).toBeVisible();
+	// Le formulaire garde la note.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByLabel('Nom', { exact: true }).fill('Excellente !');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByText('4,5 / 5')).toBeVisible();
+	// Retoucher la note actuelle l'efface.
+	await page.getByRole('radio', { name: '4,5 sur 5' }).click();
+	await expect(page.getByText('Pas encore notée')).toBeVisible();
+	await page.getByRole('radio', { name: '4,5 sur 5' }).click();
+
+	await createEntry(page, 'Sans avis');
+	await goHome(page);
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await expect(card('Excellente').getByRole('img', { name: 'Note : 4,5 sur 5' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Au moins 4 étoiles' }).click();
+	await expect(card('Excellente')).toBeVisible();
+	await expect(card('Moyenne')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Sans note' }).click();
+	await expect(card('Sans avis')).toBeVisible();
+	await expect(card('Excellente')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Effacer' }).click();
+
+	await page.getByLabel('Trier par').selectOption('rating');
+	await expect(page.locator('li.card h2')).toHaveText(['Excellente !', 'Moyenne', 'Sans avis']);
+});
+
 test('sauvegarde : fichier altéré refusé, suppression totale, puis restauration', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);

@@ -5,10 +5,11 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import Rating from '$lib/components/Rating.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
-	import { TRASH_DAYS } from '$lib/entries/model';
+	import { TRASH_DAYS, formatRating } from '$lib/entries/model';
 	import { getImage } from '$lib/entries/repository';
-	import { deleteForever, entries, loadEntries, trashEntries } from '$lib/entries/store.svelte';
+	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
@@ -58,6 +59,21 @@
 		await goto('/', { replaceState: true });
 	});
 
+	// Notée directement depuis la fiche : enregistrée aussitôt, comme « Cacher ».
+	let savingRating = $state(false);
+	async function rate(value: number | undefined) {
+		if (!entry || savingRating) return;
+		savingRating = true;
+		error = '';
+		try {
+			await rateEntry(entry, value);
+		} catch (e) {
+			error = errorMessage(e);
+		} finally {
+			savingRating = false;
+		}
+	}
+
 	let copied = $state(false);
 	async function copyName() {
 		if (!entry) return;
@@ -106,6 +122,13 @@
 				>
 					<Icon name={copied ? 'check' : 'copy'} class="size-4" />
 				</button>
+			</div>
+
+			<div class="-mt-2 flex items-center gap-2">
+				<Rating value={entry.rating} onchange={rate} disabled={savingRating} />
+				<span class="text-base-content/60 text-sm">
+					{entry.rating ? `${formatRating(entry.rating)} / 5` : 'Pas encore notée'}
+				</span>
 			</div>
 
 			{#if entries.tagsOf(entry).length}

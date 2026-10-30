@@ -4,12 +4,15 @@
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
+	import Rating from '$lib/components/Rating.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import {
 		type LinkFilter,
 		MAX_LABEL_LENGTH,
+		NO_RATING_FILTER,
 		NO_TAG_FILTER,
+		type RatingFilter,
 		type SortOrder,
 		type TagFilter,
 		TRASH_DAYS,
@@ -46,12 +49,20 @@
 		{ value: 'name', label: 'Tri : nom' },
 		{ value: 'created', label: 'Tri : récentes' },
 		{ value: 'updated', label: 'Tri : modifiées' },
+		{ value: 'rating', label: 'Tri : note' },
 		{ value: 'random', label: 'Tri : aléatoire' }
+	];
+	// Note minimale, en demi-étoiles : 6 = 3 étoiles.
+	const RATING_STEPS = [
+		{ min: 6, label: '3+', title: 'Au moins 3 étoiles' },
+		{ min: 8, label: '4+', title: 'Au moins 4 étoiles' },
+		{ min: 10, label: '5', title: '5 étoiles' }
 	];
 
 	let query = $state('');
 	let tagFilter = $state<TagFilter>({ ...NO_TAG_FILTER });
 	let linkFilter = $state<LinkFilter>('all');
+	let ratingFilter = $state<RatingFilter>({ ...NO_RATING_FILTER });
 	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
 	let linksExpanded = $state(prefs.cardLinksExpanded);
 	let error = $state('');
@@ -65,9 +76,13 @@
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
-	const results = $derived(entries.search(query, tagFilter, prefs.sort, linkFilter));
+	const results = $derived(
+		entries.search(query, { tags: tagFilter, links: linkFilter, rating: ratingFilter, order: prefs.sort })
+	);
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
 	const anyLinks = $derived((entries.activeItems ?? []).some((item) => entries.linksOf(item).length > 0));
+	const anyRated = $derived((entries.activeItems ?? []).some((item) => item.rating));
+	const ratingFiltering = $derived(ratingFilter.unrated || ratingFilter.min > 0);
 
 	let confirmPurge = $state(false);
 	let purgePassword = $state('');
@@ -120,7 +135,7 @@
 	}
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
-	const filtering = $derived(!!query.trim() || tagFiltering || linkFilter !== 'all');
+	const filtering = $derived(!!query.trim() || tagFiltering || linkFilter !== 'all' || ratingFiltering);
 
 	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
 	const resetTagFilter = () => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode });
@@ -128,6 +143,15 @@
 	function clearFilters() {
 		resetTagFilter();
 		linkFilter = 'all';
+		ratingFilter = { ...NO_RATING_FILTER };
+	}
+
+	// Une note minimale et « Sans note » s'excluent ; recliquer sur le filtre actif l'enlève.
+	function toggleRatingMin(min: number) {
+		ratingFilter = { min: ratingFilter.min === min ? 0 : min, unrated: false };
+	}
+	function toggleUnrated() {
+		ratingFilter = { min: 0, unrated: !ratingFilter.unrated };
 	}
 
 	// « Avec » et « Sans » s'excluent ; recliquer sur le filtre actif l'enlève.
@@ -254,7 +278,7 @@
 	</label>
 
 	<!-- Filtres : liens et tags ; OU / ET n'a de sens qu'à partir de deux tags sélectionnés. -->
-	{#if entries.tags?.length || anyLinks}
+	{#if entries.tags?.length || anyLinks || anyRated}
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
 				<span class="text-base-content/60 text-xs">Filtrer</span>
@@ -280,7 +304,7 @@
 						/>
 					</div>
 				{/if}
-				{#if tagFiltering || linkFilter !== 'all'}
+				{#if tagFiltering || linkFilter !== 'all' || ratingFiltering}
 					<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
 				{/if}
 			</div>
@@ -298,6 +322,32 @@
 							{option.label}
 						</button>
 					{/each}
+				</div>
+			{/if}
+			{#if anyRated}
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Filtrer par note">
+					{#each RATING_STEPS as step (step.min)}
+						{@const active = ratingFilter.min === step.min}
+						<button
+							type="button"
+							class="badge badge-lg cursor-pointer gap-1 {active ? 'badge-primary' : 'badge-outline border-dashed'}"
+							aria-pressed={active}
+							aria-label={step.title}
+							title={step.title}
+							onclick={() => toggleRatingMin(step.min)}
+						>
+							<span aria-hidden="true">★</span>
+							{step.label}
+						</button>
+					{/each}
+					<button
+						type="button"
+						class="badge badge-lg cursor-pointer italic {ratingFilter.unrated ? 'badge-primary' : 'badge-outline border-dashed'}"
+						aria-pressed={ratingFilter.unrated}
+						onclick={toggleUnrated}
+					>
+						Sans note
+					</button>
 				</div>
 			{/if}
 			{#if entries.tags?.length}
@@ -443,6 +493,11 @@
 					>
 						{entry.name}
 					</h2>
+					{#if entry.rating}
+						<div class={prefs.cardSize === 'small' ? '-mt-1 px-2 pb-1' : '-mt-1 px-3 pb-2'}>
+							<Rating value={entry.rating} size="xs" />
+						</div>
+					{/if}
 					{#if entry.tagIds?.length}
 						{@const entryTags = entries.tagsOf(entry)}
 						<div class="flex flex-wrap gap-1 px-3 pb-2">
