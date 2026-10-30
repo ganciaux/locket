@@ -23,6 +23,8 @@ export type EntryData = {
 	hidden?: boolean;
 	/** Note de 1 à `MAX_RATING` : 5 étoiles par demi-étoile ; absente, la fiche n'est pas notée. */
 	rating?: number;
+	/** Pays : code ISO 3166-1 alpha-2 (`FR`, `GB`…), un seul par fiche. */
+	country?: string;
 	/** Dans la corbeille depuis cette date ; supprimée pour de bon après `TRASH_DAYS` jours. */
 	deletedAt?: number;
 };
@@ -232,6 +234,52 @@ export const NO_RATING_FILTER: RatingFilter = { min: 0, unrated: false };
 
 export const matchesRatingFilter = (rating: number | undefined, filter: RatingFilter): boolean =>
 	filter.unrated ? rating === undefined : !filter.min || (rating ?? 0) >= filter.min;
+
+// ---------------------------------------------------------------------------
+// Pays : code ISO stocké ; drapeau et nom français calculés à l'affichage, aucune liste de noms à maintenir.
+
+/** ISO 3166-1 alpha-2 : un code hors de cette liste ne s'enregistre pas. */
+export const COUNTRY_CODES = (
+	'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
+	'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO ' +
+	'FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE ' +
+	'JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO ' +
+	'MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW ' +
+	'PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM ' +
+	'TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'
+).split(' ');
+const COUNTRY_SET = new Set(COUNTRY_CODES);
+
+/** Proposés en premier à la saisie, avec les pays déjà utilisés. */
+export const FAVORITE_COUNTRIES = ['FR', 'ES', 'DE', 'IT', 'GB', 'UA', 'RU', 'PL', 'BR', 'CO', 'AU'];
+
+export const parseCountry = (value: unknown): string | undefined =>
+	typeof value === 'string' && COUNTRY_SET.has(value) ? value : undefined;
+
+/** Drapeau emoji : deux « lettres régionales » Unicode. Windows les affiche en lettres (FR), pas en drapeau. */
+export const countryFlag = (code: string): string =>
+	String.fromCodePoint(...[...code].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65));
+
+const regionNames = new Intl.DisplayNames(['fr'], { type: 'region' });
+export const countryName = (code: string): string => regionNames.of(code) ?? code;
+
+/** Libellé d'une suggestion de saisie : « 🇫🇷 France (FR) ». */
+export const countryLabel = (code: string): string => `${countryFlag(code)} ${countryName(code)} (${code})`;
+
+/** Saisie libre → code : « fr », « France », « france » (sans casse ni accents) ou une suggestion choisie. */
+export function resolveCountry(input: string): string | undefined {
+	const text = input.trim();
+	const code = /\(([A-Za-z]{2})\)$/.exec(text)?.[1] ?? (/^[A-Za-z]{2}$/.test(text) ? text : null);
+	if (code) return parseCountry(code.toUpperCase());
+	const key = searchKey(text);
+	return key ? COUNTRY_CODES.find((c) => searchKey(countryName(c)) === key) : undefined;
+}
+
+/** '' : tous les pays ; 'none' : sans pays ; sinon un code. */
+export type CountryFilter = string;
+
+export const matchesCountryFilter = (country: string | undefined, filter: CountryFilter): boolean =>
+	!filter || (filter === 'none' ? !country : country === filter);
 
 /** Filtre sur la présence de liens affichés (sites de la collection compris). */
 export type LinkFilter = 'all' | 'with' | 'without';

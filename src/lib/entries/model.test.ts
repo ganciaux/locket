@@ -18,8 +18,14 @@ import {
 	moveItem,
 	parseLabel,
 	parseLinkUrl,
+	COUNTRY_CODES,
 	NO_RATING_FILTER,
+	countryFlag,
+	countryName,
 	formatRating,
+	matchesCountryFilter,
+	parseCountry,
+	resolveCountry,
 	matchesLinkFilter,
 	matchesRatingFilter,
 	parseNameList,
@@ -285,6 +291,43 @@ describe('note', () => {
 			{ id: '4', name: 'd', createdAt: 0, updatedAt: 0, rating: 6 }
 		];
 		expect([...list].sort(sortBy('rating')).map((e) => e.name)).toEqual(['c', 'a', 'd', 'b']);
+	});
+});
+
+describe('pays', () => {
+	it('liste ISO complète, sans doublon', () => {
+		expect(COUNTRY_CODES).toHaveLength(249);
+		expect(new Set(COUNTRY_CODES).size).toBe(249);
+	});
+
+	it('n’accepte qu’un code ISO connu', () => {
+		expect(parseCountry('FR')).toBe('FR');
+		for (const value of ['fr', 'XX', 'EU', 'FRA', '', null, 12]) expect(parseCountry(value), String(value)).toBeUndefined();
+	});
+
+	it('drapeau et nom français', () => {
+		expect(countryFlag('FR')).toBe('🇫🇷');
+		expect(countryFlag('GB')).toBe('🇬🇧');
+		expect(countryName('UA')).toBe('Ukraine');
+		expect(countryName('DE')).toBe('Allemagne');
+	});
+
+	it('comprend le code, le nom sans casse ni accents, ou une suggestion', () => {
+		expect(resolveCountry(' fr ')).toBe('FR');
+		expect(resolveCountry('Bresil')).toBe('BR');
+		expect(resolveCountry('royaume-uni')).toBe('GB');
+		expect(resolveCountry('🇨🇴 Colombie (CO)')).toBe('CO');
+		expect(resolveCountry('Atlantide')).toBeUndefined();
+		expect(resolveCountry('XX')).toBeUndefined();
+		expect(resolveCountry('')).toBeUndefined();
+	});
+
+	it('filtre : tous, sans pays, un pays', () => {
+		expect(matchesCountryFilter(undefined, '')).toBe(true);
+		expect(matchesCountryFilter(undefined, 'none')).toBe(true);
+		expect(matchesCountryFilter('FR', 'none')).toBe(false);
+		expect(matchesCountryFilter('FR', 'FR')).toBe(true);
+		expect(matchesCountryFilter('ES', 'FR')).toBe(false);
 	});
 });
 

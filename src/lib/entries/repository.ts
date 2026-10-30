@@ -9,7 +9,7 @@ import { type DocumentReference, collection, doc, getDoc, getDocs, limit, query,
 import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson } from '$lib/crypto/crypto';
 import type { Bytes } from '$lib/crypto/encoding';
 import { db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
-import { type Entry, type EntryData, type Link, fitsInDoc, parseRating } from './model';
+import { type Entry, type EntryData, type Link, fitsInDoc, parseCountry, parseRating } from './model';
 
 type StoredEntry = { data: StoredEncrypted; thumb?: StoredEncrypted };
 type StoredImage = { image: StoredEncrypted };
@@ -75,6 +75,7 @@ export type EntryInput = {
 	hiddenSites?: string[];
 	hidden?: boolean;
 	rating?: number;
+	country?: string;
 	/** undefined : image inchangée ; null : supprimée ; sinon : remplacée. */
 	image?: PreparedImage | null;
 };
@@ -104,6 +105,7 @@ export async function saveEntry(
 		...(input.siteTerms && Object.keys(input.siteTerms).length && { siteTerms: input.siteTerms }),
 		...(input.hiddenSites?.length && { hiddenSites: input.hiddenSites }),
 		...(parseRating(input.rating) && { rating: input.rating }),
+		...(parseCountry(input.country) && { country: input.country }),
 		...(input.hidden && { hidden: true })
 	};
 

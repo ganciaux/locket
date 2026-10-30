@@ -20,9 +20,11 @@ import {
 	byName,
 	entryLinks,
 	isTrashExpired,
+	type CountryFilter,
 	type LinkFilter,
 	NO_RATING_FILTER,
 	type RatingFilter,
+	matchesCountryFilter,
 	matchesFilter,
 	matchesLinkFilter,
 	matchesRatingFilter,
@@ -131,15 +133,17 @@ export const entries = {
 			tags = NO_TAG_FILTER,
 			links = 'all',
 			rating = NO_RATING_FILTER,
+			country = '',
 			order = 'name'
-		}: { tags?: TagFilter; links?: LinkFilter; rating?: RatingFilter; order?: SortOrder } = {}
+		}: { tags?: TagFilter; links?: LinkFilter; rating?: RatingFilter; country?: CountryFilter; order?: SortOrder } = {}
 	): ListItem[] {
 		const found = (activeItems ?? []).filter(
 			(item) =>
 				(prefs.showHidden || !item.hidden) &&
 				matchesFilter(item, query, tags, tagNames) &&
 				matchesLinkFilter(entries.linksOf(item).length, links) &&
-				matchesRatingFilter(item.rating, rating)
+				matchesRatingFilter(item.rating, rating) &&
+				matchesCountryFilter(item.country, country)
 		);
 		return order === 'name' ? found : found.sort(sortBy(order, shuffleSeed));
 	},
@@ -159,6 +163,12 @@ export const entries = {
 	},
 	countWithTag(tagId: string): number {
 		return (liveItems ?? []).filter((item) => item.tagIds?.includes(tagId)).length;
+	},
+	/** Pays des fiches (toutes collections), du plus fréquent au moins fréquent : proposés en premier à la saisie. */
+	get usedCountries(): string[] {
+		const counts = new Map<string, number>();
+		for (const item of liveItems ?? []) if (item.country) counts.set(item.country, (counts.get(item.country) ?? 0) + 1);
+		return [...counts].sort((a, b) => b[1] - a[1]).map(([code]) => code);
 	},
 	countIn(collectionId: string): number {
 		return (liveItems ?? []).filter((item) => item.collectionId === collectionId).length;

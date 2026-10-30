@@ -13,6 +13,8 @@
 		NO_RATING_FILTER,
 		NO_TAG_FILTER,
 		type RatingFilter,
+		countryFlag,
+		countryName,
 		type SortOrder,
 		type TagFilter,
 		TRASH_DAYS,
@@ -63,6 +65,7 @@
 	let tagFilter = $state<TagFilter>({ ...NO_TAG_FILTER });
 	let linkFilter = $state<LinkFilter>('all');
 	let ratingFilter = $state<RatingFilter>({ ...NO_RATING_FILTER });
+	let countryFilter = $state('');
 	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
 	let linksExpanded = $state(prefs.cardLinksExpanded);
 	let error = $state('');
@@ -77,12 +80,27 @@
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
 	const results = $derived(
-		entries.search(query, { tags: tagFilter, links: linkFilter, rating: ratingFilter, order: prefs.sort })
+		entries.search(query, {
+			tags: tagFilter,
+			links: linkFilter,
+			rating: ratingFilter,
+			country: countryFilter,
+			order: prefs.sort
+		})
 	);
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
 	const anyLinks = $derived((entries.activeItems ?? []).some((item) => entries.linksOf(item).length > 0));
 	const anyRated = $derived((entries.activeItems ?? []).some((item) => item.rating));
 	const ratingFiltering = $derived(ratingFilter.unrated || ratingFilter.min > 0);
+	// Pays présents dans la collection, avec leur nombre de fiches, par nom.
+	const countries = $derived.by(() => {
+		const counts = new Map<string, number>();
+		for (const item of entries.activeItems ?? [])
+			if (item.country) counts.set(item.country, (counts.get(item.country) ?? 0) + 1);
+		return [...counts]
+			.map(([code, count]) => ({ code, count, name: countryName(code) }))
+			.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+	});
 
 	let confirmPurge = $state(false);
 	let purgePassword = $state('');
@@ -135,7 +153,9 @@
 	}
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
-	const filtering = $derived(!!query.trim() || tagFiltering || linkFilter !== 'all' || ratingFiltering);
+	const filtering = $derived(
+		!!query.trim() || tagFiltering || linkFilter !== 'all' || ratingFiltering || !!countryFilter
+	);
 
 	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
 	const resetTagFilter = () => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode });
@@ -144,6 +164,7 @@
 		resetTagFilter();
 		linkFilter = 'all';
 		ratingFilter = { ...NO_RATING_FILTER };
+		countryFilter = '';
 	}
 
 	// Une note minimale et « Sans note » s'excluent ; recliquer sur le filtre actif l'enlève.
@@ -278,7 +299,7 @@
 	</label>
 
 	<!-- Filtres : liens et tags ; OU / ET n'a de sens qu'à partir de deux tags sélectionnés. -->
-	{#if entries.tags?.length || anyLinks || anyRated}
+	{#if entries.tags?.length || anyLinks || anyRated || countries.length}
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
 				<span class="text-base-content/60 text-xs">Filtrer</span>
@@ -304,24 +325,35 @@
 						/>
 					</div>
 				{/if}
-				{#if tagFiltering || linkFilter !== 'all' || ratingFiltering}
+				{#if tagFiltering || linkFilter !== 'all' || ratingFiltering || countryFilter}
 					<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
 				{/if}
 			</div>
-			{#if anyLinks}
-				<div class="flex flex-wrap gap-2" role="group" aria-label="Filtrer par liens">
-					{#each [{ value: 'with', label: 'Avec liens' }, { value: 'without', label: 'Sans lien' }] as option (option.value)}
-						{@const active = linkFilter === option.value}
-						<button
-							type="button"
-							class="badge badge-lg cursor-pointer gap-1 {active ? 'badge-primary' : 'badge-outline border-dashed'}"
-							aria-pressed={active}
-							onclick={() => toggleLinkFilter(option.value as LinkFilter)}
-						>
-							<Icon name="link" class="size-3" />
-							{option.label}
-						</button>
-					{/each}
+			{#if anyLinks || countries.length}
+				<div class="flex flex-wrap items-center gap-2">
+					{#if anyLinks}
+						{#each [{ value: 'with', label: 'Avec liens' }, { value: 'without', label: 'Sans lien' }] as option (option.value)}
+							{@const active = linkFilter === option.value}
+							<button
+								type="button"
+								class="badge badge-lg cursor-pointer gap-1 {active ? 'badge-primary' : 'badge-outline border-dashed'}"
+								aria-pressed={active}
+								onclick={() => toggleLinkFilter(option.value as LinkFilter)}
+							>
+								<Icon name="link" class="size-3" />
+								{option.label}
+							</button>
+						{/each}
+					{/if}
+					{#if countries.length}
+						<select class="select select-sm w-auto" aria-label="Filtrer par pays" bind:value={countryFilter}>
+							<option value="">Tous les pays</option>
+							{#each countries as country (country.code)}
+								<option value={country.code}>{countryFlag(country.code)} {country.name} ({country.count})</option>
+							{/each}
+							<option value="none">Sans pays</option>
+						</select>
+					{/if}
 				</div>
 			{/if}
 			{#if anyRated}
@@ -491,6 +523,7 @@
 								? 'px-4 pt-4 pb-2 text-base'
 								: 'px-3 pt-3 pb-2 text-sm'}"
 					>
+						{#if entry.country}<span class="mr-1" title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
 						{entry.name}
 					</h2>
 					{#if entry.rating}

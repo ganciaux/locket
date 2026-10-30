@@ -7,7 +7,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
-	import { TRASH_DAYS, formatRating } from '$lib/entries/model';
+	import { TRASH_DAYS, countryFlag, countryName, formatRating } from '$lib/entries/model';
 	import { getImage } from '$lib/entries/repository';
 	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -110,6 +110,7 @@
 			{#if collection}
 				<p class="text-base-content/60 -mb-3 flex items-center gap-1 text-xs">
 					<Icon name="folder" class="size-3" />{collection.name}
+					{#if entry.country}<span aria-hidden="true">·</span><span class="mr-0.5">{countryFlag(entry.country)}</span><span>{countryName(entry.country)}</span>{/if}
 				</p>
 			{/if}
 			<div class="flex items-start gap-2">

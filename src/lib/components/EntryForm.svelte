@@ -5,6 +5,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import CountryPicker from '$lib/components/CountryPicker.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
@@ -31,6 +32,8 @@
 	let hidden = $state(!!entry?.hidden);
 	// svelte-ignore state_referenced_locally
 	let rating = $state(entry?.rating);
+	// svelte-ignore state_referenced_locally
+	let country = $state(entry?.country);
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
 	let chosenCollectionId = $state(entry?.collectionId ?? '');
@@ -126,6 +129,7 @@
 				hiddenSites: hiddenSites.filter((id) => collectionSites.some((site) => site.id === id)),
 				hidden,
 				rating,
+				country,
 				image
 			},
 			entry
@@ -152,6 +156,10 @@
 					</select>
 				</Field>
 			{/if}
+			<div class="flex flex-col gap-1">
+				<span class="text-sm font-medium">Pays</span>
+				<CountryPicker bind:value={country} frequent={entries.usedCountries} />
+			</div>
 			<div class="flex flex-col gap-1">
 				<span class="text-sm font-medium">Note</span>
 				<div class="flex items-center gap-2">

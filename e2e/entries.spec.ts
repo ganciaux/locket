@@ -279,6 +279,40 @@ test('note : depuis la fiche, conservée en modification, filtre et tri', async 
 	await expect(page.locator('li.card h2')).toHaveText(['Excellente !', 'Moyenne', 'Sans avis']);
 });
 
+test('pays : saisi par nom ou par code, affiché et filtré', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+
+	async function setCountry(name: string, input: string) {
+		await createEntry(page, name);
+		await page.getByRole('link', { name: 'Modifier' }).click();
+		await page.getByLabel('Pays').fill(input);
+	}
+
+	await setCountry('Pelé', 'bresil');
+	await expect(page.getByRole('status').filter({ hasText: 'Brésil' })).toBeVisible();
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByText('Brésil', { exact: true })).toBeVisible();
+
+	await setCountry('Zidane', 'fr');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByText('France', { exact: true })).toBeVisible();
+
+	await setCountry('Inconnu', 'Atlantide');
+	await expect(page.getByText('Pays non reconnu')).toBeVisible();
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Inconnu' })).toBeVisible();
+
+	await goHome(page);
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await page.getByLabel('Filtrer par pays').selectOption('BR');
+	await expect(card('Pelé')).toBeVisible();
+	await expect(card('Zidane')).toHaveCount(0);
+	await page.getByLabel('Filtrer par pays').selectOption('none');
+	await expect(card('Inconnu')).toBeVisible();
+	await expect(card('Pelé')).toHaveCount(0);
+});
+
 test('sauvegarde : fichier altéré refusé, suppression totale, puis restauration', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
