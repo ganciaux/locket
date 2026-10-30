@@ -25,6 +25,36 @@
 	--color-primary-content: oklch(20% 0.06 22);
 }
 
+/*
+ * Thème forcé dans Paramètres : daisyUI déclare ses thèmes intégrés avec un sélecteur plus spécifique
+ * (`:is(:root:has(.theme-controller…), [data-theme=light])`) que nos thèmes du même nom, et son accent indigo
+ * l'emportait. Ces règles hors couche passent avant tout ce qui est dans `@layer base`, quelle que soit la spécificité.
+ */
+[data-theme='light'] {
+	--color-primary: oklch(44% 0.17 22);
+	--color-primary-content: oklch(98% 0.01 22);
+}
+
+[data-theme='dark'] {
+	--color-primary: oklch(64% 0.19 25);
+	--color-primary-content: oklch(20% 0.06 22);
+}
+
+/*
+ * Zone d'annonce des changements de page (lecteurs d'écran) : SvelteKit la masque par un attribut style, que la CSP
+ * bloque ; sans ce rappel, le titre de la page s'afficherait en clair sous l'app après une navigation.
+ */
+#svelte-announcer {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
 /* Conteneur de SvelteKit dans app.html : en CSS plutôt qu'en attribut style, bloqué par la CSP. */
 @layer base {
 	.app-root {
