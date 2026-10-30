@@ -227,13 +227,13 @@ export const parseRating = (value: unknown): number | undefined =>
 /** En étoiles, à la française : 9 → « 4,5 ». */
 export const formatRating = (rating: number): string => (rating / 2).toLocaleString('fr-FR');
 
-/** `min` : note minimale (0 = pas de filtre) ; `unrated` : seulement les fiches sans note (exclusif de `min`). */
-export type RatingFilter = { min: number; unrated: boolean };
+/** 0 : toutes les notes ; `UNRATED` : seulement les fiches sans note ; sinon note minimale (1 à `MAX_RATING`). */
+export type RatingFilter = number;
 
-export const NO_RATING_FILTER: RatingFilter = { min: 0, unrated: false };
+export const UNRATED = -1;
 
 export const matchesRatingFilter = (rating: number | undefined, filter: RatingFilter): boolean =>
-	filter.unrated ? rating === undefined : !filter.min || (rating ?? 0) >= filter.min;
+	filter === 0 || (filter === UNRATED ? rating === undefined : (rating ?? 0) >= filter);
 
 // ---------------------------------------------------------------------------
 // Pays : code ISO stocké ; drapeau et nom français calculés à l'affichage, aucune liste de noms à maintenir.
@@ -281,11 +281,8 @@ export type CountryFilter = string;
 export const matchesCountryFilter = (country: string | undefined, filter: CountryFilter): boolean =>
 	!filter || (filter === 'none' ? !country : country === filter);
 
-/** Filtre sur la présence de liens affichés (sites de la collection compris). */
-export type LinkFilter = 'all' | 'with' | 'without';
-
-export const matchesLinkFilter = (linkCount: number, filter: LinkFilter): boolean =>
-	filter === 'all' || (filter === 'with') === linkCount > 0;
+/** `withLinks` : seulement les fiches qui affichent au moins un lien (sites de la collection compris). */
+export const matchesLinkFilter = (linkCount: number, withLinks: boolean): boolean => !withLinks || linkCount > 0;
 
 // ---------------------------------------------------------------------------
 // Import d'une liste de noms

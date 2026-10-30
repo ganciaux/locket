@@ -2,8 +2,6 @@
  * Préférences d'affichage, propres à chaque appareil (localStorage) : rien de sensible, rien de synchronisé.
  * Le thème est aussi appliqué avant le premier rendu par `static/theme.js` (même clé).
  */
-import type { SortOrder } from '$lib/entries/model';
-
 export type Theme = 'auto' | 'light' | 'dark';
 export type CardSize = 'small' | 'medium' | 'large';
 /** Minutes d'inactivité avant verrouillage ; 0 = jamais. */
@@ -12,7 +10,6 @@ type Prefs = {
 	theme: Theme;
 	linksInNewTab: boolean;
 	cardSize: CardSize;
-	sort: SortOrder;
 	autoLockMinutes: AutoLock;
 	/** Collection affichée : identifiant aléatoire, rien de lisible. Vide ou inconnue → la première. */
 	collectionId: string;
@@ -25,7 +22,6 @@ const DEFAULTS: Prefs = {
 	theme: 'auto',
 	linksInNewTab: true,
 	cardSize: 'medium',
-	sort: 'name',
 	autoLockMinutes: 5,
 	collectionId: '',
 	showHidden: false,

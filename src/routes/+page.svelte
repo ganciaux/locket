@@ -7,21 +7,20 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
+	import { listView } from '$lib/entries/listView.svelte';
 	import {
-		type LinkFilter,
 		MAX_LABEL_LENGTH,
-		NO_RATING_FILTER,
 		NO_TAG_FILTER,
-		type RatingFilter,
+		type SortOrder,
+		TRASH_DAYS,
+		UNRATED,
 		countryFlag,
 		countryName,
-		type SortOrder,
-		type TagFilter,
-		TRASH_DAYS,
 		linkTitle
 	} from '$lib/entries/model';
 	import {
 		addCollection,
+		changeEntriesSites,
 		changeEntriesTags,
 		deleteForever,
 		deleteUnreadableEntries,
@@ -55,17 +54,19 @@
 		{ value: 'random', label: 'Tri : aléatoire' }
 	];
 	// Note minimale, en demi-étoiles : 6 = 3 étoiles.
-	const RATING_STEPS = [
-		{ min: 6, label: '3+', title: 'Au moins 3 étoiles' },
-		{ min: 8, label: '4+', title: 'Au moins 4 étoiles' },
-		{ min: 10, label: '5', title: '5 étoiles' }
+	const RATINGS: { value: number; label: string }[] = [
+		{ value: 0, label: 'Toutes les notes' },
+		{ value: 2, label: '★ 1 et plus' },
+		{ value: 4, label: '★ 2 et plus' },
+		{ value: 6, label: '★ 3 et plus' },
+		{ value: 8, label: '★ 4 et plus' },
+		{ value: 9, label: '★ 4,5 et plus' },
+		{ value: 10, label: '★ 5' },
+		{ value: UNRATED, label: 'Sans note' }
 	];
 
-	let query = $state('');
-	let tagFilter = $state<TagFilter>({ ...NO_TAG_FILTER });
-	let linkFilter = $state<LinkFilter>('all');
-	let ratingFilter = $state<RatingFilter>({ ...NO_RATING_FILTER });
-	let countryFilter = $state('');
+	// Filtres et tri : gardés pendant la session, valeurs par défaut à chaque déverrouillage (voir listView).
+	const tagFilter = $derived(listView.tags);
 	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
 	let linksExpanded = $state(prefs.cardLinksExpanded);
 	let error = $state('');
@@ -79,19 +80,19 @@
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
+	const anyLinks = $derived((entries.activeItems ?? []).some((item) => entries.linksOf(item).length > 0));
+	const anyRated = $derived((entries.activeItems ?? []).some((item) => item.rating));
 	const results = $derived(
-		entries.search(query, {
-			tags: tagFilter,
-			links: linkFilter,
-			rating: ratingFilter,
-			country: countryFilter,
-			order: prefs.sort
+		entries.search(listView.query, {
+			tags: listView.tags,
+			// Sans aucune fiche avec liens dans la collection, le filtre par défaut viderait la liste : ignoré.
+			withLinks: listView.withLinks && anyLinks,
+			rating: listView.rating,
+			country: listView.country,
+			order: listView.sort
 		})
 	);
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
-	const anyLinks = $derived((entries.activeItems ?? []).some((item) => entries.linksOf(item).length > 0));
-	const anyRated = $derived((entries.activeItems ?? []).some((item) => item.rating));
-	const ratingFiltering = $derived(ratingFilter.unrated || ratingFilter.min > 0);
 	// Pays présents dans la collection, avec leur nombre de fiches, par nom.
 	const countries = $derived.by(() => {
 		const counts = new Map<string, number>();
@@ -113,8 +114,15 @@
 	// Sélection multiple : limitée aux fiches affichées.
 	let selecting = $state(false);
 	let selected = $state<string[]>([]);
-	let bulkPanel = $state<'tags' | 'trash' | null>(null);
+	let bulkPanel = $state<'tags' | 'sites' | 'trash' | null>(null);
 	let bulkTags = $state<string[]>([]);
+	let bulkSites = $state<string[]>([]);
+	// Sites de la collection, au format attendu par TagPicker.
+	const siteChoices = $derived(
+		entries.active
+			? entries.sitesIn(entries.active.id).map((site) => ({ id: site.id, name: site.label, collectionId: site.id }))
+			: []
+	);
 	let bulkBusy = $state(false);
 	let bulkError = $state('');
 	const selectedItems = $derived(results.filter((entry) => selected.includes(entry.id)));
@@ -129,9 +137,14 @@
 	function stopSelecting() {
 		selecting = false;
 		selected = [];
-		bulkTags = [];
-		bulkPanel = null;
+		closePanel();
 		bulkError = '';
+	}
+
+	function closePanel() {
+		bulkPanel = null;
+		bulkTags = [];
+		bulkSites = [];
 	}
 
 	function toggleSelected(id: string) {
@@ -144,7 +157,9 @@
 		bulkError = '';
 		try {
 			await action();
-			stopSelecting();
+			// La sélection reste ouverte pour enchaîner ; seules les fiches encore affichées restent cochées.
+			closePanel();
+			selected = selected.filter((id) => results.some((entry) => entry.id === id));
 		} catch (e) {
 			bulkError = errorMessage(e);
 		} finally {
@@ -153,30 +168,21 @@
 	}
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
-	const filtering = $derived(
-		!!query.trim() || tagFiltering || linkFilter !== 'all' || ratingFiltering || !!countryFilter
+	const filterActive = $derived(
+		tagFiltering || (listView.withLinks && anyLinks) || listView.rating !== 0 || !!listView.country
 	);
+	const filtering = $derived(!!listView.query.trim() || filterActive);
 
 	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
-	const resetTagFilter = () => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode });
+	const resetTagFilter = () => (listView.tags = { ...NO_TAG_FILTER, mode: listView.tags.mode });
 
+	/** « Effacer » : tout afficher (les valeurs par défaut reviennent au prochain déverrouillage). */
 	function clearFilters() {
 		resetTagFilter();
-		linkFilter = 'all';
-		ratingFilter = { ...NO_RATING_FILTER };
-		countryFilter = '';
+		listView.withLinks = false;
+		listView.rating = 0;
+		listView.country = '';
 	}
-
-	// Une note minimale et « Sans note » s'excluent ; recliquer sur le filtre actif l'enlève.
-	function toggleRatingMin(min: number) {
-		ratingFilter = { min: ratingFilter.min === min ? 0 : min, unrated: false };
-	}
-	function toggleUnrated() {
-		ratingFilter = { min: 0, unrated: !ratingFilter.unrated };
-	}
-
-	// « Avec » et « Sans » s'excluent ; recliquer sur le filtre actif l'enlève.
-	const toggleLinkFilter = (value: LinkFilter) => (linkFilter = linkFilter === value ? 'all' : value);
 
 	let collectionName = $state('');
 	const firstCollection = formAction(async () => {
@@ -186,8 +192,8 @@
 
 	// « Sans tag » et les tags sélectionnés s'excluent : cocher l'un décoche l'autre.
 	function toggleUntagged() {
-		tagFilter.untagged = !tagFilter.untagged;
-		if (tagFilter.untagged) tagFilter.tagIds = [];
+		listView.tags.untagged = !listView.tags.untagged;
+		if (listView.tags.untagged) listView.tags.tagIds = [];
 	}
 </script>
 
@@ -295,10 +301,13 @@
 	{/if}
 	<label class="input mb-3 w-full">
 		<Icon name="search" class="size-4 opacity-50" />
-		<input type="search" placeholder="Rechercher dans {entries.active?.name}" aria-label="Rechercher" bind:value={query} />
+		<input type="search" placeholder="Rechercher dans {entries.active?.name}" aria-label="Rechercher" bind:value={listView.query} />
 	</label>
 
-	<!-- Filtres : liens et tags ; OU / ET n'a de sens qu'à partir de deux tags sélectionnés. -->
+	<!--
+		Filtres : liens, note et pays sur une ligne, puis les tags ; OU / ET n'a de sens qu'à partir de deux tags
+		sélectionnés. Valeurs par défaut à chaque déverrouillage : avec liens, toutes les notes, tous les pays, aucun tag.
+	-->
 	{#if entries.tags?.length || anyLinks || anyRated || countries.length}
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
@@ -312,7 +321,7 @@
 							value="or"
 							aria-label="OU"
 							title="Au moins un des tags sélectionnés"
-							bind:group={tagFilter.mode}
+							bind:group={listView.tags.mode}
 						/>
 						<input
 							class="join-item btn btn-xs"
@@ -321,32 +330,36 @@
 							value="and"
 							aria-label="ET"
 							title="Tous les tags sélectionnés"
-							bind:group={tagFilter.mode}
+							bind:group={listView.tags.mode}
 						/>
 					</div>
 				{/if}
-				{#if tagFiltering || linkFilter !== 'all' || ratingFiltering || countryFilter}
+				{#if filterActive}
 					<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
 				{/if}
 			</div>
-			{#if anyLinks || countries.length}
+			{#if anyLinks || anyRated || countries.length}
 				<div class="flex flex-wrap items-center gap-2">
 					{#if anyLinks}
-						{#each [{ value: 'with', label: 'Avec liens' }, { value: 'without', label: 'Sans lien' }] as option (option.value)}
-							{@const active = linkFilter === option.value}
-							<button
-								type="button"
-								class="badge badge-lg cursor-pointer gap-1 {active ? 'badge-primary' : 'badge-outline border-dashed'}"
-								aria-pressed={active}
-								onclick={() => toggleLinkFilter(option.value as LinkFilter)}
-							>
-								<Icon name="link" class="size-3" />
-								{option.label}
-							</button>
-						{/each}
+						<button
+							type="button"
+							class="badge badge-lg cursor-pointer gap-1 {listView.withLinks ? 'badge-primary' : 'badge-outline border-dashed'}"
+							aria-pressed={listView.withLinks}
+							title={listView.withLinks ? 'Afficher aussi les fiches sans lien' : 'Seulement les fiches avec liens'}
+							onclick={() => (listView.withLinks = !listView.withLinks)}
+						>
+							<Icon name="link" class="size-3" /> Avec liens
+						</button>
+					{/if}
+					{#if anyRated}
+						<select class="select select-sm w-auto" aria-label="Filtrer par note" bind:value={listView.rating}>
+							{#each RATINGS as rating (rating.value)}
+								<option value={rating.value}>{rating.label}</option>
+							{/each}
+						</select>
 					{/if}
 					{#if countries.length}
-						<select class="select select-sm w-auto" aria-label="Filtrer par pays" bind:value={countryFilter}>
+						<select class="select select-sm w-auto" aria-label="Filtrer par pays" bind:value={listView.country}>
 							<option value="">Tous les pays</option>
 							{#each countries as country (country.code)}
 								<option value={country.code}>{countryFlag(country.code)} {country.name} ({country.count})</option>
@@ -356,38 +369,12 @@
 					{/if}
 				</div>
 			{/if}
-			{#if anyRated}
-				<div class="flex flex-wrap gap-2" role="group" aria-label="Filtrer par note">
-					{#each RATING_STEPS as step (step.min)}
-						{@const active = ratingFilter.min === step.min}
-						<button
-							type="button"
-							class="badge badge-lg cursor-pointer gap-1 {active ? 'badge-primary' : 'badge-outline border-dashed'}"
-							aria-pressed={active}
-							aria-label={step.title}
-							title={step.title}
-							onclick={() => toggleRatingMin(step.min)}
-						>
-							<span aria-hidden="true">★</span>
-							{step.label}
-						</button>
-					{/each}
-					<button
-						type="button"
-						class="badge badge-lg cursor-pointer italic {ratingFilter.unrated ? 'badge-primary' : 'badge-outline border-dashed'}"
-						aria-pressed={ratingFilter.unrated}
-						onclick={toggleUnrated}
-					>
-						Sans note
-					</button>
-				</div>
-			{/if}
 			{#if entries.tags?.length}
 				<TagPicker
 					tags={entries.tags}
-					bind:selected={tagFilter.tagIds}
+					bind:selected={listView.tags.tagIds}
 					label="Filtrer par tags"
-					onchange={(selected) => selected.length && (tagFilter.untagged = false)}
+					onchange={(selected) => selected.length && (listView.tags.untagged = false)}
 				>
 					{#snippet before()}
 						<button
@@ -415,12 +402,12 @@
 					? ` sur ${entries.activeItems.length}`
 					: ''}
 			</span>
-			<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
+			<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={listView.sort}>
 				{#each SORTS as sort (sort.value)}
 					<option value={sort.value}>{sort.label}</option>
 				{/each}
 			</select>
-			{#if prefs.sort === 'random'}
+			{#if listView.sort === 'random'}
 				<button class="btn btn-ghost btn-xs btn-square" onclick={reshuffle} aria-label="Remélanger" title="Remélanger">
 					<Icon name="shuffle" class="size-4" />
 				</button>
@@ -594,7 +581,27 @@
 				>
 					Retirer
 				</button>
-				<button class="btn btn-ghost btn-sm" onclick={() => (bulkPanel = null)}>Retour</button>
+				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
+			</div>
+		{:else if bulkPanel === 'sites'}
+			<p class="text-sm">Sites de la collection à afficher ou masquer sur les fiches sélectionnées :</p>
+			<TagPicker tags={siteChoices} bind:selected={bulkSites} label="Sites à afficher ou masquer" />
+			<div class="flex flex-wrap gap-2">
+				<button
+					class="btn btn-primary btn-sm"
+					disabled={bulkBusy || !bulkSites.length}
+					onclick={() => applyBulk(() => changeEntriesSites(selectedItems, bulkSites, 'show'))}
+				>
+					Afficher
+				</button>
+				<button
+					class="btn btn-outline btn-sm"
+					disabled={bulkBusy || !bulkSites.length}
+					onclick={() => applyBulk(() => changeEntriesSites(selectedItems, bulkSites, 'hide'))}
+				>
+					Masquer
+				</button>
+				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
 			</div>
 		{:else if bulkPanel === 'trash'}
 			{@const count = selectedItems.length}
@@ -613,7 +620,7 @@
 				>
 					Supprimer définitivement
 				</button>
-				<button class="btn btn-ghost btn-sm" onclick={() => (bulkPanel = null)}>Retour</button>
+				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
 			</div>
 		{:else}
 			<div class="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
@@ -632,6 +639,9 @@
 				</button>
 				{#if entries.tags?.length}
 					<button class="btn btn-sm" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'tags')}>Tags</button>
+				{/if}
+				{#if siteChoices.length}
+					<button class="btn btn-sm" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'sites')}>Liens</button>
 				{/if}
 				<button class="btn btn-sm btn-error btn-outline" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'trash')}>
 					Supprimer

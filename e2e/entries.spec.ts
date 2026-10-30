@@ -72,13 +72,28 @@ test('liens sur les cartes : repliés par défaut, affichés avec l’option', a
 	await expect(page.getByRole('heading', { name: 'Sans site' })).toBeVisible();
 	await goHome(page);
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
-	await page.getByRole('button', { name: 'Avec liens' }).click();
+	// Par défaut, seulement les fiches avec liens ; la pastille bascule vers toutes les fiches.
 	await expect(card('John Doe')).toBeVisible();
 	await expect(card('Sans site')).toHaveCount(0);
-	await page.getByRole('button', { name: 'Sans lien' }).click();
-	await expect(card('John Doe')).toHaveCount(0);
-	await expect(card('Sans site')).toBeVisible();
 	await expect(page.getByText('1 fiche sur 2')).toBeVisible();
+	await page.getByRole('button', { name: 'Avec liens' }).click();
+	await expect(card('Sans site')).toBeVisible();
+	await expect(page.getByText('2 fiches', { exact: true })).toBeVisible();
+
+	// Sélection : masquer puis réafficher un site de la collection ; la sélection reste ouverte.
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
+	await card('John Doe').getByRole('heading').click();
+	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
+	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
+	await page.getByRole('button', { name: 'Masquer', exact: true }).click();
+	// Les liens sont dépliés (réglage de Paramètres coché plus haut) : on regarde le lien lui-même.
+	const anime = card('John Doe').getByRole('link', { name: 'anime', exact: true });
+	await expect(anime).toHaveCount(0);
+	await expect(page.getByText('1 sélectionnée')).toBeVisible();
+	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
+	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
+	await page.getByRole('button', { name: 'Afficher', exact: true }).click();
+	await expect(anime).toBeVisible();
 });
 
 test('colle une image dans le formulaire, sans gêner le collage de texte', async ({ page }) => {
@@ -217,13 +232,14 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await expect(card('Fiche B').getByText('Lu')).toBeVisible();
 	await expect(card('Fiche C').getByText('Lu')).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
-	await card('Fiche A').getByRole('heading').click();
+	// La sélection reste ouverte et cochée : on enchaîne en décochant B.
+	await expect(page.getByText('2 sélectionnées')).toBeVisible();
+	await card('Fiche B').getByRole('heading').click();
 	await page.getByRole('button', { name: 'Cacher', exact: true }).click();
 	await expect(card('Fiche A')).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Cachées (1)' })).toBeVisible();
+	await expect(page.getByText('0 sélectionnée')).toBeVisible();
 
-	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	// « Tout » est une bascule : un second clic désélectionne tout.
 	await page.getByRole('button', { name: 'Tout', exact: true }).click();
 	await expect(page.getByText('2 sélectionnées')).toBeVisible();
@@ -267,10 +283,10 @@ test('note : depuis la fiche, conservée en modification, filtre et tri', async 
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	await expect(card('Excellente').getByRole('img', { name: 'Note : 4,5 sur 5' })).toBeVisible();
 
-	await page.getByRole('button', { name: 'Au moins 4 étoiles' }).click();
+	await page.getByLabel('Filtrer par note').selectOption({ label: '★ 4 et plus' });
 	await expect(card('Excellente')).toBeVisible();
 	await expect(card('Moyenne')).toHaveCount(0);
-	await page.getByRole('button', { name: 'Sans note' }).click();
+	await page.getByLabel('Filtrer par note').selectOption({ label: 'Sans note' });
 	await expect(card('Sans avis')).toBeVisible();
 	await expect(card('Excellente')).toHaveCount(0);
 	await page.getByRole('button', { name: 'Effacer' }).click();

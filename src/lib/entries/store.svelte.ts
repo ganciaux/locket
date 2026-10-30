@@ -21,8 +21,6 @@ import {
 	entryLinks,
 	isTrashExpired,
 	type CountryFilter,
-	type LinkFilter,
-	NO_RATING_FILTER,
 	type RatingFilter,
 	matchesCountryFilter,
 	matchesFilter,
@@ -131,17 +129,17 @@ export const entries = {
 		query: string,
 		{
 			tags = NO_TAG_FILTER,
-			links = 'all',
-			rating = NO_RATING_FILTER,
+			withLinks = false,
+			rating = 0,
 			country = '',
 			order = 'name'
-		}: { tags?: TagFilter; links?: LinkFilter; rating?: RatingFilter; country?: CountryFilter; order?: SortOrder } = {}
+		}: { tags?: TagFilter; withLinks?: boolean; rating?: RatingFilter; country?: CountryFilter; order?: SortOrder } = {}
 	): ListItem[] {
 		const found = (activeItems ?? []).filter(
 			(item) =>
 				(prefs.showHidden || !item.hidden) &&
 				matchesFilter(item, query, tags, tagNames) &&
-				matchesLinkFilter(entries.linksOf(item).length, links) &&
+				matchesLinkFilter(entries.linksOf(item).length, withLinks) &&
 				matchesRatingFilter(item.rating, rating) &&
 				matchesCountryFilter(item.country, country)
 		);
@@ -263,6 +261,15 @@ export const restoreFromTrash = (targets: ListItem[]): Promise<void> =>
 
 export const setEntriesHidden = (targets: ListItem[], hidden: boolean): Promise<void> =>
 	patchEntries(targets, () => ({ hidden: hidden || undefined }));
+
+/** Affiche ou masque ces sites de la collection sur les fiches, sans toucher aux autres sites. */
+export function changeEntriesSites(targets: ListItem[], siteIds: string[], mode: 'show' | 'hide'): Promise<void> {
+	return patchEntries(targets, (entry) => {
+		const current = entry.hiddenSites ?? [];
+		const next = mode === 'hide' ? [...new Set([...current, ...siteIds])] : current.filter((id) => !siteIds.includes(id));
+		return { hiddenSites: next.length ? next : undefined, updatedAt: Date.now() };
+	});
+}
 
 /** Note depuis la fiche, sans passer par le formulaire ; undefined l'efface. */
 export const rateEntry = (entry: ListItem, rating: number | undefined): Promise<void> =>

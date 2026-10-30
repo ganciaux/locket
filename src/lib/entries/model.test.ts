@@ -19,7 +19,7 @@ import {
 	parseLabel,
 	parseLinkUrl,
 	COUNTRY_CODES,
-	NO_RATING_FILTER,
+	UNRATED,
 	countryFlag,
 	countryName,
 	formatRating,
@@ -275,12 +275,12 @@ describe('note', () => {
 	});
 
 	it('filtre par note minimale ou sans note', () => {
-		expect(matchesRatingFilter(undefined, NO_RATING_FILTER)).toBe(true);
-		expect(matchesRatingFilter(8, { min: 8, unrated: false })).toBe(true);
-		expect(matchesRatingFilter(7, { min: 8, unrated: false })).toBe(false);
-		expect(matchesRatingFilter(undefined, { min: 6, unrated: false })).toBe(false);
-		expect(matchesRatingFilter(undefined, { min: 0, unrated: true })).toBe(true);
-		expect(matchesRatingFilter(10, { min: 0, unrated: true })).toBe(false);
+		expect(matchesRatingFilter(undefined, 0)).toBe(true);
+		expect(matchesRatingFilter(8, 8)).toBe(true);
+		expect(matchesRatingFilter(7, 8)).toBe(false);
+		expect(matchesRatingFilter(undefined, 6)).toBe(false);
+		expect(matchesRatingFilter(undefined, UNRATED)).toBe(true);
+		expect(matchesRatingFilter(10, UNRATED)).toBe(false);
 	});
 
 	it('trie de la meilleure note à la moins bonne, non notées à la fin, puis par nom', () => {
@@ -332,12 +332,10 @@ describe('pays', () => {
 });
 
 describe('filtre sur les liens', () => {
-	it('tous, avec liens, sans lien', () => {
-		expect(matchesLinkFilter(0, 'all')).toBe(true);
-		expect(matchesLinkFilter(2, 'with')).toBe(true);
-		expect(matchesLinkFilter(0, 'with')).toBe(false);
-		expect(matchesLinkFilter(0, 'without')).toBe(true);
-		expect(matchesLinkFilter(1, 'without')).toBe(false);
+	it('toutes les fiches, ou seulement celles avec liens', () => {
+		expect(matchesLinkFilter(0, false)).toBe(true);
+		expect(matchesLinkFilter(2, true)).toBe(true);
+		expect(matchesLinkFilter(0, true)).toBe(false);
 	});
 });
 
