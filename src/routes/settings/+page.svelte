@@ -109,7 +109,7 @@
 		<div class="card-body gap-3">
 			<h2 class="card-title text-lg">Sauvegarde</h2>
 			<p class="text-base-content/60 -mt-1 text-sm">Exporter vos fiches chiffrées dans un fichier, ou les restaurer.</p>
-			<a class="btn btn-outline btn-primary self-start" href="/sauvegarde"><Icon name="import" class="size-4" /> Sauvegarder / restaurer</a>
+			<a class="btn btn-outline btn-primary self-start" href="/backup"><Icon name="import" class="size-4" /> Sauvegarder / restaurer</a>
 		</div>
 	</section>
 

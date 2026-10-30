@@ -88,7 +88,7 @@
 			entry
 		);
 		upsertEntry(saved);
-		await goto(`/fiche/${saved.id}`, { replaceState: true });
+		await goto(`/entry/${saved.id}`, { replaceState: true });
 	});
 </script>
 

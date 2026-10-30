@@ -21,6 +21,6 @@
 	<p class="alert alert-warning alert-soft">Fiche introuvable.</p>
 {:else if entry}
 	{#key entry.id}
-		<EntryForm {entry} cancelHref="/fiche/{id}" />
+		<EntryForm {entry} cancelHref="/entry/{id}" />
 	{/key}
 {/if}

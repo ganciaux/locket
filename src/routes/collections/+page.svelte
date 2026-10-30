@@ -58,7 +58,7 @@
 	}
 </script>
 
-<a href="/parametres" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
+<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
 <h1 class="mb-1 text-2xl font-bold">Collections</h1>
 <p class="text-base-content/60 mb-4 text-sm">Chaque fiche appartient à une collection, qui a ses propres tags.</p>
 

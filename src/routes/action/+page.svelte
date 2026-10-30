@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Récupération : le lien de connexion envoyé par /mot-de-passe-oublie mène ici.
+	// Récupération : le lien de connexion envoyé par /forgot-password mène ici.
 	// Étape 1 : connexion par le lien. Étape 2 : clé de récupération + nouveau mot de passe.
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
@@ -91,9 +91,9 @@
 		</button>
 	</form>
 	{#if linkForm.error}
-		<a class="btn btn-outline" href="/mot-de-passe-oublie">Demander un nouveau lien</a>
+		<a class="btn btn-outline" href="/forgot-password">Demander un nouveau lien</a>
 	{/if}
 {:else}
 	<p role="alert" class="alert alert-warning alert-soft text-sm">Ce lien est invalide ou a déjà été utilisé.</p>
-	<a class="btn btn-outline" href="/mot-de-passe-oublie">Demander un nouveau lien</a>
+	<a class="btn btn-outline" href="/forgot-password">Demander un nouveau lien</a>
 {/if}

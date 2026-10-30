@@ -66,7 +66,7 @@
 		new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
 </script>
 
-<a href="/parametres" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
+<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
 <h1 class="mb-4 text-2xl font-bold">Sauvegarde</h1>
 
 <div class="flex flex-col gap-6">

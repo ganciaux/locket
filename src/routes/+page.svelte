@@ -66,7 +66,7 @@
 <div class="mb-4 flex items-center gap-2">
 	{#if entries.active}
 		<CollectionSwitcher onselect={resetTagFilter} />
-		<a class="btn btn-ghost btn-sm shrink-0" href="/fiche/import"><Icon name="import" class="size-4" /> Importer</a>
+		<a class="btn btn-ghost btn-sm shrink-0" href="/entry/import"><Icon name="import" class="size-4" /> Importer</a>
 	{:else}
 		<h1 class="text-2xl font-bold">Mes fiches</h1>
 	{/if}
@@ -102,7 +102,7 @@
 	<div class="flex flex-col items-center gap-4 py-16 text-center">
 		<Icon name="image" class="text-base-content/30 size-16" />
 		<p class="text-base-content/70">Aucune fiche dans « {entries.active?.name} » pour l'instant.</p>
-		<a class="btn btn-primary" href="/fiche/nouvelle"><Icon name="plus" /> Créer une fiche</a>
+		<a class="btn btn-primary" href="/entry/new"><Icon name="plus" /> Créer une fiche</a>
 	</div>
 {:else if entries.activeItems}
 	{#if remindBackup}
@@ -115,7 +115,7 @@
 			</span>
 			<div class="ml-auto flex gap-2">
 				<button class="btn btn-ghost btn-sm" onclick={remindLater}>Plus tard</button>
-				<a class="btn btn-sm" href="/sauvegarde">Sauvegarder</a>
+				<a class="btn btn-sm" href="/backup">Sauvegarder</a>
 			</div>
 		</div>
 	{/if}
@@ -208,7 +208,7 @@
 	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
 			<li class="card bg-base-100 overflow-hidden shadow-sm transition hover:shadow-md">
-				<a href="/fiche/{entry.id}" class="block">
+				<a href="/entry/{entry.id}" class="block">
 					<figure class="bg-primary/10 aspect-square">
 						{#if entry.thumbUrl}
 							<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
@@ -262,7 +262,7 @@
 
 {#if entries.active}
 	<a
-		href="/fiche/nouvelle"
+		href="/entry/new"
 		class="btn btn-primary btn-circle btn-lg fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-lg"
 		aria-label="Nouvelle fiche"
 		title="Nouvelle fiche"

@@ -31,6 +31,6 @@
 </form>
 
 <div class="flex flex-col gap-1 text-sm">
-	<a class="link link-primary" href="/mot-de-passe-oublie">Mot de passe oublié ?</a>
-	<p>Pas encore de compte ? <a class="link link-primary" href="/inscription">Créer un compte</a></p>
+	<a class="link link-primary" href="/forgot-password">Mot de passe oublié ?</a>
+	<p>Pas encore de compte ? <a class="link link-primary" href="/signup">Créer un compte</a></p>
 </div>

@@ -38,7 +38,7 @@
 	});
 </script>
 
-<a href="/parametres" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
+<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
 <h1 class="mb-2 text-2xl font-bold">Tags</h1>
 
 <ErrorAlert message={error} />

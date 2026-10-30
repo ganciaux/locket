@@ -120,7 +120,7 @@
 				</form>
 			{:else}
 				<div class="card-actions">
-					<a class="btn btn-primary" href="/fiche/{entry.id}/modifier"><Icon name="edit" class="size-4" /> Modifier</a>
+					<a class="btn btn-primary" href="/entry/{entry.id}/edit"><Icon name="edit" class="size-4" /> Modifier</a>
 					<button class="btn btn-outline btn-error" onclick={() => (confirmDelete = true)}>
 						<Icon name="trash" class="size-4" /> Supprimer
 					</button>

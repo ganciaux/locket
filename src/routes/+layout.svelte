@@ -13,11 +13,11 @@
 	let { children }: LayoutProps = $props();
 
 	// Pages accessibles sans session déverrouillée.
-	const PUBLIC_ROUTES = ['/connexion', '/inscription', '/mot-de-passe-oublie', '/action'];
+	const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/action'];
 	const isPublic = $derived(PUBLIC_ROUTES.includes(page.route.id ?? ''));
 
 	$effect(() => {
-		if (session.ready && !session.user && !isPublic) goto('/connexion');
+		if (session.ready && !session.user && !isPublic) goto('/login');
 	});
 </script>
 
@@ -57,7 +57,7 @@
 			<div class="flex-1">
 				<a href="/" class="btn btn-ghost text-xl">{@render brand()}</a>
 			</div>
-			<a href="/parametres" class="btn btn-ghost btn-circle" aria-label="Paramètres" title="Paramètres">
+			<a href="/settings" class="btn btn-ghost btn-circle" aria-label="Paramètres" title="Paramètres">
 				<Icon name="settings" />
 			</a>
 			<button class="btn btn-ghost btn-circle" onclick={lock} aria-label="Verrouiller" title="Verrouiller">

@@ -30,6 +30,6 @@
 </form>
 
 <div class="flex justify-between text-sm">
-	<a class="link link-primary" href="/mot-de-passe-oublie">Mot de passe oublié ?</a>
+	<a class="link link-primary" href="/forgot-password">Mot de passe oublié ?</a>
 	<button class="link" onclick={signOut}>Se déconnecter</button>
 </div>

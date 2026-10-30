@@ -49,4 +49,4 @@
 	</form>
 {/if}
 
-<a class="link link-primary text-sm" href="/connexion">Retour à la connexion</a>
+<a class="link link-primary text-sm" href="/login">Retour à la connexion</a>

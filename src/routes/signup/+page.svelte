@@ -84,5 +84,5 @@
 		</button>
 	</form>
 
-	<p class="text-sm">Déjà un compte ? <a class="link link-primary" href="/connexion">Se connecter</a></p>
+	<p class="text-sm">Déjà un compte ? <a class="link link-primary" href="/login">Se connecter</a></p>
 {/if}
