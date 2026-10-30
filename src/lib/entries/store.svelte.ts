@@ -20,7 +20,9 @@ import {
 	byName,
 	entryLinks,
 	isTrashExpired,
+	type LinkFilter,
 	matchesFilter,
+	matchesLinkFilter,
 	moveItem,
 	parseLabel,
 	parseSiteTemplate,
@@ -44,6 +46,8 @@ let tags = $state.raw<Tag[] | null>(null);
 let collections = $state.raw<Collection[] | null>(null);
 let unreadableIds = $state.raw<string[]>([]);
 let catalogDamaged = $state(false);
+// Graine du tri aléatoire : fixée pour la session, l'ordre ne change pas à chaque retour sur la liste.
+let shuffleSeed = $state(Math.random());
 let loading: Promise<void> | null = null;
 
 const tagNames = $derived(new Map((tags ?? []).map((tag) => [tag.id, tag.name])));
@@ -117,11 +121,19 @@ export const entries = {
 	 * Dans la collection active ; `activeItems` reste trié par nom, un autre ordre est appliqué à la copie filtrée.
 	 * Les fiches cachées n'apparaissent qu'avec la préférence `showHidden`.
 	 */
-	search(query: string, filter: TagFilter = NO_TAG_FILTER, order: SortOrder = 'name'): ListItem[] {
+	search(
+		query: string,
+		filter: TagFilter = NO_TAG_FILTER,
+		order: SortOrder = 'name',
+		linkFilter: LinkFilter = 'all'
+	): ListItem[] {
 		const found = (activeItems ?? []).filter(
-			(item) => (prefs.showHidden || !item.hidden) && matchesFilter(item, query, filter, tagNames)
+			(item) =>
+				(prefs.showHidden || !item.hidden) &&
+				matchesFilter(item, query, filter, tagNames) &&
+				matchesLinkFilter(entries.linksOf(item).length, linkFilter)
 		);
-		return order === 'name' ? found : found.sort(sortBy(order));
+		return order === 'name' ? found : found.sort(sortBy(order, shuffleSeed));
 	},
 	find(id: string): ListItem | undefined {
 		return liveItems?.find((item) => item.id === id);
@@ -273,6 +285,11 @@ function unlocked() {
 function loaded<T>(catalog: T[] | null): T[] {
 	if (!catalog) throw new Error('Catalogue pas encore chargé.');
 	return catalog;
+}
+
+/** Nouvel ordre pour le tri aléatoire. */
+export function reshuffle(): void {
+	shuffleSeed = Math.random();
 }
 
 export function selectCollection(id: string): void {

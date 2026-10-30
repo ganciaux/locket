@@ -6,6 +6,7 @@
 		back: 'M15 18l-6-6 6-6',
 		chevronDown: 'M6 9l6 6 6-6',
 		chevronUp: 'M6 15l6-6 6 6',
+		shuffle: 'M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
 		search: 'M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM20 20l-4-4',
 		lock: 'M7 11V7a5 5 0 0 1 10 0v4M5 11h14v10H5z',
 		settings: 'M4 6h9M17 6h3M15 4v4M4 12h3M11 12h9M9 10v4M4 18h11M19 18h1M17 16v4',

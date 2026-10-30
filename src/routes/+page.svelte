@@ -6,13 +6,23 @@
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
-	import { MAX_LABEL_LENGTH, NO_TAG_FILTER, type SortOrder, type TagFilter, linkTitle } from '$lib/entries/model';
+	import {
+		type LinkFilter,
+		MAX_LABEL_LENGTH,
+		NO_TAG_FILTER,
+		type SortOrder,
+		type TagFilter,
+		TRASH_DAYS,
+		linkTitle
+	} from '$lib/entries/model';
 	import {
 		addCollection,
 		changeEntriesTags,
+		deleteForever,
 		deleteUnreadableEntries,
 		entries,
 		loadEntries,
+		reshuffle,
 		setEntriesHidden,
 		trashEntries
 	} from '$lib/entries/store.svelte';
@@ -35,11 +45,15 @@
 	const SORTS: { value: SortOrder; label: string }[] = [
 		{ value: 'name', label: 'Tri : nom' },
 		{ value: 'created', label: 'Tri : récentes' },
-		{ value: 'updated', label: 'Tri : modifiées' }
+		{ value: 'updated', label: 'Tri : modifiées' },
+		{ value: 'random', label: 'Tri : aléatoire' }
 	];
 
 	let query = $state('');
 	let tagFilter = $state<TagFilter>({ ...NO_TAG_FILTER });
+	let linkFilter = $state<LinkFilter>('all');
+	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
+	let linksExpanded = $state(prefs.cardLinksExpanded);
 	let error = $state('');
 	const backupInfo = readBackupInfo();
 	let remindBackup = $state(isReminderDue(backupInfo, Date.now()));
@@ -51,8 +65,9 @@
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
-	const results = $derived(entries.search(query, tagFilter, prefs.sort));
+	const results = $derived(entries.search(query, tagFilter, prefs.sort, linkFilter));
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
+	const anyLinks = $derived((entries.activeItems ?? []).some((item) => entries.linksOf(item).length > 0));
 
 	let confirmPurge = $state(false);
 	let purgePassword = $state('');
@@ -71,6 +86,12 @@
 	let bulkError = $state('');
 	const selectedItems = $derived(results.filter((entry) => selected.includes(entry.id)));
 	const allHidden = $derived(selectedItems.length > 0 && selectedItems.every((entry) => entry.hidden));
+	const allSelected = $derived(results.length > 0 && selectedItems.length === results.length);
+
+	// « Tout » est une bascule : tout sélectionner, puis tout désélectionner.
+	function toggleAll() {
+		selected = allSelected ? [] : results.map((entry) => entry.id);
+	}
 
 	function stopSelecting() {
 		selecting = false;
@@ -99,10 +120,18 @@
 	}
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
-	const filtering = $derived(!!query.trim() || tagFiltering);
+	const filtering = $derived(!!query.trim() || tagFiltering || linkFilter !== 'all');
 
 	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
 	const resetTagFilter = () => (tagFilter = { ...NO_TAG_FILTER, mode: tagFilter.mode });
+
+	function clearFilters() {
+		resetTagFilter();
+		linkFilter = 'all';
+	}
+
+	// « Avec » et « Sans » s'excluent ; recliquer sur le filtre actif l'enlève.
+	const toggleLinkFilter = (value: LinkFilter) => (linkFilter = linkFilter === value ? 'all' : value);
 
 	let collectionName = $state('');
 	const firstCollection = formAction(async () => {
@@ -224,11 +253,11 @@
 		<input type="search" placeholder="Rechercher dans {entries.active?.name}" aria-label="Rechercher" bind:value={query} />
 	</label>
 
-	<!-- Filtre : pastilles de tags ; OU / ET n'a de sens qu'à partir de deux tags sélectionnés. -->
-	{#if entries.tags?.length}
+	<!-- Filtres : liens et tags ; OU / ET n'a de sens qu'à partir de deux tags sélectionnés. -->
+	{#if entries.tags?.length || anyLinks}
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
-				<span class="text-base-content/60 text-xs">Filtrer par tags</span>
+				<span class="text-base-content/60 text-xs">Filtrer</span>
 				{#if tagFilter.tagIds.length > 1}
 					<div class="join" role="radiogroup" aria-label="Mode de filtre des tags">
 						<input
@@ -251,71 +280,113 @@
 						/>
 					</div>
 				{/if}
-				{#if tagFiltering}
-					<button class="btn btn-ghost btn-xs ml-auto" onclick={resetTagFilter}>Effacer</button>
+				{#if tagFiltering || linkFilter !== 'all'}
+					<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
 				{/if}
 			</div>
-			<TagPicker
-				tags={entries.tags}
-				bind:selected={tagFilter.tagIds}
-				label="Filtrer par tags"
-				onchange={(selected) => selected.length && (tagFilter.untagged = false)}
-			>
-				{#snippet before()}
-					<button
-						type="button"
-						class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-primary' : 'badge-outline border-dashed'}"
-						aria-pressed={tagFilter.untagged}
-						onclick={toggleUntagged}
-					>
-						Sans tag
-					</button>
-				{/snippet}
-			</TagPicker>
+			{#if anyLinks}
+				<div class="flex flex-wrap gap-2" role="group" aria-label="Filtrer par liens">
+					{#each [{ value: 'with', label: 'Avec liens' }, { value: 'without', label: 'Sans lien' }] as option (option.value)}
+						{@const active = linkFilter === option.value}
+						<button
+							type="button"
+							class="badge badge-lg cursor-pointer gap-1 {active ? 'badge-primary' : 'badge-outline border-dashed'}"
+							aria-pressed={active}
+							onclick={() => toggleLinkFilter(option.value as LinkFilter)}
+						>
+							<Icon name="link" class="size-3" />
+							{option.label}
+						</button>
+					{/each}
+				</div>
+			{/if}
+			{#if entries.tags?.length}
+				<TagPicker
+					tags={entries.tags}
+					bind:selected={tagFilter.tagIds}
+					label="Filtrer par tags"
+					onchange={(selected) => selected.length && (tagFilter.untagged = false)}
+				>
+					{#snippet before()}
+						<button
+							type="button"
+							class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-primary' : 'badge-outline border-dashed'}"
+							aria-pressed={tagFilter.untagged}
+							onclick={toggleUntagged}
+						>
+							Sans tag
+						</button>
+					{/snippet}
+				</TagPicker>
+			{/if}
 		</div>
 	{/if}
 
-	<!-- Affichage : nombre de résultats, tri et taille des cartes, sur une seule ligne même à 320 px. -->
-	<div class="mb-3 flex items-center gap-2">
-		<span class="text-base-content/60 text-xs" role="status">
-			{results.length} fiche{results.length > 1 ? 's' : ''}{filtering || results.length < entries.activeItems.length ? ` sur ${entries.activeItems.length}` : ''}
-		</span>
-		{#if hiddenCount}
+	<!--
+		Affichage, sur deux lignes pour tenir à 320 px : le compteur et le tri, puis les bascules d'affichage
+		et la taille des cartes.
+	-->
+	<div class="mb-3 flex flex-col gap-2">
+		<div class="flex items-center gap-2">
+			<span class="text-base-content/60 min-w-0 truncate text-xs" role="status">
+				{results.length} fiche{results.length > 1 ? 's' : ''}{filtering || results.length < entries.activeItems.length
+					? ` sur ${entries.activeItems.length}`
+					: ''}
+			</span>
+			<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
+				{#each SORTS as sort (sort.value)}
+					<option value={sort.value}>{sort.label}</option>
+				{/each}
+			</select>
+			{#if prefs.sort === 'random'}
+				<button class="btn btn-ghost btn-xs btn-square" onclick={reshuffle} aria-label="Remélanger" title="Remélanger">
+					<Icon name="shuffle" class="size-4" />
+				</button>
+			{/if}
+		</div>
+		<div class="flex items-center gap-2">
+			{#if hiddenCount}
+				<button
+					class="btn btn-xs {prefs.showHidden ? 'btn-primary' : 'btn-ghost'}"
+					aria-pressed={prefs.showHidden}
+					title={prefs.showHidden ? 'Masquer les cachées' : 'Afficher les cachées'}
+					onclick={() => (prefs.showHidden = !prefs.showHidden)}
+				>
+					Cachées ({hiddenCount})
+				</button>
+			{/if}
+			{#if anyLinks}
+				<button
+					class="btn btn-xs {linksExpanded ? 'btn-primary' : 'btn-ghost'}"
+					aria-pressed={linksExpanded}
+					title={linksExpanded ? 'Replier les liens des cartes' : 'Déplier les liens des cartes'}
+					onclick={() => (linksExpanded = !linksExpanded)}
+				>
+					<Icon name="link" class="size-3" /> Liens
+					<Icon name="chevronDown" class="size-3 transition {linksExpanded ? 'rotate-180' : ''}" />
+				</button>
+			{/if}
 			<button
-				class="btn btn-xs {prefs.showHidden ? 'btn-primary' : 'btn-ghost'}"
-				aria-pressed={prefs.showHidden}
-				title={prefs.showHidden ? 'Masquer les cachées' : 'Afficher les cachées'}
-				onclick={() => (prefs.showHidden = !prefs.showHidden)}
+				class="btn btn-xs {selecting ? 'btn-primary' : 'btn-ghost'}"
+				aria-pressed={selecting}
+				title="Sélectionner plusieurs fiches"
+				onclick={() => (selecting ? stopSelecting() : (selecting = true))}
 			>
-				Cachées ({hiddenCount})
+				<Icon name="check" class="size-3" /> Sélection
 			</button>
-		{/if}
-		<button
-			class="btn btn-xs btn-square {selecting ? 'btn-primary' : 'btn-ghost'}"
-			aria-pressed={selecting}
-			aria-label="Sélectionner"
-			title="Sélectionner plusieurs fiches"
-			onclick={() => (selecting ? stopSelecting() : (selecting = true))}
-		>
-			<Icon name="check" class="size-4" />
-		</button>
-		<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
-			{#each SORTS as sort (sort.value)}
-				<option value={sort.value}>{sort.label}</option>
-			{/each}
-		</select>
-		<div class="join" role="radiogroup" aria-label="Taille des cartes">
-			{#each SIZES as size (size.value)}
-				<input
-					class="join-item btn btn-xs"
-					type="radio"
-					name="card-size"
-					value={size.value}
-					aria-label={size.label}
-					title={size.title}
-					bind:group={prefs.cardSize}
-				/>
-			{/each}
+			<div class="join ml-auto" role="radiogroup" aria-label="Taille des cartes">
+				{#each SIZES as size (size.value)}
+					<input
+						class="join-item btn btn-xs"
+						type="radio"
+						name="card-size"
+						value={size.value}
+						aria-label={size.label}
+						title={size.title}
+						bind:group={prefs.cardSize}
+					/>
+				{/each}
+			</div>
 		</div>
 	</div>
 
@@ -333,12 +404,12 @@
 			<li
 				class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
 					? 'opacity-50 hover:opacity-100'
-					: ''} {isSelected ? 'ring-primary ring-2' : ''}"
+					: ''} {isSelected ? 'outline-primary outline-2 -outline-offset-2' : ''}"
 			>
 				{#if selecting}
 					<input
 						type="checkbox"
-						class="checkbox checkbox-primary checkbox-sm bg-base-100 absolute top-2 left-2 z-10"
+						class="checkbox checkbox-sm bg-base-100 absolute top-2 left-2 z-10"
 						checked={isSelected}
 						onchange={() => toggleSelected(entry.id)}
 						aria-label="Sélectionner {entry.name}"
@@ -384,7 +455,7 @@
 				</a>
 
 				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
-				{#if links.length && prefs.cardLinksExpanded}
+				{#if links.length && linksExpanded}
 					<ul class="border-base-200 flex flex-wrap gap-1 border-t p-2">
 						{#each links as link, i (i)}
 							<li class="badge badge-soft badge-sm max-w-full truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
@@ -438,10 +509,21 @@
 				<button class="btn btn-ghost btn-sm" onclick={() => (bulkPanel = null)}>Retour</button>
 			</div>
 		{:else if bulkPanel === 'trash'}
-			<p class="text-sm">Mettre {selectedItems.length} fiche{selectedItems.length > 1 ? 's' : ''} à la corbeille ?</p>
-			<div class="flex gap-2">
+			{@const count = selectedItems.length}
+			<p class="text-sm">
+				Supprimer {count} fiche{count > 1 ? 's' : ''} ? La corbeille les garde {TRASH_DAYS} jours ; la suppression définitive
+				est irréversible.
+			</p>
+			<div class="flex flex-wrap gap-2">
 				<button class="btn btn-error btn-sm" disabled={bulkBusy} onclick={() => applyBulk(() => trashEntries(selectedItems))}>
 					Mettre à la corbeille
+				</button>
+				<button
+					class="btn btn-error btn-outline btn-sm"
+					disabled={bulkBusy}
+					onclick={() => applyBulk(() => deleteForever(selectedItems))}
+				>
+					Supprimer définitivement
 				</button>
 				<button class="btn btn-ghost btn-sm" onclick={() => (bulkPanel = null)}>Retour</button>
 			</div>
@@ -450,7 +532,9 @@
 				<span class="text-sm font-medium" role="status">
 					{selectedItems.length} sélectionnée{selectedItems.length > 1 ? 's' : ''}
 				</span>
-				<button class="btn btn-ghost btn-sm" onclick={() => (selected = results.map((entry) => entry.id))}>Tout</button>
+				<button class="btn btn-sm {allSelected ? 'btn-primary' : 'btn-ghost'}" aria-pressed={allSelected} onclick={toggleAll}>
+					Tout
+				</button>
 				<button
 					class="btn btn-sm"
 					disabled={bulkBusy || !selectedItems.length}

@@ -50,7 +50,7 @@
 		{copied ? 'Copiée' : 'Copier'}
 	</button>
 	<label class="flex cursor-pointer items-center gap-3 text-sm">
-		<input type="checkbox" class="checkbox checkbox-primary" bind:checked={saved} />
+		<input type="checkbox" class="checkbox" bind:checked={saved} />
 		J'ai conservé ma clé en lieu sûr
 	</label>
 	<button class="btn btn-primary" disabled={!saved} onclick={() => goto('/')}>Continuer</button>

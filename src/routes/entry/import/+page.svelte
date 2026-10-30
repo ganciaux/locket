@@ -58,14 +58,23 @@
 		</Field>
 
 		{#if text.trim()}
+			{@const count = parsed.duplicates.length}
 			<p role="status" class="text-sm">
 				<strong>{parsed.names.length}</strong> fiche{parsed.names.length > 1 ? 's' : ''} à créer
-				{#if parsed.duplicates}
-					<span class="text-base-content/60">
-						· {parsed.duplicates} doublon{parsed.duplicates > 1 ? 's' : ''} ignoré{parsed.duplicates > 1 ? 's' : ''}
-					</span>
-				{/if}
 			</p>
+			{#if count}
+				<!-- Doublons nommés : déjà dans la collection, ou répétés dans la liste (casse et accents ignorés). -->
+				<details class="bg-base-200 rounded-box text-sm" open={count <= 5}>
+					<summary class="cursor-pointer px-3 py-2">
+						{count} doublon{count > 1 ? 's' : ''} ignoré{count > 1 ? 's' : ''}
+					</summary>
+					<ul class="flex flex-wrap gap-1 px-3 pb-3">
+						{#each parsed.duplicates as name, i (i)}
+							<li class="badge badge-ghost">{name}</li>
+						{/each}
+					</ul>
+				</details>
+			{/if}
 		{/if}
 
 		<ErrorAlert message={form.error} />

@@ -8,7 +8,7 @@
 	import { bytesToUrl } from '$lib/entries/images';
 	import { TRASH_DAYS } from '$lib/entries/model';
 	import { getImage } from '$lib/entries/repository';
-	import { entries, loadEntries, trashEntries } from '$lib/entries/store.svelte';
+	import { deleteForever, entries, loadEntries, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
@@ -51,10 +51,20 @@
 		};
 	});
 
+	// Corbeille par défaut ; la suppression définitive emporte aussi l'image, sans retour possible.
+	let removeMode = $state<'trash' | 'forever'>('trash');
 	const removal = formAction(async () => {
-		if (entry) await trashEntries([entry]);
+		if (entry) await (removeMode === 'forever' ? deleteForever([entry]) : trashEntries([entry]));
 		await goto('/', { replaceState: true });
 	});
+
+	let copied = $state(false);
+	async function copyName() {
+		if (!entry) return;
+		await navigator.clipboard.writeText(entry.name);
+		copied = true;
+		setTimeout(() => (copied = false), 1500);
+	}
 
 	const formatDate = (time: number) =>
 		new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -86,7 +96,17 @@
 					<Icon name="folder" class="size-3" />{collection.name}
 				</p>
 			{/if}
-			<h1 class="card-title text-2xl break-words">{entry.name}</h1>
+			<div class="flex items-start gap-2">
+				<h1 class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
+				<button
+					class="btn btn-ghost btn-sm btn-square shrink-0"
+					onclick={copyName}
+					aria-label={copied ? 'Nom copié' : 'Copier le nom'}
+					title={copied ? 'Copié' : 'Copier le nom'}
+				>
+					<Icon name={copied ? 'check' : 'copy'} class="size-4" />
+				</button>
+			</div>
 
 			{#if entries.tagsOf(entry).length}
 				<div class="-mt-2 flex flex-wrap gap-2">
@@ -116,11 +136,19 @@
 
 			{#if confirmDelete}
 				<form class="alert alert-error alert-soft flex flex-col items-stretch gap-3" onsubmit={removal.submit}>
-					<p>Mettre « {entry.name} » à la corbeille ? Elle y reste {TRASH_DAYS} jours.</p>
+					<p>
+						Supprimer « {entry.name} » ? La corbeille la garde {TRASH_DAYS} jours ; la suppression définitive est
+						irréversible.
+					</p>
 					<ErrorAlert message={removal.error} />
-					<div class="flex gap-2">
-						<button class="btn btn-error btn-sm" disabled={removal.busy}>
-							{#if removal.busy}<span class="loading loading-spinner loading-xs"></span>{/if} Supprimer
+					<div class="flex flex-wrap gap-2">
+						<button class="btn btn-error btn-sm" disabled={removal.busy} onclick={() => (removeMode = 'trash')}>
+							{#if removal.busy && removeMode === 'trash'}<span class="loading loading-spinner loading-xs"></span>{/if}
+							Mettre à la corbeille
+						</button>
+						<button class="btn btn-error btn-outline btn-sm" disabled={removal.busy} onclick={() => (removeMode = 'forever')}>
+							{#if removal.busy && removeMode === 'forever'}<span class="loading loading-spinner loading-xs"></span>{/if}
+							Supprimer définitivement
 						</button>
 						<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmDelete = false)}>Annuler</button>
 					</div>

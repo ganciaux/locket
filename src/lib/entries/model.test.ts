@@ -18,8 +18,10 @@ import {
 	moveItem,
 	parseLabel,
 	parseLinkUrl,
+	matchesLinkFilter,
 	parseNameList,
 	parseSiteTemplate,
+	shuffleRank,
 	sortBy,
 	trashDaysLeft,
 	withRecoveredCollections
@@ -137,14 +139,14 @@ describe('parseNameList', () => {
 	it('un nom par ligne, espaces nettoyés, lignes vides ignorées', () => {
 		expect(parseNameList('  Banque \r\n\n Impôts   en  ligne\n', [])).toEqual({
 			names: ['Banque', 'Impôts en ligne'],
-			duplicates: 0
+			duplicates: []
 		});
 	});
 
 	it('ignore les doublons, existants ou dans la liste, sans casse ni accents', () => {
 		expect(parseNameList('École\necole\nBANQUE\nMutuelle', ['Banque'])).toEqual({
 			names: ['École', 'Mutuelle'],
-			duplicates: 2
+			duplicates: ['ecole', 'BANQUE']
 		});
 	});
 
@@ -229,14 +231,34 @@ describe('recherche et tri', () => {
 
 	it('trie par création ou modification, du plus récent au plus ancien, puis par nom', () => {
 		const list = [
-			{ name: 'b', createdAt: 1, updatedAt: 5 },
-			{ name: 'a', createdAt: 1, updatedAt: 2 },
-			{ name: 'c', createdAt: 3, updatedAt: 1 }
+			{ id: '2', name: 'b', createdAt: 1, updatedAt: 5 },
+			{ id: '1', name: 'a', createdAt: 1, updatedAt: 2 },
+			{ id: '3', name: 'c', createdAt: 3, updatedAt: 1 }
 		];
 		const order = (o: 'name' | 'created' | 'updated') => [...list].sort(sortBy(o)).map((e) => e.name);
 		expect(order('name')).toEqual(['a', 'b', 'c']);
 		expect(order('created')).toEqual(['c', 'a', 'b']);
 		expect(order('updated')).toEqual(['b', 'a', 'c']);
+	});
+
+	it('mélange de façon stable pour une graine, autrement pour une autre', () => {
+		const list = Array.from({ length: 30 }, (_, i) => ({ id: `id${i}`, name: `n${i}`, createdAt: 0, updatedAt: 0 }));
+		const shuffled = (seed: number) => [...list].sort(sortBy('random', seed)).map((e) => e.id);
+		expect(shuffled(1)).toEqual(shuffled(1));
+		expect(shuffled(1)).not.toEqual(shuffled(2));
+		expect(shuffled(1)).not.toEqual(list.map((e) => e.id));
+		expect([...shuffled(1)].sort()).toEqual(list.map((e) => e.id).sort());
+		expect(shuffleRank('a', 1)).toBe(shuffleRank('a', 1));
+	});
+});
+
+describe('filtre sur les liens', () => {
+	it('tous, avec liens, sans lien', () => {
+		expect(matchesLinkFilter(0, 'all')).toBe(true);
+		expect(matchesLinkFilter(2, 'with')).toBe(true);
+		expect(matchesLinkFilter(0, 'with')).toBe(false);
+		expect(matchesLinkFilter(0, 'without')).toBe(true);
+		expect(matchesLinkFilter(1, 'without')).toBe(false);
 	});
 });
 

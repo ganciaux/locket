@@ -58,6 +58,27 @@ test('liens sur les cartes : repliés par défaut, affichés avec l’option', a
 	await goHome(page);
 	await expect(link).toBeVisible();
 	await expect(page.getByText('1 lien', { exact: true })).toHaveCount(0);
+
+	// Bascule de la liste : vaut pour la visite, Paramètres reste la valeur par défaut.
+	await page.getByRole('button', { name: 'Liens', exact: true }).click();
+	await expect(link).toBeHidden();
+	await expect(page.getByText('1 lien', { exact: true })).toBeVisible();
+
+	// Filtre sur la présence de liens.
+	await createEntry(page, 'Sans site');
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByLabel('Afficher anime sur cette fiche').uncheck();
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Sans site' })).toBeVisible();
+	await goHome(page);
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await page.getByRole('button', { name: 'Avec liens' }).click();
+	await expect(card('John Doe')).toBeVisible();
+	await expect(card('Sans site')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Sans lien' }).click();
+	await expect(card('John Doe')).toHaveCount(0);
+	await expect(card('Sans site')).toBeVisible();
+	await expect(page.getByText('1 fiche sur 2')).toBeVisible();
 });
 
 test('colle une image dans le formulaire, sans gêner le collage de texte', async ({ page }) => {
@@ -136,7 +157,7 @@ test('corbeille : suppression réversible, puis définitive', async ({ page }) =
 	await createEntry(page, 'À revoir');
 
 	await page.getByRole('button', { name: 'Supprimer' }).click();
-	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
 	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
 
 	await goSettings(page);
@@ -149,13 +170,23 @@ test('corbeille : suppression réversible, puis définitive', async ({ page }) =
 	await goHome(page);
 	await page.getByRole('heading', { name: 'À revoir' }).click();
 	await page.getByRole('button', { name: 'Supprimer' }).click();
-	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
 	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
 
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
 	await page.getByRole('button', { name: 'Supprimer définitivement À revoir' }).click();
 	await page.getByRole('button', { name: 'Supprimer définitivement', exact: true }).click();
+	await expect(page.getByText('La corbeille est vide.')).toBeVisible();
+
+	// Depuis la fiche, la suppression définitive ne passe pas par la corbeille.
+	await goHome(page);
+	await createEntry(page, 'Jetable');
+	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Supprimer définitivement' }).click();
+	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
 	await expect(page.getByText('La corbeille est vide.')).toBeVisible();
 });
 
@@ -174,7 +205,7 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await goHome(page);
 
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
-	await page.getByRole('button', { name: 'Sélectionner', exact: true }).click();
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await card('Fiche A').getByRole('heading').click(); // coche sans ouvrir la fiche
 	await card('Fiche B').getByLabel('Sélectionner Fiche B').check();
 	await expect(page.getByText('2 sélectionnées')).toBeVisible();
@@ -186,13 +217,18 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await expect(card('Fiche B').getByText('Lu')).toBeVisible();
 	await expect(card('Fiche C').getByText('Lu')).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Sélectionner', exact: true }).click();
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await card('Fiche A').getByRole('heading').click();
 	await page.getByRole('button', { name: 'Cacher', exact: true }).click();
 	await expect(card('Fiche A')).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Cachées (1)' })).toBeVisible();
 
-	await page.getByRole('button', { name: 'Sélectionner', exact: true }).click();
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
+	// « Tout » est une bascule : un second clic désélectionne tout.
+	await page.getByRole('button', { name: 'Tout', exact: true }).click();
+	await expect(page.getByText('2 sélectionnées')).toBeVisible();
+	await page.getByRole('button', { name: 'Tout', exact: true }).click();
+	await expect(page.getByText('0 sélectionnée')).toBeVisible();
 	await page.getByRole('button', { name: 'Tout', exact: true }).click();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();

@@ -181,17 +181,37 @@ export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
 export const byName = (a: { name: string }, b: { name: string }): number =>
 	a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
 
-export type SortOrder = 'name' | 'created' | 'updated';
-type Sortable = { name: string; createdAt: number; updatedAt: number };
+export type SortOrder = 'name' | 'created' | 'updated' | 'random';
+type Sortable = { id: string; name: string; createdAt: number; updatedAt: number };
 
-/** Par nom (A→Z), ou du plus récent au plus ancien ; à date égale, par nom. */
+/**
+ * Rang pseudo-aléatoire d'une fiche (FNV-1a de « graine:id ») : même graine, même ordre, sans rien mémoriser ;
+ * une nouvelle graine remélange. Rien de cryptographique, sert seulement à l'affichage.
+ */
+export function shuffleRank(id: string, seed: number): number {
+	let hash = 0x811c9dc5;
+	for (const char of `${seed}:${id}`) {
+		hash ^= char.charCodeAt(0);
+		hash = Math.imul(hash, 0x01000193);
+	}
+	return hash >>> 0;
+}
+
+/** Par nom (A→Z), du plus récent au plus ancien, ou mélangé selon `seed` ; à égalité, par nom. */
 export const sortBy =
-	(order: SortOrder) =>
+	(order: SortOrder, seed = 0) =>
 	(a: Sortable, b: Sortable): number => {
 		if (order === 'created') return b.createdAt - a.createdAt || byName(a, b);
 		if (order === 'updated') return b.updatedAt - a.updatedAt || byName(a, b);
+		if (order === 'random') return shuffleRank(a.id, seed) - shuffleRank(b.id, seed) || byName(a, b);
 		return byName(a, b);
 	};
+
+/** Filtre sur la présence de liens affichés (sites de la collection compris). */
+export type LinkFilter = 'all' | 'with' | 'without';
+
+export const matchesLinkFilter = (linkCount: number, filter: LinkFilter): boolean =>
+	filter === 'all' || (filter === 'with') === linkCount > 0;
 
 // ---------------------------------------------------------------------------
 // Import d'une liste de noms
@@ -200,18 +220,18 @@ export const MAX_NAME_LENGTH = 200;
 
 /**
  * Un nom par ligne. Ignore les lignes vides et les doublons (casse et accents ignorés),
- * qu'ils soient déjà dans les fiches existantes ou répétés dans la liste.
+ * qu'ils soient déjà dans les fiches existantes ou répétés dans la liste ; `duplicates` les nomme.
  */
-export function parseNameList(text: string, existingNames: string[]): { names: string[]; duplicates: number } {
+export function parseNameList(text: string, existingNames: string[]): { names: string[]; duplicates: string[] } {
 	const seen = new Set(existingNames.map(searchKey));
 	const names: string[] = [];
-	let duplicates = 0;
+	const duplicates: string[] = [];
 	for (const line of text.split(/\r?\n/)) {
 		const name = line.trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH);
 		if (!name) continue;
 		const key = searchKey(name);
 		if (seen.has(key)) {
-			duplicates++;
+			duplicates.push(name);
 			continue;
 		}
 		seen.add(key);
