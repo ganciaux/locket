@@ -87,6 +87,9 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
   « Cachées ». Le drapeau est chiffré avec la fiche.
 - **Fiches illisibles** : la liste les signale et l'export les écarte en le disant. Une altération côté Firebase se voit
   donc, mais la fiche d'origine n'est récupérable que depuis une sauvegarde saine.
+- **Corbeille** : une fiche supprimée reste 30 jours dans Firestore, chiffrée, et sa présence dans la corbeille n'est
+  visible qu'après déchiffrement. La purge se fait à l'ouverture de l'app : sans ouverture, rien n'est effacé. Sur un PC
+  laissé ouvert, vider la corbeille ne demande pas le mot de passe. Pour effacer tout de suite : « Vider la corbeille ».
 - **Actions destructrices** (suppression totale, restauration, purge des fiches illisibles) : le mot de passe est
   contrôlé par l'app, pas par les règles Firestore. Il protège d'une fausse manœuvre ou d'un PC laissé ouvert, pas d'un
   client modifié disposant d'une session Firebase. Irréversible sans sauvegarde : le plan Spark n'en garde aucune.

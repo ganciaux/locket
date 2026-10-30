@@ -4,6 +4,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { TRASH_DAYS } from '$lib/entries/model';
 	import { deleteAllData } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
 	import { type AutoLock, prefs, type Theme } from '$lib/prefs.svelte';
@@ -164,6 +165,14 @@
 			<h2 class="card-title text-lg">Sauvegarde</h2>
 			<p class="text-base-content/60 -mt-1 text-sm">Exporter vos fiches chiffrées dans un fichier, ou les restaurer.</p>
 			<a class="btn btn-outline btn-primary self-start" href="/backup"><Icon name="import" class="size-4" /> Sauvegarder / restaurer</a>
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-lg">Corbeille</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">Les fiches supprimées y restent {TRASH_DAYS} jours.</p>
+			<a class="btn btn-outline btn-primary self-start" href="/trash"><Icon name="trash" class="size-4" /> Ouvrir la corbeille</a>
 		</div>
 	</section>
 

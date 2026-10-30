@@ -11,6 +11,7 @@ import { bytesToUrl } from './images';
 import {
 	NO_TAG_FILTER,
 	type Collection,
+	type EntryData,
 	type Link,
 	type Site,
 	type SortOrder,
@@ -18,6 +19,7 @@ import {
 	type TagFilter,
 	byName,
 	entryLinks,
+	isTrashExpired,
 	matchesFilter,
 	moveItem,
 	parseLabel,
@@ -25,7 +27,15 @@ import {
 	sortBy,
 	withRecoveredCollections
 } from './model';
-import { deleteEntry, deleteRemainingImages, deleteStoredEntriesExcept, listEntries, type EntrySummary } from './repository';
+import {
+	deleteEntries,
+	deleteEntry,
+	deleteRemainingImages,
+	deleteStoredEntriesExcept,
+	listEntries,
+	patchStoredEntries,
+	type EntrySummary
+} from './repository';
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
@@ -39,7 +49,9 @@ let loading: Promise<void> | null = null;
 const tagNames = $derived(new Map((tags ?? []).map((tag) => [tag.id, tag.name])));
 // Collection choisie sur cet appareil ; si elle n'existe plus (ou jamais choisie), la première.
 const active = $derived(collections && (collections.find((c) => c.id === prefs.collectionId) ?? collections[0] ?? null));
-const activeItems = $derived(items && items.filter((item) => item.collectionId === active?.id));
+// La corbeille reste chargée, mais hors de tout ce qui s'affiche ou se compte.
+const liveItems = $derived(items && items.filter((item) => !item.deletedAt));
+const activeItems = $derived(liveItems && liveItems.filter((item) => item.collectionId === active?.id));
 const activeTags = $derived(tags && tags.filter((tag) => tag.collectionId === active?.id));
 
 const withThumbUrl = (entry: EntrySummary): ListItem => ({
@@ -97,6 +109,10 @@ export const entries = {
 	get catalogDamaged() {
 		return catalogDamaged;
 	},
+	/** Corbeille, de la suppression la plus récente à la plus ancienne. */
+	get trash(): ListItem[] {
+		return (items ?? []).filter((item) => item.deletedAt).sort((a, b) => b.deletedAt! - a.deletedAt!);
+	},
 	/**
 	 * Dans la collection active ; `activeItems` reste trié par nom, un autre ordre est appliqué à la copie filtrée.
 	 * Les fiches cachées n'apparaissent qu'avec la préférence `showHidden`.
@@ -108,7 +124,7 @@ export const entries = {
 		return order === 'name' ? found : found.sort(sortBy(order));
 	},
 	find(id: string): ListItem | undefined {
-		return items?.find((item) => item.id === id);
+		return liveItems?.find((item) => item.id === id);
 	},
 	/** Tags connus d'une fiche : ceux de sa collection (les identifiants de tags supprimés sont ignorés). */
 	tagsOf(entry: { collectionId: string; tagIds?: string[] }): Tag[] {
@@ -122,10 +138,10 @@ export const entries = {
 		return entryLinks(entry, entries.sitesIn(entry.collectionId));
 	},
 	countWithTag(tagId: string): number {
-		return (items ?? []).filter((item) => item.tagIds?.includes(tagId)).length;
+		return (liveItems ?? []).filter((item) => item.tagIds?.includes(tagId)).length;
 	},
 	countIn(collectionId: string): number {
-		return (items ?? []).filter((item) => item.collectionId === collectionId).length;
+		return (liveItems ?? []).filter((item) => item.collectionId === collectionId).length;
 	}
 };
 
@@ -143,10 +159,15 @@ export function loadEntries(): Promise<void> {
 	]).then(
 		([list, collectionList, tagList]) => {
 			if (session.dek !== dek) return;
-			items = list.map(withThumbUrl).sort(byName);
+			// Corbeille expirée : supprimée à l'ouverture. En cas d'échec, ce sera refait à la prochaine.
+			const now = Date.now();
+			const expired = list.filter((entry) => isTrashExpired(entry.deletedAt, now));
+			if (expired.length) deleteEntries(user.uid, expired.map((entry) => entry.id)).catch(() => {});
+			const kept = list.filter((entry) => !isTrashExpired(entry.deletedAt, now));
+			items = kept.map(withThumbUrl).sort(byName);
 			unreadableIds = unreadable;
 			catalogDamaged = damaged;
-			collections = withRecoveredCollections(collectionList, list);
+			collections = withRecoveredCollections(collectionList, kept);
 			tags = tagList.sort(byName);
 		},
 		(error) => {
@@ -189,6 +210,44 @@ export function removeEntry(id: string): void {
 	if (!items) return;
 	revoke(items.find((item) => item.id === id));
 	items = items.filter((item) => item.id !== id);
+}
+
+/** Applique une modification à plusieurs fiches. Après un échec partiel, tout est relu depuis Firestore. */
+async function patchEntries(targets: ListItem[], patch: (entry: ListItem) => Partial<EntryData>): Promise<void> {
+	const { uid, dek } = unlocked();
+	try {
+		const updated = new Map((await patchStoredEntries(uid, dek, targets, patch)).map((entry) => [entry.id, entry]));
+		items = (items ?? []).map((item) => updated.get(item.id) ?? item).sort(byName);
+	} catch (error) {
+		clear();
+		loadEntries().catch(() => {});
+		throw error;
+	}
+}
+
+export const trashEntries = (targets: ListItem[]): Promise<void> =>
+	patchEntries(targets, () => ({ deletedAt: Date.now() }));
+
+export const restoreFromTrash = (targets: ListItem[]): Promise<void> =>
+	patchEntries(targets, () => ({ deletedAt: undefined }));
+
+export const setEntriesHidden = (targets: ListItem[], hidden: boolean): Promise<void> =>
+	patchEntries(targets, () => ({ hidden: hidden || undefined }));
+
+/** Ajoute ou retire ces tags, sans toucher aux autres tags des fiches. */
+export function changeEntriesTags(targets: ListItem[], tagIds: string[], mode: 'add' | 'remove'): Promise<void> {
+	return patchEntries(targets, (entry) => {
+		const current = entry.tagIds ?? [];
+		const next = mode === 'add' ? [...new Set([...current, ...tagIds])] : current.filter((id) => !tagIds.includes(id));
+		return { tagIds: next.length ? next : undefined, updatedAt: Date.now() };
+	});
+}
+
+/** Suppression définitive depuis la corbeille, images comprises. */
+export async function deleteForever(targets: ListItem[]): Promise<void> {
+	const { uid } = unlocked();
+	await deleteEntries(uid, targets.map((entry) => entry.id));
+	targets.forEach((entry) => removeEntry(entry.id));
 }
 
 /**

@@ -148,6 +148,34 @@ export async function createEntries(
 	return created;
 }
 
+/**
+ * Modifie plusieurs fiches en réécrivant seulement `data` (IV neuf) : miniature et image ne sont pas retouchées.
+ * Par lots : une panne peut laisser une partie des fiches modifiées, il suffit alors de relancer.
+ */
+export async function patchStoredEntries<T extends EntrySummary & { thumbUrl?: string }>(
+	uid: string,
+	dek: CryptoKey,
+	entries: T[],
+	patch: (entry: T) => Partial<EntryData>
+): Promise<T[]> {
+	const updated: T[] = [];
+	for (let start = 0; start < entries.length; start += IMPORT_BATCH_SIZE) {
+		const batch = writeBatch(db);
+		for (const entry of entries.slice(start, start + IMPORT_BATCH_SIZE)) {
+			const next = { ...entry, ...patch(entry) };
+			const { id, thumb: _thumb, thumbUrl: _thumbUrl, ...data } = next;
+			batch.update(entryRef(uid, id), { data: toStored(await encryptJson(dek, data, `${id}/data`)) });
+			updated.push(next);
+		}
+		await batch.commit();
+	}
+	return updated;
+}
+
+export async function deleteEntries(uid: string, ids: string[]): Promise<void> {
+	await deleteInBatches(ids.flatMap((id) => [entryRef(uid, id), imageRef(uid, id)]));
+}
+
 export async function deleteEntry(uid: string, id: string): Promise<void> {
 	const batch = writeBatch(db);
 	batch.delete(entryRef(uid, id));
@@ -219,7 +247,7 @@ export async function writeStoredEntries(
 /** Supprime les fiches hors de `keep`, avec leurs images (restauration, suppression totale). Retourne leur nombre. */
 export async function deleteStoredEntriesExcept(uid: string, keep: Set<string>): Promise<number> {
 	const ids = (await getDocs(entriesRef(uid))).docs.map((d) => d.id).filter((id) => !keep.has(id));
-	await deleteInBatches(ids.flatMap((id) => [entryRef(uid, id), imageRef(uid, id)]));
+	await deleteEntries(uid, ids);
 	return ids.length;
 }
 

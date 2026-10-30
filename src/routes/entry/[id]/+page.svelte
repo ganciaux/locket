@@ -6,8 +6,9 @@
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
-	import { deleteEntry, getImage } from '$lib/entries/repository';
-	import { entries, loadEntries, removeEntry } from '$lib/entries/store.svelte';
+	import { TRASH_DAYS } from '$lib/entries/model';
+	import { getImage } from '$lib/entries/repository';
+	import { entries, loadEntries, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
@@ -51,10 +52,7 @@
 	});
 
 	const removal = formAction(async () => {
-		const { user } = session;
-		if (!user) throw new Error('Session verrouillée.');
-		await deleteEntry(user.uid, id);
-		removeEntry(id);
+		if (entry) await trashEntries([entry]);
 		await goto('/', { replaceState: true });
 	});
 
@@ -118,7 +116,7 @@
 
 			{#if confirmDelete}
 				<form class="alert alert-error alert-soft flex flex-col items-stretch gap-3" onsubmit={removal.submit}>
-					<p>Supprimer définitivement « {entry.name} » ?</p>
+					<p>Mettre « {entry.name} » à la corbeille ? Elle y reste {TRASH_DAYS} jours.</p>
 					<ErrorAlert message={removal.error} />
 					<div class="flex gap-2">
 						<button class="btn btn-error btn-sm" disabled={removal.busy}>

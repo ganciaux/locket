@@ -7,7 +7,15 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { MAX_LABEL_LENGTH, NO_TAG_FILTER, type SortOrder, type TagFilter, linkTitle } from '$lib/entries/model';
-	import { addCollection, deleteUnreadableEntries, entries, loadEntries } from '$lib/entries/store.svelte';
+	import {
+		addCollection,
+		changeEntriesTags,
+		deleteUnreadableEntries,
+		entries,
+		loadEntries,
+		setEntriesHidden,
+		trashEntries
+	} from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 	import { type CardSize, prefs } from '$lib/prefs.svelte';
@@ -53,6 +61,43 @@
 		purgePassword = '';
 		confirmPurge = false;
 	});
+
+	// Sélection multiple : limitée aux fiches affichées.
+	let selecting = $state(false);
+	let selected = $state<string[]>([]);
+	let bulkPanel = $state<'tags' | 'trash' | null>(null);
+	let bulkTags = $state<string[]>([]);
+	let bulkBusy = $state(false);
+	let bulkError = $state('');
+	const selectedItems = $derived(results.filter((entry) => selected.includes(entry.id)));
+	const allHidden = $derived(selectedItems.length > 0 && selectedItems.every((entry) => entry.hidden));
+
+	function stopSelecting() {
+		selecting = false;
+		selected = [];
+		bulkTags = [];
+		bulkPanel = null;
+		bulkError = '';
+	}
+
+	function toggleSelected(id: string) {
+		selected = selected.includes(id) ? selected.filter((other) => other !== id) : [...selected, id];
+	}
+
+	async function applyBulk(action: () => Promise<void>) {
+		if (bulkBusy) return;
+		bulkBusy = true;
+		bulkError = '';
+		try {
+			await action();
+			stopSelecting();
+		} catch (e) {
+			bulkError = errorMessage(e);
+		} finally {
+			bulkBusy = false;
+		}
+	}
+
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
 	const filtering = $derived(!!query.trim() || tagFiltering);
 
@@ -245,6 +290,15 @@
 				Cachées ({hiddenCount})
 			</button>
 		{/if}
+		<button
+			class="btn btn-xs btn-square {selecting ? 'btn-primary' : 'btn-ghost'}"
+			aria-pressed={selecting}
+			aria-label="Sélectionner"
+			title="Sélectionner plusieurs fiches"
+			onclick={() => (selecting ? stopSelecting() : (selecting = true))}
+		>
+			<Icon name="check" class="size-4" />
+		</button>
 		<select class="select select-xs ml-auto w-auto" aria-label="Trier par" bind:value={prefs.sort}>
 			{#each SORTS as sort (sort.value)}
 				<option value={sort.value}>{sort.label}</option>
@@ -275,8 +329,31 @@
 	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
 			{@const links = entries.linksOf(entry)}
-			<li class="card bg-base-100 overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden ? 'opacity-50 hover:opacity-100' : ''}">
-				<a href="/entry/{entry.id}" class="block">
+			{@const isSelected = selected.includes(entry.id)}
+			<li
+				class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
+					? 'opacity-50 hover:opacity-100'
+					: ''} {isSelected ? 'ring-primary ring-2' : ''}"
+			>
+				{#if selecting}
+					<input
+						type="checkbox"
+						class="checkbox checkbox-primary checkbox-sm bg-base-100 absolute top-2 left-2 z-10"
+						checked={isSelected}
+						onchange={() => toggleSelected(entry.id)}
+						aria-label="Sélectionner {entry.name}"
+					/>
+				{/if}
+				<!-- En mode sélection, un clic sur la carte coche la fiche au lieu de l'ouvrir. -->
+				<a
+					href="/entry/{entry.id}"
+					class="block"
+					onclick={(event) => {
+						if (!selecting) return;
+						event.preventDefault();
+						toggleSelected(entry.id);
+					}}
+				>
 					<figure class="bg-primary/10 aspect-square">
 						{#if entry.thumbUrl}
 							<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
@@ -334,7 +411,66 @@
 	</ul>
 {/if}
 
-{#if entries.active}
+{#if selecting}
+	<div
+		role="toolbar"
+		aria-label="Actions sur la sélection"
+		class="bg-base-100 fixed inset-x-0 bottom-0 z-20 flex flex-col gap-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgb(0_0_0/0.15)]"
+	>
+		<ErrorAlert message={bulkError} />
+		{#if bulkPanel === 'tags'}
+			<TagPicker tags={entries.tags ?? []} bind:selected={bulkTags} label="Tags à ajouter ou retirer" />
+			<div class="flex flex-wrap gap-2">
+				<button
+					class="btn btn-primary btn-sm"
+					disabled={bulkBusy || !bulkTags.length}
+					onclick={() => applyBulk(() => changeEntriesTags(selectedItems, bulkTags, 'add'))}
+				>
+					Ajouter
+				</button>
+				<button
+					class="btn btn-outline btn-sm"
+					disabled={bulkBusy || !bulkTags.length}
+					onclick={() => applyBulk(() => changeEntriesTags(selectedItems, bulkTags, 'remove'))}
+				>
+					Retirer
+				</button>
+				<button class="btn btn-ghost btn-sm" onclick={() => (bulkPanel = null)}>Retour</button>
+			</div>
+		{:else if bulkPanel === 'trash'}
+			<p class="text-sm">Mettre {selectedItems.length} fiche{selectedItems.length > 1 ? 's' : ''} à la corbeille ?</p>
+			<div class="flex gap-2">
+				<button class="btn btn-error btn-sm" disabled={bulkBusy} onclick={() => applyBulk(() => trashEntries(selectedItems))}>
+					Mettre à la corbeille
+				</button>
+				<button class="btn btn-ghost btn-sm" onclick={() => (bulkPanel = null)}>Retour</button>
+			</div>
+		{:else}
+			<div class="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
+				<span class="text-sm font-medium" role="status">
+					{selectedItems.length} sélectionnée{selectedItems.length > 1 ? 's' : ''}
+				</span>
+				<button class="btn btn-ghost btn-sm" onclick={() => (selected = results.map((entry) => entry.id))}>Tout</button>
+				<button
+					class="btn btn-sm"
+					disabled={bulkBusy || !selectedItems.length}
+					onclick={() => applyBulk(() => setEntriesHidden(selectedItems, !allHidden))}
+				>
+					{allHidden ? 'Afficher' : 'Cacher'}
+				</button>
+				{#if entries.tags?.length}
+					<button class="btn btn-sm" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'tags')}>Tags</button>
+				{/if}
+				<button class="btn btn-sm btn-error btn-outline" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'trash')}>
+					Supprimer
+				</button>
+				<button class="btn btn-ghost btn-sm btn-square ml-auto" onclick={stopSelecting} aria-label="Quitter la sélection" title="Quitter">
+					<Icon name="close" class="size-4" />
+				</button>
+			</div>
+		{/if}
+	</div>
+{:else if entries.active}
 	<a
 		href="/entry/new"
 		class="btn btn-primary btn-circle btn-lg fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-lg"

@@ -130,6 +130,82 @@ test('fiche cachée : absente de la liste, visible et atténuée avec le bouton'
 	await expect(card).toHaveClass(/opacity-50/);
 });
 
+test('corbeille : suppression réversible, puis définitive', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'À revoir');
+
+	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
+	await expect(page.getByText('À revoir')).toBeVisible();
+	await expect(page.getByText('Encore 30 jours')).toBeVisible();
+	await page.getByRole('button', { name: 'Restaurer' }).click();
+	await expect(page.getByText('La corbeille est vide.')).toBeVisible();
+
+	await goHome(page);
+	await page.getByRole('heading', { name: 'À revoir' }).click();
+	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
+	await page.getByRole('button', { name: 'Supprimer définitivement À revoir' }).click();
+	await page.getByRole('button', { name: 'Supprimer définitivement', exact: true }).click();
+	await expect(page.getByText('La corbeille est vide.')).toBeVisible();
+});
+
+test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Fiche A');
+	await createEntry(page, 'Fiche B');
+	await createEntry(page, 'Fiche C');
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByLabel('Nouveau tag').fill('Lu');
+	await page.getByRole('button', { name: 'Ajouter' }).click();
+	await expect(page.getByText('Lu', { exact: true })).toBeVisible();
+	await goHome(page);
+
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await page.getByRole('button', { name: 'Sélectionner', exact: true }).click();
+	await card('Fiche A').getByRole('heading').click(); // coche sans ouvrir la fiche
+	await card('Fiche B').getByLabel('Sélectionner Fiche B').check();
+	await expect(page.getByText('2 sélectionnées')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await page.getByRole('toolbar').getByText('Lu', { exact: true }).click();
+	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+	await expect(card('Fiche A').getByText('Lu')).toBeVisible();
+	await expect(card('Fiche B').getByText('Lu')).toBeVisible();
+	await expect(card('Fiche C').getByText('Lu')).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Sélectionner', exact: true }).click();
+	await card('Fiche A').getByRole('heading').click();
+	await page.getByRole('button', { name: 'Cacher', exact: true }).click();
+	await expect(card('Fiche A')).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Cachées (1)' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Sélectionner', exact: true }).click();
+	await page.getByRole('button', { name: 'Tout', exact: true }).click();
+	await page.getByRole('toolbar').getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
+	await expect(card('Fiche B')).toHaveCount(0);
+	await expect(card('Fiche C')).toHaveCount(0);
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
+	await expect(page.getByText('Fiche B')).toBeVisible();
+	await expect(page.getByText('Fiche C')).toBeVisible();
+	await expect(page.getByText('Fiche A')).toHaveCount(0);
+});
+
 test('sauvegarde : fichier altéré refusé, suppression totale, puis restauration', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);

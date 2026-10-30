@@ -46,19 +46,22 @@ vont dans [MEMORY.md](MEMORY.md).
 - [x] **Coller une image** dans le formulaire ; le glisser-déposer passe par le champ fichier. *Simple.*
 - [x] **CI GitHub** : types, tests unitaires et build à chaque push et sur les propositions de Dependabot. *Simple.*
 
+- [x] **Corbeille** : suppression réversible, purge après 30 jours à l'ouverture de l'app. *Intermédiaire.*
+- [x] **Sélection multiple** : cacher, afficher, ajouter ou retirer des tags, mettre à la corbeille. *Intermédiaire.*
+
 ## À décider ou plus tard
 
-- [ ] **Sélection multiple** : proposition à valider (cacher, taguer, déplacer, supprimer). *Intermédiaire.*
 - [ ] **Déverrouillage par Face ID** (plus tard) : WebAuthn PRF, 3e copie de la DEK, repli sur le mot de passe, relecture
       crypto indispensable. *Avancé.*
-- [ ] **Lire les anciens formats de sauvegarde** dès l'usage réel, sinon une mise à jour rend des fichiers inutilisables. *Simple.*
-- [ ] **Corbeille** : suppression réversible, purge après 30 jours. *Simple à intermédiaire.*
 - [ ] **Lecture hors ligne** avec le cache Firestore (chiffrés seulement) : à réévaluer, comportement iPhone à vérifier. *Intermédiaire.*
 - [ ] **Date de dernière sauvegarde** synchronisée entre appareils, chiffrée. *Simple.*
 
 ## Écarté
 
 - Recherche dans toutes les collections : non retenue (2026-10-30).
+- Lecture des anciens formats de sauvegarde : non retenue, une nouvelle sauvegarde est refaite à chaque changement de
+  format (2026-10-30). Un fichier d'ancien format reste donc inutilisable après une mise à jour.
+- Déplacer plusieurs fiches d'un coup : non retenu (2026-10-30).
 - Changement d'email : l'email sert de sel à la dérivation, il faudrait refaire tout le trousseau.
 - Partage depuis Safari vers l'app : iOS ne le permet pas aux PWA (non retenu le 2026-10-29).
 

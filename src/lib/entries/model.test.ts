@@ -11,6 +11,7 @@ import {
 	entryLinks,
 	fitWithin,
 	fitsInDoc,
+	isTrashExpired,
 	linkTitle,
 	matchesFilter,
 	matchesSearch,
@@ -20,8 +21,27 @@ import {
 	parseNameList,
 	parseSiteTemplate,
 	sortBy,
+	trashDaysLeft,
 	withRecoveredCollections
 } from './model';
+
+describe('corbeille', () => {
+	const day = 24 * 60 * 60 * 1000;
+	const now = 1_000 * day;
+
+	it('compte les jours restants, sans descendre sous zéro', () => {
+		expect(trashDaysLeft(now, now)).toBe(30);
+		expect(trashDaysLeft(now - day / 2, now)).toBe(30);
+		expect(trashDaysLeft(now - 29 * day, now)).toBe(1);
+		expect(trashDaysLeft(now - 40 * day, now)).toBe(0);
+	});
+
+	it('n’expire qu’après 30 jours, et jamais hors de la corbeille', () => {
+		expect(isTrashExpired(undefined, now)).toBe(false);
+		expect(isTrashExpired(now - 29 * day, now)).toBe(false);
+		expect(isTrashExpired(now - 30 * day, now)).toBe(true);
+	});
+});
 
 describe('withRecoveredCollections', () => {
 	it('recrée une fois chaque collection inconnue, à la suite des autres', () => {

@@ -21,9 +21,21 @@ export type EntryData = {
 	hiddenSites?: string[];
 	/** Rangée à l'écart : absente de la liste sauf avec le bouton « Cachées ». Simple filtre, pas une protection. */
 	hidden?: boolean;
+	/** Dans la corbeille depuis cette date ; supprimée pour de bon après `TRASH_DAYS` jours. */
+	deletedAt?: number;
 };
 
 export type Entry = EntryData & { id: string };
+
+export const TRASH_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Jours restants avant la suppression définitive (au moins 0). */
+export const trashDaysLeft = (deletedAt: number, now: number): number =>
+	Math.max(0, Math.ceil(TRASH_DAYS - (now - deletedAt) / DAY_MS));
+
+export const isTrashExpired = (deletedAt: number | undefined, now: number): boolean =>
+	deletedAt !== undefined && now - deletedAt >= TRASH_DAYS * DAY_MS;
 
 /** Regroupement exclusif des fiches (Manga, Chanteurs…) ; l'ordre du catalogue est l'ordre d'affichage. */
 export type Collection = { id: string; name: string; sites?: Site[] };

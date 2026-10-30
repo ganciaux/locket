@@ -7,7 +7,7 @@ import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Bytes, collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { generateDek, randomBytes } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
-import { createEntries, deleteEntry, getImage, listEntries, saveEntry } from './repository';
+import { createEntries, deleteEntries, deleteEntry, getImage, listEntries, patchStoredEntries, saveEntry } from './repository';
 import { collectionCatalog, tagCatalog } from './catalog';
 
 let uid: string;
@@ -133,6 +133,28 @@ describe('fiches (émulateurs)', () => {
 		expect(cleared.hiddenSites).toBeUndefined();
 		expect(cleared.hidden).toBeUndefined();
 		await deleteEntry(uid, id);
+	}, 60_000);
+
+	it('modifie plusieurs fiches sans toucher à leurs images, avec un IV neuf', async () => {
+		const created = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Lot', links: [], tagIds: [], image });
+		const [listed] = await listEntries(uid, dek);
+		const before = (await getDoc(doc(db, 'users', uid, 'entries', created.id))).data()!;
+
+		await patchStoredEntries(uid, dek, [{ ...listed, thumbUrl: 'blob:x' }], () => ({ deletedAt: 123, hidden: true }));
+		const after = (await getDoc(doc(db, 'users', uid, 'entries', created.id))).data()!;
+		expect(after.data.iv.isEqual(before.data.iv)).toBe(false);
+		expect(after.thumb.iv.isEqual(before.thumb.iv)).toBe(true);
+		expect(JSON.stringify(after)).not.toContain('blob:');
+
+		const [patched] = await listEntries(uid, dek);
+		expect(patched).toMatchObject({ name: 'Lot', deletedAt: 123, hidden: true, imageType: 'image/webp' });
+		expect(patched.thumb).toEqual(image.thumb);
+		expect(await getImage(uid, dek, created.id)).toEqual(image.image);
+
+		await patchStoredEntries(uid, dek, [patched], () => ({ deletedAt: undefined }));
+		expect((await listEntries(uid, dek))[0].deletedAt).toBeUndefined();
+		await deleteEntries(uid, [created.id]);
+		expect(await getImage(uid, dek, created.id)).toBeNull();
 	}, 60_000);
 
 	it('une fiche illisible n’empêche pas de lire les autres', async () => {
