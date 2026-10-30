@@ -16,6 +16,7 @@ import {
 	matchesFilter,
 	matchesSearch,
 	moveItem,
+	findSameName,
 	parseLabel,
 	parseLinkUrl,
 	COUNTRY_CODES,
@@ -370,5 +371,22 @@ describe('taille', () => {
 			})
 		).rejects.toThrow();
 		expect(count).toBe(ENCODE_ATTEMPTS.length);
+	});
+});
+
+describe('findSameName', () => {
+	const items = [
+		{ id: 'a', name: 'École', collectionId: 'manga' },
+		{ id: 'b', name: 'Naruto', collectionId: 'anime' }
+	];
+
+	it('trouve le même nom sans casse ni accents, dans la même collection', () => {
+		expect(findSameName(items, 'manga', '  ecole ')?.id).toBe('a');
+		expect(findSameName(items, 'anime', 'École')).toBeUndefined();
+	});
+
+	it('ignore la fiche modifiée et un nom vide', () => {
+		expect(findSameName(items, 'manga', 'École', 'a')).toBeUndefined();
+		expect(findSameName(items, 'manga', '   ')).toBeUndefined();
 	});
 });

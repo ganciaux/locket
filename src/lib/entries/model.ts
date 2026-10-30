@@ -160,6 +160,21 @@ export function matchesFilter(
 	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tagNames.get(id)!, query));
 }
 
+/**
+ * Fiche de la même collection qui porte déjà ce nom (sans casse ni accents), hors `exceptId` (la fiche modifiée).
+ * La corbeille n'est pas comptée : à l'appelant de ne passer que les fiches vivantes.
+ */
+export function findSameName<T extends { id: string; name: string; collectionId: string }>(
+	items: T[],
+	collectionId: string,
+	name: string,
+	exceptId?: string
+): T | undefined {
+	const key = searchKey(name);
+	if (!key) return undefined;
+	return items.find((item) => item.collectionId === collectionId && item.id !== exceptId && searchKey(item.name) === key);
+}
+
 export const MAX_LABEL_LENGTH = 40;
 
 /**

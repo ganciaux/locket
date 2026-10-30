@@ -19,6 +19,7 @@ import {
 	type TagFilter,
 	byName,
 	entryLinks,
+	findSameName,
 	isTrashExpired,
 	type CountryFilter,
 	type RatingFilter,
@@ -144,6 +145,10 @@ export const entries = {
 				matchesCountryFilter(item.country, country)
 		);
 		return order === 'name' ? found : found.sort(sortBy(order, shuffleSeed));
+	},
+	/** Fiche de la collection déjà nommée ainsi ; undefined si le nom est libre ou si rien n'est chargé. */
+	sameName(collectionId: string, name: string, exceptId?: string): ListItem | undefined {
+		return findSameName(liveItems ?? [], collectionId, name, exceptId);
 	},
 	find(id: string): ListItem | undefined {
 		return liveItems?.find((item) => item.id === id);

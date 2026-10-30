@@ -41,6 +41,9 @@
 	const collectionTags = $derived(entries.tagsIn(collectionId));
 	const collectionSites = $derived(entries.sitesIn(collectionId));
 	const activeSites = $derived(collectionSites.filter((site) => site.enabled));
+	// Nom unique dans la collection : vérifié pendant la saisie, et de nouveau à l'enregistrement.
+	const sameName = $derived(entries.sameName(collectionId, name, entry?.id));
+	const nameChecked = $derived(!!entries.items && !!name.trim());
 	let tagsDropped = $state(false);
 	let file = $state<File | null>(null);
 	let loadError = $state('');
@@ -113,6 +116,7 @@
 		if (!user || !dek) throw new Error('Session verrouillée.');
 		if (!entries.tags) throw new Error('Tags pas encore chargés.');
 		if (!entries.collections?.some((c) => c.id === collectionId)) throw new Error('Choisissez une collection.');
+		if (sameName) throw new Error(`« ${sameName.name} » existe déjà dans cette collection.`);
 		const parsedLinks = parseLinks();
 		// Les identifiants de tags supprimés entre-temps sont oubliés ici.
 		const knownTagIds = entries.tagsOf({ collectionId, tagIds }).map((tag) => tag.id);
@@ -145,8 +149,22 @@
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-4">
 			<Field label="Nom">
-				<input class="input input-lg w-full" bind:value={name} maxlength={MAX_NAME_LENGTH} required />
+				<div class="input input-lg w-full {nameChecked && (sameName ? 'input-error' : 'input-success')}">
+					<input class="grow" bind:value={name} maxlength={MAX_NAME_LENGTH} required aria-describedby="name-status" />
+					{#if nameChecked}
+						<Icon name={sameName ? 'close' : 'check'} class="size-5 shrink-0 {sameName ? 'text-error' : 'text-success'}" />
+					{/if}
+				</div>
 			</Field>
+			{#if nameChecked}
+				<p id="name-status" class="-mt-3 text-xs {sameName ? 'text-error' : 'text-success'}" role="status">
+					{#if sameName}
+						Déjà pris dans cette collection : <a class="link" href="/entry/{sameName.id}">voir « {sameName.name} »</a>
+					{:else}
+						Disponible
+					{/if}
+				</p>
+			{/if}
 			{#if entries.collections && entries.collections.length > 1}
 				<Field label="Collection">
 					<select class="select w-full" value={collectionId} onchange={changeCollection}>

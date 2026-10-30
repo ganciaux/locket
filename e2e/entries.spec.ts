@@ -420,3 +420,24 @@ test('sauvegarde : fichier altéré refusé, suppression totale, puis restaurati
 	await page.getByRole('link', { name: 'Voir mes fiches' }).click();
 	await expect(page.getByRole('heading', { name: 'À garder' })).toBeVisible();
 });
+
+test('nom unique dans la collection : signalé à la saisie, refusé à l’enregistrement', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'École');
+
+	await goHome(page);
+	await page.locator('a[href="/entry/new"]').first().click();
+	const name = page.getByLabel('Nom', { exact: true });
+	await name.fill('Naruto');
+	await expect(page.getByText('Disponible')).toBeVisible();
+	await name.fill(' ecole ');
+	await expect(page.getByText('Déjà pris dans cette collection')).toBeVisible();
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByText('« École » existe déjà dans cette collection.')).toBeVisible();
+
+	// La fiche modifiée ne se compte pas elle-même.
+	await page.getByRole('link', { name: 'voir « École »' }).click();
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect(page.getByText('Disponible')).toBeVisible();
+});
