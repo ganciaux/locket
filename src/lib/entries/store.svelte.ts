@@ -262,11 +262,19 @@ export const restoreFromTrash = (targets: ListItem[]): Promise<void> =>
 export const setEntriesHidden = (targets: ListItem[], hidden: boolean): Promise<void> =>
 	patchEntries(targets, () => ({ hidden: hidden || undefined }));
 
-/** Affiche ou masque ces sites de la collection sur les fiches, sans toucher aux autres sites. */
-export function changeEntriesSites(targets: ListItem[], siteIds: string[], mode: 'show' | 'hide'): Promise<void> {
+/**
+ * Affiche ou masque ces sites de la collection sur les fiches, sans toucher aux autres sites ;
+ * `set` : seuls ces sites restent affichés, tous les autres sont masqués.
+ */
+export function changeEntriesSites(targets: ListItem[], siteIds: string[], mode: 'show' | 'hide' | 'set'): Promise<void> {
 	return patchEntries(targets, (entry) => {
 		const current = entry.hiddenSites ?? [];
-		const next = mode === 'hide' ? [...new Set([...current, ...siteIds])] : current.filter((id) => !siteIds.includes(id));
+		const next =
+			mode === 'set'
+				? entries.sitesIn(entry.collectionId).map((site) => site.id).filter((id) => !siteIds.includes(id))
+				: mode === 'hide'
+					? [...new Set([...current, ...siteIds])]
+					: current.filter((id) => !siteIds.includes(id));
 		return { hiddenSites: next.length ? next : undefined, updatedAt: Date.now() };
 	});
 }
@@ -275,11 +283,16 @@ export function changeEntriesSites(targets: ListItem[], siteIds: string[], mode:
 export const rateEntry = (entry: ListItem, rating: number | undefined): Promise<void> =>
 	patchEntries([entry], () => ({ rating: parseRating(rating), updatedAt: Date.now() }));
 
-/** Ajoute ou retire ces tags, sans toucher aux autres tags des fiches. */
-export function changeEntriesTags(targets: ListItem[], tagIds: string[], mode: 'add' | 'remove'): Promise<void> {
+/** Ajoute ou retire ces tags, sans toucher aux autres tags des fiches ; `set` : les fiches ont exactement ces tags. */
+export function changeEntriesTags(targets: ListItem[], tagIds: string[], mode: 'add' | 'remove' | 'set'): Promise<void> {
 	return patchEntries(targets, (entry) => {
 		const current = entry.tagIds ?? [];
-		const next = mode === 'add' ? [...new Set([...current, ...tagIds])] : current.filter((id) => !tagIds.includes(id));
+		const next =
+			mode === 'set'
+				? [...tagIds]
+				: mode === 'add'
+					? [...new Set([...current, ...tagIds])]
+					: current.filter((id) => !tagIds.includes(id));
 		return { tagIds: next.length ? next : undefined, updatedAt: Date.now() };
 	});
 }

@@ -94,6 +94,15 @@ test('liens sur les cartes : repliés par défaut, affichés avec l’option', a
 	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
 	await page.getByRole('button', { name: 'Afficher', exact: true }).click();
 	await expect(anime).toBeVisible();
+
+	// « Définir » sans site coché les masque tous, puis avec anime coché il est le seul affiché.
+	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
+	await page.getByRole('button', { name: 'Masquer tous', exact: true }).click();
+	await expect(anime).toHaveCount(0);
+	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
+	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
+	await page.getByRole('button', { name: 'Définir', exact: true }).click();
+	await expect(anime).toBeVisible();
 });
 
 test('colle une image dans le formulaire, sans gêner le collage de texte', async ({ page }) => {
@@ -217,6 +226,9 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await page.getByLabel('Nouveau tag').fill('Lu');
 	await page.getByRole('button', { name: 'Ajouter' }).click();
 	await expect(page.getByText('Lu', { exact: true })).toBeVisible();
+	await page.getByLabel('Nouveau tag').fill('Vu');
+	await page.getByRole('button', { name: 'Ajouter' }).click();
+	await expect(page.getByText('Vu', { exact: true })).toBeVisible();
 	await goHome(page);
 
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
@@ -231,6 +243,14 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await expect(card('Fiche A').getByText('Lu')).toBeVisible();
 	await expect(card('Fiche B').getByText('Lu')).toBeVisible();
 	await expect(card('Fiche C').getByText('Lu')).toHaveCount(0);
+
+	// « Définir » remplace les tags : A et B n'ont plus que Vu.
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await page.getByRole('toolbar').getByText('Vu', { exact: true }).click();
+	await page.getByRole('button', { name: 'Définir', exact: true }).click();
+	await expect(card('Fiche A').getByText('Vu')).toBeVisible();
+	await expect(card('Fiche A').getByText('Lu')).toHaveCount(0);
+	await expect(card('Fiche B').getByText('Lu')).toHaveCount(0);
 
 	// La sélection reste ouverte et cochée : on enchaîne en décochant B.
 	await expect(page.getByText('2 sélectionnées')).toBeVisible();

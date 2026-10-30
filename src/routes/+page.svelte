@@ -174,7 +174,9 @@
 	const filtering = $derived(!!listView.query.trim() || filterActive);
 
 	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
-	const resetTagFilter = () => (listView.tags = { ...NO_TAG_FILTER, mode: listView.tags.mode });
+	function resetTagFilter() {
+		listView.tags = { ...NO_TAG_FILTER, mode: listView.tags.mode };
+	}
 
 	/** « Effacer » : tout afficher (les valeurs par défaut reviennent au prochain déverrouillage). */
 	function clearFilters() {
@@ -565,7 +567,7 @@
 	>
 		<ErrorAlert message={bulkError} />
 		{#if bulkPanel === 'tags'}
-			<TagPicker tags={entries.tags ?? []} bind:selected={bulkTags} label="Tags à ajouter ou retirer" />
+			<TagPicker tags={entries.tags ?? []} bind:selected={bulkTags} label="Tags à ajouter, retirer ou définir" />
 			<div class="flex flex-wrap gap-2">
 				<button
 					class="btn btn-primary btn-sm"
@@ -581,11 +583,19 @@
 				>
 					Retirer
 				</button>
+				<button
+					class="btn btn-outline btn-sm"
+					disabled={bulkBusy}
+					title="Les fiches auront exactement ces tags"
+					onclick={() => applyBulk(() => changeEntriesTags(selectedItems, bulkTags, 'set'))}
+				>
+					{bulkTags.length ? 'Définir' : 'Retirer tous'}
+				</button>
 				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
 			</div>
 		{:else if bulkPanel === 'sites'}
-			<p class="text-sm">Sites de la collection à afficher ou masquer sur les fiches sélectionnées :</p>
-			<TagPicker tags={siteChoices} bind:selected={bulkSites} label="Sites à afficher ou masquer" />
+			<p class="text-sm">Sites de la collection à afficher ou masquer sur les fiches sélectionnées ; « Définir » n'affiche que ceux-là :</p>
+			<TagPicker tags={siteChoices} bind:selected={bulkSites} label="Sites à afficher, masquer ou définir" />
 			<div class="flex flex-wrap gap-2">
 				<button
 					class="btn btn-primary btn-sm"
@@ -600,6 +610,14 @@
 					onclick={() => applyBulk(() => changeEntriesSites(selectedItems, bulkSites, 'hide'))}
 				>
 					Masquer
+				</button>
+				<button
+					class="btn btn-outline btn-sm"
+					disabled={bulkBusy}
+					title="Seuls ces sites restent affichés"
+					onclick={() => applyBulk(() => changeEntriesSites(selectedItems, bulkSites, 'set'))}
+				>
+					{bulkSites.length ? 'Définir' : 'Masquer tous'}
 				</button>
 				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
 			</div>
