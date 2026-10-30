@@ -9,7 +9,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
-	import { type Link, MAX_NAME_LENGTH, parseLinkUrl } from '$lib/entries/model';
+	import { type Link, MAX_NAME_LENGTH, parseLinkUrl, searchKey } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -42,7 +42,9 @@
 	const collectionSites = $derived(entries.sitesIn(collectionId));
 	const activeSites = $derived(collectionSites.filter((site) => site.enabled));
 	// Nom unique dans la collection : vérifié pendant la saisie, et de nouveau à l'enregistrement.
-	const sameName = $derived(entries.sameName(collectionId, name, entry?.id));
+	// Un doublon d'avant cette règle reste modifiable tant que son nom et sa collection ne changent pas.
+	const nameUnchanged = $derived(!!entry && entry.collectionId === collectionId && searchKey(entry.name) === searchKey(name));
+	const sameName = $derived(nameUnchanged ? undefined : entries.sameName(collectionId, name, entry?.id));
 	const nameChecked = $derived(!!entries.items && !!name.trim());
 	let tagsDropped = $state(false);
 	let file = $state<File | null>(null);
