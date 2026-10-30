@@ -56,6 +56,16 @@
 		imageRemoved = false;
 	}
 
+	/** Coller une image (capture d'écran, image copiée) ; un collage de texte suit son cours normal. */
+	function onPaste(event: ClipboardEvent) {
+		const image = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+		if (!image) return;
+		event.preventDefault();
+		fileInput.value = '';
+		file = image;
+		imageRemoved = false;
+	}
+
 	function removeImage() {
 		file = null;
 		fileInput.value = '';
@@ -120,6 +130,8 @@
 		await goto(`/entry/${saved.id}`, { replaceState: true });
 	});
 </script>
+
+<svelte:window onpaste={onPaste} />
 
 <form class="flex flex-col gap-4" onsubmit={form.submit}>
 	<section class="card bg-base-100 shadow-sm">
@@ -267,7 +279,9 @@
 				</div>
 			{/if}
 			<input type="file" accept="image/*" class="file-input w-full" bind:this={fileInput} onchange={onFileChange} />
-			<p class="text-base-content/60 text-xs">Redimensionnée et chiffrée sur cet appareil avant l'envoi.</p>
+			<p class="text-base-content/60 text-xs">
+				Choisissez un fichier, glissez-le ici ou collez une image. Redimensionnée et chiffrée sur cet appareil avant l'envoi.
+			</p>
 		</div>
 	</section>
 
