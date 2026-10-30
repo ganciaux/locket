@@ -1,0 +1,26 @@
+# Types, tests unitaires et build à chaque push et sur les propositions de Dependabot.
+# Sans secret ni accès à Firebase : la configuration vient du modèle `.env.example`.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: cp .env.example .env
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
