@@ -1,6 +1,7 @@
 /** Modèle d'une fiche et règles pures (sans Firebase ni DOM), testées dans model.test.ts. */
 
-export type Link = { url: string; label?: string };
+/** `hidden` : conservé sur la fiche, mais pas affiché. */
+export type Link = { url: string; label?: string; hidden?: boolean };
 
 /** Contenu du champ chiffré `data` (JSON). */
 export type EntryData = {
@@ -14,12 +15,19 @@ export type EntryData = {
 	imageType?: string;
 	/** Tags de sa collection ; un identifiant inconnu (tag supprimé) est ignoré. */
 	tagIds?: string[];
+	/** Par site de la collection : terme à chercher s'il diffère du nom de la fiche. */
+	siteTerms?: Record<string, string>;
+	/** Sites de la collection qui ne donnent pas de lien sur cette fiche. */
+	hiddenSites?: string[];
 };
 
 export type Entry = EntryData & { id: string };
 
 /** Regroupement exclusif des fiches (Manga, Chanteurs…) ; l'ordre du catalogue est l'ordre d'affichage. */
-export type Collection = { id: string; name: string };
+export type Collection = { id: string; name: string; sites?: Site[] };
+
+/** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
+export type Site = { id: string; label: string; urlTemplate: string; enabled: boolean };
 
 /** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
 export type Tag = { id: string; name: string; collectionId: string };
@@ -29,15 +37,55 @@ export type Tag = { id: string; name: string; collectionId: string };
  * Un lien `javascript:` exécuterait du code dans l'app au clic, avec la DEK en mémoire.
  */
 export function parseLinkUrl(input: string): string | null {
-	const text = input.trim();
+	const text = withScheme(input.trim());
 	if (!text) return null;
-	const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`;
 	try {
-		const url = new URL(withScheme);
+		const url = new URL(text);
 		return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
 	} catch {
 		return null;
 	}
+}
+
+const withScheme = (text: string): string => (!text || /^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
+
+export const NAME_PLACEHOLDER = '{{name}}';
+
+/** Le terme est encodé (`%20` vaut partout, `+` seulement dans une querystring) : il ne peut pas sortir de sa place. */
+const fillTemplate = (template: string, term: string): string =>
+	template.replaceAll(NAME_PLACEHOLDER, () => encodeURIComponent(term));
+
+/**
+ * Valide le modèle d'URL d'un site ; lève une erreur affichable. Sans {{name}}, le terme va à la fin (préfixe).
+ * Le domaine doit être fixe : le contenu d'une fiche ne doit pas décider du site contacté.
+ */
+export function parseSiteTemplate(input: string): string {
+	const text = withScheme(input.trim());
+	const template = text.includes(NAME_PLACEHOLDER) ? text : text + NAME_PLACEHOLDER;
+	const [a, b] = ['a', 'b'].map((term) => parseLinkUrl(fillTemplate(template, term)));
+	if (!text || !a || !b || new URL(a).host !== new URL(b).host)
+		throw new Error(`Modèle invalide : http(s), domaine fixe, ${NAME_PLACEHOLDER} après le domaine.`);
+	return template;
+}
+
+/** URL d'un site pour ce terme ; null si le modèle n'est pas valable. */
+export const buildSiteUrl = (site: Site, term: string): string | null => parseLinkUrl(fillTemplate(site.urlTemplate, term));
+
+/**
+ * Liens à afficher : sites actifs de sa collection et non masqués sur la fiche
+ * (avec le nom de la fiche, sauf terme propre), puis liens saisis non masqués.
+ */
+export function entryLinks(
+	entry: Pick<EntryData, 'name' | 'links' | 'siteTerms' | 'hiddenSites'>,
+	sites: Site[] = []
+): Link[] {
+	const fromSites = sites
+		.filter((site) => site.enabled && !entry.hiddenSites?.includes(site.id))
+		.flatMap((site) => {
+			const url = buildSiteUrl(site, entry.siteTerms?.[site.id]?.trim() || entry.name);
+			return url ? [{ url, label: site.label }] : [];
+		});
+	return [...fromSites, ...entry.links.filter((link) => !link.hidden)];
 }
 
 /** Texte court d'un lien : son libellé, sinon le nom de domaine (sans « www. »). */

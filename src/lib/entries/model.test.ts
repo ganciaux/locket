@@ -5,8 +5,10 @@ import {
 	MAX_NAME_LENGTH,
 	NO_TAG_FILTER,
 	type TagFilter,
+	buildSiteUrl,
 	byName,
 	encodeUnderLimit,
+	entryLinks,
 	fitWithin,
 	fitsInDoc,
 	linkTitle,
@@ -16,8 +18,60 @@ import {
 	parseLabel,
 	parseLinkUrl,
 	parseNameList,
+	parseSiteTemplate,
 	sortBy
 } from './model';
+
+describe('sites', () => {
+	const anime = { id: 's1', label: 'anime', urlTemplate: 'https://anime.fr/search?k={{name}}', enabled: true };
+
+	it('accepte un modèle, ou un simple préfixe complété par {{name}}', () => {
+		expect(parseSiteTemplate(' https://anime.fr/wiki/{{name}}/ep ')).toBe('https://anime.fr/wiki/{{name}}/ep');
+		expect(parseSiteTemplate('anime.fr/search?k=')).toBe('https://anime.fr/search?k={{name}}');
+	});
+
+	it('refuse un modèle sans domaine fixe ou qui n’est pas http(s)', () => {
+		for (const template of ['', '{{name}}', 'https://{{name}}.fr/x', 'https://anime.fr{{name}}', 'javascript:alert({{name}})'])
+			expect(() => parseSiteTemplate(template), template).toThrow(/invalide/);
+	});
+
+	it('encode le terme : il ne peut pas sortir de sa place', () => {
+		expect(buildSiteUrl(anime, 'john doe')).toBe('https://anime.fr/search?k=john%20doe');
+		expect(buildSiteUrl(anime, 'a&b=c/../d#e')).toBe('https://anime.fr/search?k=a%26b%3Dc%2F..%2Fd%23e');
+		expect(buildSiteUrl({ ...anime, urlTemplate: 'https://anime.fr/{{name}}' }, '$&')).toBe('https://anime.fr/%24%26');
+	});
+
+	it('assemble les liens : sites actifs d’abord, puis liens saisis', () => {
+		const off = { ...anime, id: 's2', label: 'off', enabled: false };
+		const custom = { url: 'https://perso.fr/', label: 'perso' };
+		expect(entryLinks({ name: 'John Doe', links: [custom] }, [anime, off])).toEqual([
+			{ url: 'https://anime.fr/search?k=John%20Doe', label: 'anime' },
+			custom
+		]);
+	});
+
+	it('utilise le terme propre à la fiche, sinon son nom', () => {
+		const link = (siteTerms: Record<string, string>) => entryLinks({ name: 'John', links: [], siteTerms }, [anime])[0].url;
+		expect(link({ s1: 'Johnny D' })).toBe('https://anime.fr/search?k=Johnny%20D');
+		expect(link({ s1: '  ' })).toBe('https://anime.fr/search?k=John');
+	});
+
+	it('masque un site sur une seule fiche, sans perdre les liens saisis', () => {
+		const custom = { url: 'https://perso.fr/' };
+		expect(entryLinks({ name: 'x', links: [custom], hiddenSites: ['s1'] }, [anime])).toEqual([custom]);
+		expect(entryLinks({ name: 'x', links: [], hiddenSites: ['autre'] }, [anime])).toHaveLength(1);
+	});
+
+	it('n’affiche pas un lien saisi masqué', () => {
+		const shown = { url: 'https://a.fr/' };
+		expect(entryLinks({ name: 'x', links: [shown, { url: 'https://b.fr/', hidden: true }] })).toEqual([shown]);
+	});
+
+	it('ignore un site au modèle invalide, sans site aussi', () => {
+		expect(entryLinks({ name: 'x', links: [] }, [{ ...anime, urlTemplate: 'javascript:{{name}}' }])).toEqual([]);
+		expect(entryLinks({ name: 'x', links: [] })).toEqual([]);
+	});
+});
 
 describe('parseLinkUrl', () => {
 	it('accepte http(s) et ajoute https:// si le schéma manque', () => {

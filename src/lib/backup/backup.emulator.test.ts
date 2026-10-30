@@ -9,6 +9,7 @@ import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
 import { auth } from '$lib/firebase';
 import { deleteEntry, listEntries, saveEntry } from '$lib/entries/repository';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
+import { deleteAllData } from '$lib/entries/store.svelte';
 import { OldKeyRequired, checkBackup, createBackup, restoreBackup } from './backup';
 import { parseBackup } from './format';
 
@@ -105,6 +106,27 @@ describe('sauvegarde (émulateurs)', () => {
 		const manifest = parseBackup(text);
 		manifest.manifest.iv[0] ^= 1;
 		await expect(checkBackup(manifest)).rejects.toThrow(/endommagée/);
+	}, 60_000);
+
+	it('supprime toutes les données après vérification du mot de passe, puis restaure', async () => {
+		await signUp(`g${Date.now()}@example.com`, PASSWORD);
+		const { uid, dek } = current();
+		await collectionCatalog.save(uid, dek, [{ id: 'col-1', name: 'Papiers' }]);
+		await tagCatalog.save(uid, dek, [{ id: 'tag-1', name: 'Santé', collectionId: 'col-1' }]);
+		await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Mutuelle', links: [], tagIds: [] });
+		const backup = parseBackup(await createBackup(true));
+
+		await expect(deleteAllData('faux-mot-de-passe')).rejects.toThrow(/incorrect/);
+		expect(await listEntries(uid, dek)).toHaveLength(1);
+
+		expect(await deleteAllData(PASSWORD)).toBe(1);
+		expect(await listEntries(uid, dek)).toEqual([]);
+		expect(await collectionCatalog.readStored(uid)).toBeNull();
+		expect(await tagCatalog.readStored(uid)).toBeNull();
+
+		// Le compte et sa DEK restent : la sauvegarde se restaure directement.
+		expect(await restoreBackup(backup)).toMatchObject({ restored: 1, adopted: false });
+		expect((await listEntries(uid, dek)).map((e) => e.name)).toEqual(['Mutuelle']);
 	}, 60_000);
 
 	it('compte recréé avec un autre email : la clé de récupération suffit ; un compte non vide est refusé', async () => {

@@ -2,6 +2,7 @@
 	// Administration des collections : ajout, renommage, ordre d'affichage et suppression (vide uniquement).
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import SiteManager from '$lib/components/SiteManager.svelte';
 	import { MAX_LABEL_LENGTH } from '$lib/entries/model';
 	import {
 		addCollection,
@@ -60,7 +61,7 @@
 
 <a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
 <h1 class="mb-1 text-2xl font-bold">Collections</h1>
-<p class="text-base-content/60 mb-4 text-sm">Chaque fiche appartient à une collection, qui a ses propres tags.</p>
+<p class="text-base-content/60 mb-4 text-sm">Chaque fiche appartient à une collection, qui a ses propres tags et ses sites.</p>
 
 <ErrorAlert message={error} />
 
@@ -170,7 +171,8 @@
 								</form>
 							{/if}
 						{/if}
-					</li>
+						<SiteManager {collection} />
+						</li>
 				{/each}
 			</ul>
 			<p class="text-base-content/60 text-xs">

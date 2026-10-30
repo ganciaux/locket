@@ -4,6 +4,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { deleteAllData } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
 	import { type AutoLock, prefs, type Theme } from '$lib/prefs.svelte';
 
@@ -32,6 +33,24 @@
 		await changePassword(currentPassword, password);
 		currentPassword = password = confirmation = '';
 		changed = true;
+	});
+
+	// Suppression totale : le mot à taper évite qu'un mot de passe prérempli suffise.
+	const WIPE_WORD = 'SUPPRIMER';
+	let wipeOpen = $state(false);
+	let wipePassword = $state('');
+	let wipeWord = $state('');
+	let wiped = $state<number | null>(null);
+
+	function closeWipe() {
+		wipeOpen = false;
+		wipePassword = wipeWord = '';
+	}
+
+	const wipe = formAction(async () => {
+		wiped = null;
+		wiped = await deleteAllData(wipePassword);
+		closeWipe();
 	});
 </script>
 
@@ -141,6 +160,47 @@
 					{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Modification…{:else}Changer le mot de passe{/if}
 				</button>
 			</form>
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-lg">Supprimer toutes les données</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">
+				Fiches, images, collections et tags. Votre compte, votre mot de passe et votre clé de récupération restent
+				valables.
+			</p>
+			{#if wiped !== null}
+				<p role="status" class="alert alert-success alert-soft text-sm">
+					Toutes les données ont été supprimées ({wiped} fiche{wiped > 1 ? 's' : ''}).
+				</p>
+			{/if}
+			{#if wipeOpen}
+				<form class="alert alert-error alert-soft flex flex-col items-stretch gap-3" onsubmit={wipe.submit}>
+					<p class="text-sm">
+						<strong>Cette suppression est définitive</strong> : Firebase n'en garde aucune copie. Seule une sauvegarde
+						permet de tout retrouver. <a class="link" href="/backup">Faire une sauvegarde d'abord</a>
+					</p>
+					<input type="email" autocomplete="username" value={session.user?.email} hidden readonly />
+					<Field label="Mot de passe">
+						<input class="input w-full" type="password" autocomplete="current-password" bind:value={wipePassword} required />
+					</Field>
+					<Field label="Écrivez {WIPE_WORD} pour confirmer">
+						<input class="input w-full" autocomplete="off" autocapitalize="characters" spellcheck="false" bind:value={wipeWord} required />
+					</Field>
+					<ErrorAlert message={wipe.error} />
+					<div class="flex gap-2">
+						<button class="btn btn-error" disabled={wipe.busy || wipeWord !== WIPE_WORD}>
+							{#if wipe.busy}<span class="loading loading-spinner loading-sm"></span> Suppression…{:else}Tout supprimer{/if}
+						</button>
+						<button type="button" class="btn btn-ghost" disabled={wipe.busy} onclick={closeWipe}>Annuler</button>
+					</div>
+				</form>
+			{:else}
+				<button class="btn btn-outline btn-error self-start" onclick={() => ((wipeOpen = true), (wiped = null))}>
+					<Icon name="trash" class="size-4" /> Supprimer toutes les données
+				</button>
+			{/if}
 		</div>
 	</section>
 

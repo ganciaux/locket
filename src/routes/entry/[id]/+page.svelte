@@ -72,6 +72,7 @@
 	<p class="alert alert-warning alert-soft">Fiche introuvable.</p>
 {:else if entry}
 	{@const collection = entries.collections?.find((c) => c.id === entry.collectionId)}
+	{@const links = entries.linksOf(entry)}
 	<article class="card bg-base-100 overflow-hidden shadow-sm">
 		{#if entry.imageType}
 			<figure class="bg-base-200 relative">
@@ -97,9 +98,9 @@
 				</div>
 			{/if}
 
-			{#if entry.links.length}
+			{#if links.length}
 				<ul class="flex flex-col gap-2">
-					{#each entry.links as link, i (i)}
+					{#each links as link, i (i)}
 						<li class="bg-base-200 rounded-box flex items-center gap-3 p-3">
 							<Icon name="external" class="text-primary size-4 shrink-0" />
 							<span class="min-w-0 flex-1 break-all">

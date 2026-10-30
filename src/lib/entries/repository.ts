@@ -51,6 +51,8 @@ export type EntryInput = {
 	name: string;
 	links: Link[];
 	tagIds: string[];
+	siteTerms?: Record<string, string>;
+	hiddenSites?: string[];
 	/** undefined : image inchangée ; null : supprimée ; sinon : remplacée. */
 	image?: PreparedImage | null;
 };
@@ -76,7 +78,9 @@ export async function saveEntry(
 		createdAt: existing?.createdAt ?? now,
 		updatedAt: now,
 		...(imageType && { imageType }),
-		...(input.tagIds.length && { tagIds: input.tagIds })
+		...(input.tagIds.length && { tagIds: input.tagIds }),
+		...(input.siteTerms && Object.keys(input.siteTerms).length && { siteTerms: input.siteTerms }),
+		...(input.hiddenSites?.length && { hiddenSites: input.hiddenSites })
 	};
 
 	const batch = writeBatch(db);
@@ -190,7 +194,7 @@ export async function writeStoredEntries(
 	if (writes) await batch.commit();
 }
 
-/** Restauration : supprime les fiches absentes du fichier, avec leurs images. Retourne leur nombre. */
+/** Supprime les fiches hors de `keep`, avec leurs images (restauration, suppression totale). Retourne leur nombre. */
 export async function deleteStoredEntriesExcept(uid: string, keep: Set<string>): Promise<number> {
 	const ids = (await getDocs(entriesRef(uid))).docs.map((d) => d.id).filter((id) => !keep.has(id));
 	// Deux suppressions par fiche.

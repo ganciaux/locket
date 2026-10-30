@@ -2,7 +2,7 @@
  * Catalogues chiffrés (tags, collections) : un document `users/{uid}/meta/<nom>` = { data } (JSON),
  * AAD `meta/<nom>`. Les fiches ne portent que des identifiants, dans leur propre JSON chiffré.
  */
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { type Encrypted, decryptJson, encryptJson } from '$lib/crypto/crypto';
 import { db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import type { Collection, Tag } from './model';
@@ -28,7 +28,9 @@ function encryptedCatalog<T>(name: 'tags' | 'collections') {
 		/** Réécrit tout le catalogue (IV neuf) : quelques Ko au plus, plus simple qu'une mise à jour fine. */
 		async save(uid: string, dek: CryptoKey, items: T[]): Promise<void> {
 			await setDoc(ref(uid), { data: toStored(await encryptJson(dek, items, context)) });
-		}
+		},
+
+		remove: (uid: string): Promise<void> => deleteDoc(ref(uid))
 	};
 	return catalog;
 }

@@ -24,7 +24,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 |---|---|---|
 | Contenu des fiches (nom, liens, dates, tags associés) | Firestore `users/{uid}/entries/{id}.data` | AES-GCM-256 avec la DEK |
 | Images et miniatures | `users/{uid}/images/{id}.image`, `entries/{id}.thumb` | AES-GCM-256 avec la DEK |
-| Noms et ordre des collections | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
+| Noms et ordre des collections, modèles d'URL de leurs sites | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
 | Noms des tags | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |
 | DEK (clé de données) | Firestore, sous forme emballée (2 copies) ; en clair seulement en mémoire, non extractible | Emballée par la KEK (mot de passe) et par la clé de récupération |
 | Mot de passe | Jamais stocké ni transmis | Seul un jeton dérivé est envoyé à Firebase Auth |
@@ -79,6 +79,12 @@ sauvegarde v3 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs,
 - **Quota d'emails de récupération** : Firebase plafonne les emails de connexion par jour. Comme « Mot de passe oublié »
   est public, n'importe qui peut l'épuiser en demandant des liens pour notre adresse et bloquer la récupération jusqu'au
   lendemain. Pas d'accès aux données ; à attendre ou à contourner avec le dernier lien déjà reçu, s'il n'a pas été ouvert.
+- **Liens de sites** : au clic, le nom de la fiche (ou son terme propre) part en clair vers le site, comme tout lien
+  ouvert. Rien n'est appelé à l'affichage. Le terme est encodé et le domaine du modèle est fixe : une fiche ne peut pas
+  rediriger vers un autre site.
+- **Suppression totale** : le mot de passe et le mot à taper sont contrôlés par l'app, pas par les règles Firestore. Ils
+  protègent d'une fausse manœuvre ou d'un PC laissé ouvert, pas d'un client modifié disposant d'une session Firebase.
+  Irréversible sans sauvegarde : le plan Spark n'en garde aucune.
 - **Aperçu iOS** : le sélecteur d'apps peut montrer une capture de l'écran déverrouillé.
 
 ## 6. Plan d'audit

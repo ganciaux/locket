@@ -138,6 +138,14 @@ export async function unlock(password: string): Promise<void> {
 	setUnlocked(user, await orFail(unwrapDek(wrappedDek, kek), WRONG_PASSWORD));
 }
 
+/** Confirme une action irréversible : lève une erreur si ce n'est pas le mot de passe du compte. */
+export async function verifyPassword(password: string): Promise<void> {
+	const user = currentUser();
+	const { kek } = await deriveKeys(password, user.email);
+	const { wrappedDek } = await readKeyring(user.uid);
+	await orFail(unwrapDek(wrappedDek, kek), WRONG_PASSWORD);
+}
+
 /** Réemballe la DEK sous la nouvelle KEK ; les fiches ne sont pas rechiffrées. */
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
 	const user = currentUser();

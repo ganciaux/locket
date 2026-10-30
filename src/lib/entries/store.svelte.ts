@@ -3,6 +3,7 @@
  * Vidés dès que la session est verrouillée : rien de déchiffré ne survit à la DEK.
  * La liste, la recherche et les tags proposés sont ceux de la collection active (préférence propre à l'appareil).
  */
+import { verifyPassword } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { prefs } from '$lib/prefs.svelte';
 import { collectionCatalog, tagCatalog } from './catalog';
@@ -10,16 +11,20 @@ import { bytesToUrl } from './images';
 import {
 	NO_TAG_FILTER,
 	type Collection,
+	type Link,
+	type Site,
 	type SortOrder,
 	type Tag,
 	type TagFilter,
 	byName,
+	entryLinks,
 	matchesFilter,
 	moveItem,
 	parseLabel,
+	parseSiteTemplate,
 	sortBy
 } from './model';
-import { listEntries, type EntrySummary } from './repository';
+import { deleteStoredEntriesExcept, listEntries, type EntrySummary } from './repository';
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
@@ -91,6 +96,13 @@ export const entries = {
 	tagsOf(entry: { collectionId: string; tagIds?: string[] }): Tag[] {
 		return entries.tagsIn(entry.collectionId).filter((tag) => entry.tagIds?.includes(tag.id));
 	},
+	sitesIn(collectionId: string): Site[] {
+		return collections?.find((c) => c.id === collectionId)?.sites ?? [];
+	},
+	/** Liens à afficher : sites actifs de sa collection, puis liens saisis. */
+	linksOf(entry: { collectionId: string } & Parameters<typeof entryLinks>[0]): Link[] {
+		return entryLinks(entry, entries.sitesIn(entry.collectionId));
+	},
 	countWithTag(tagId: string): number {
 		return (items ?? []).filter((item) => item.tagIds?.includes(tagId)).length;
 	},
@@ -135,6 +147,19 @@ export function upsertEntries(changed: EntrySummary[]): void {
 }
 
 export const upsertEntry = (entry: EntrySummary): void => upsertEntries([entry]);
+
+/**
+ * Supprime fiches, images, collections et tags ; le compte et son trousseau restent. Retourne le nombre de fiches.
+ * Catalogues en dernier : après une interruption, il suffit de relancer.
+ */
+export async function deleteAllData(password: string): Promise<number> {
+	const { uid } = unlocked();
+	await verifyPassword(password);
+	const removed = await deleteStoredEntriesExcept(uid, new Set());
+	await Promise.all([collectionCatalog.remove(uid), tagCatalog.remove(uid)]);
+	clear();
+	return removed;
+}
 
 export function removeEntry(id: string): void {
 	if (!items) return;
@@ -196,6 +221,33 @@ export async function deleteCollection(id: string): Promise<void> {
 	if (currentTags.some((tag) => tag.collectionId === id))
 		await replaceTags(currentTags.filter((tag) => tag.collectionId !== id));
 }
+
+const replaceSites = (collectionId: string, sites: Site[]): Promise<void> =>
+	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, sites } : c)));
+
+/** Crée un site (actif) ou modifie celui d'identifiant `id`. */
+export async function saveSite(collectionId: string, input: { label: string; urlTemplate: string }, id?: string): Promise<void> {
+	const sites = entries.sitesIn(collectionId);
+	const others = sites.filter((site) => site.id !== id).map((site) => ({ name: site.label }));
+	const label = parseLabel(input.label, others);
+	const urlTemplate = parseSiteTemplate(input.urlTemplate);
+	await replaceSites(
+		collectionId,
+		id
+			? sites.map((site) => (site.id === id ? { ...site, label, urlTemplate } : site))
+			: [...sites, { id: crypto.randomUUID(), label, urlTemplate, enabled: true }]
+	);
+}
+
+export const toggleSite = (collectionId: string, id: string): Promise<void> =>
+	replaceSites(
+		collectionId,
+		entries.sitesIn(collectionId).map((site) => (site.id === id ? { ...site, enabled: !site.enabled } : site))
+	);
+
+/** Les termes propres des fiches sont oubliés à leur prochaine modification, comme les tags supprimés. */
+export const deleteSite = (collectionId: string, id: string): Promise<void> =>
+	replaceSites(collectionId, entries.sitesIn(collectionId).filter((site) => site.id !== id));
 
 async function replaceTags(next: Tag[]): Promise<void> {
 	const { uid, dek } = unlocked();

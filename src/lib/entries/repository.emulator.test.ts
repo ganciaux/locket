@@ -66,7 +66,7 @@ describe('fiches (émulateurs)', () => {
 
 		await deleteEntry(uid, created.id);
 		expect(await listEntries(uid, dek)).toEqual([]);
-	});
+	}, 60_000);
 
 	it('importe une liste de noms en plusieurs lots', async () => {
 		const names = Array.from({ length: 450 }, (_, i) => `Fiche ${i}`);

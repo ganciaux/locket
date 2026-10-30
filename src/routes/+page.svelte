@@ -207,6 +207,7 @@
 	<!-- items-start : une carte dont on ouvre les liens s'allonge sans étirer ses voisines. -->
 	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
+			{@const links = entries.linksOf(entry)}
 			<li class="card bg-base-100 overflow-hidden shadow-sm transition hover:shadow-md">
 				<a href="/entry/{entry.id}" class="block">
 					<figure class="bg-primary/10 aspect-square">
@@ -239,17 +240,17 @@
 				</a>
 
 				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
-				{#if entry.links.length}
+				{#if links.length}
 					<details class="group border-base-200 border-t">
 						<summary
 							class="text-base-content/60 hover:bg-base-200 flex cursor-pointer list-none items-center gap-1 px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"
 						>
 							<Icon name="link" class="size-3" />
-							<span class="flex-1">{entry.links.length} lien{entry.links.length > 1 ? 's' : ''}</span>
+							<span class="flex-1">{links.length} lien{links.length > 1 ? 's' : ''}</span>
 							<Icon name="chevronDown" class="size-4 transition group-open:rotate-180" />
 						</summary>
 						<ul class="flex flex-col gap-1 px-3 pb-3 text-sm">
-							{#each entry.links as link, i (i)}
+							{#each links as link, i (i)}
 								<li class="truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
 							{/each}
 						</ul>

@@ -19,14 +19,20 @@
 	// svelte-ignore state_referenced_locally
 	let name = $state(entry?.name ?? '');
 	// svelte-ignore state_referenced_locally
-	let links = $state((entry?.links ?? []).map((l) => ({ url: l.url, label: l.label ?? '' })));
+	let links = $state((entry?.links ?? []).map((l) => ({ url: l.url, label: l.label ?? '', hidden: !!l.hidden })));
 	// svelte-ignore state_referenced_locally
 	let tagIds = $state([...(entry?.tagIds ?? [])]);
+	// svelte-ignore state_referenced_locally
+	let siteTerms = $state<Record<string, string>>({ ...entry?.siteTerms });
+	// svelte-ignore state_referenced_locally
+	let hiddenSites = $state([...(entry?.hiddenSites ?? [])]);
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
 	let chosenCollectionId = $state(entry?.collectionId ?? '');
 	const collectionId = $derived(chosenCollectionId || entries.active?.id || '');
 	const collectionTags = $derived(entries.tagsIn(collectionId));
+	const collectionSites = $derived(entries.sitesIn(collectionId));
+	const activeSites = $derived(collectionSites.filter((site) => site.enabled));
 	let tagsDropped = $state(false);
 	let file = $state<File | null>(null);
 	let loadError = $state('');
@@ -54,11 +60,23 @@
 		imageRemoved = true;
 	}
 
-	// Les tags appartiennent à une collection : en changer les retire de la fiche.
+	// Les tags et les sites appartiennent à une collection : en changer les retire de la fiche.
 	function changeCollection(event: Event) {
 		chosenCollectionId = (event.currentTarget as HTMLSelectElement).value;
 		tagsDropped = tagIds.length > 0;
 		tagIds = [];
+		siteTerms = {};
+		hiddenSites = [];
+	}
+
+	function toggleHidden(siteId: string) {
+		hiddenSites = hiddenSites.includes(siteId) ? hiddenSites.filter((id) => id !== siteId) : [...hiddenSites, siteId];
+	}
+
+	/** Seuls les termes remplis et les sites encore connus sont gardés (ceux d'un site inactif aussi). */
+	function knownSiteTerms(): Record<string, string> {
+		const terms = collectionSites.map((site) => [site.id, siteTerms[site.id]?.trim()]);
+		return Object.fromEntries(terms.filter(([, term]) => term));
 	}
 
 	function parseLinks(): Link[] {
@@ -68,7 +86,7 @@
 				const url = parseLinkUrl(l.url);
 				if (!url) throw new Error(`Lien invalide : « ${l.url.trim()} » (http ou https uniquement).`);
 				const label = l.label.trim();
-				return label ? { url, label } : { url };
+				return { url, ...(label && { label }), ...(l.hidden && { hidden: true }) };
 			});
 	}
 
@@ -84,7 +102,15 @@
 		const saved = await saveEntry(
 			user.uid,
 			dek,
-			{ collectionId, name, links: parsedLinks, tagIds: knownTagIds, image },
+			{
+				collectionId,
+				name,
+				links: parsedLinks,
+				tagIds: knownTagIds,
+				siteTerms: knownSiteTerms(),
+				hiddenSites: hiddenSites.filter((id) => collectionSites.some((site) => site.id === id)),
+				image
+			},
 			entry
 		);
 		upsertEntry(saved);
@@ -113,11 +139,47 @@
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="card-title text-base"><Icon name="link" /> Liens</h2>
+			{#if activeSites.length}
+				<p class="text-base-content/60 text-xs">
+					Sites de la collection : décochez pour masquer le lien sur cette fiche, laissez vide pour chercher son nom.
+				</p>
+				{#each activeSites as site (site.id)}
+					{@const hidden = hiddenSites.includes(site.id)}
+					<div class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							class="toggle toggle-primary toggle-sm"
+							checked={!hidden}
+							onchange={() => toggleHidden(site.id)}
+							aria-label="Afficher {site.label} sur cette fiche"
+							title="Afficher sur cette fiche"
+						/>
+						<label class="input input-sm min-w-0 flex-1">
+							<span class="label">{site.label}</span>
+							<input
+								placeholder={name}
+								aria-label="Terme à chercher sur {site.label}"
+								disabled={hidden}
+								bind:value={siteTerms[site.id]}
+							/>
+						</label>
+					</div>
+				{/each}
+			{/if}
 			{#each links as link, i (i)}
-				<div class="bg-base-200 rounded-box grid grid-cols-[1fr_auto] gap-2 p-3">
+				<div class="bg-base-200 rounded-box grid grid-cols-[auto_1fr_auto] items-start gap-2 p-3">
+					<input
+						type="checkbox"
+						class="toggle toggle-primary toggle-sm mt-1.5"
+						checked={!link.hidden}
+						onchange={() => (link.hidden = !link.hidden)}
+						aria-label="Afficher ce lien sur la fiche"
+						title="Afficher sur la fiche"
+					/>
 					<div class="flex flex-col gap-2">
 						<input
 							class="input input-sm w-full"
+							disabled={link.hidden}
 							inputmode="url"
 							autocapitalize="off"
 							autocomplete="off"
@@ -128,6 +190,7 @@
 						/>
 						<input
 							class="input input-sm w-full"
+							disabled={link.hidden}
 							placeholder="Libellé (facultatif)"
 							aria-label="Libellé"
 							bind:value={link.label}
@@ -149,7 +212,7 @@
 			<button
 				type="button"
 				class="btn btn-outline btn-primary btn-sm self-start"
-				onclick={() => links.push({ url: '', label: '' })}
+				onclick={() => links.push({ url: '', label: '', hidden: false })}
 			>
 				<Icon name="plus" class="size-4" /> Ajouter un lien
 			</button>
