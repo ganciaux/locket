@@ -7,7 +7,7 @@
 	import { TRASH_DAYS } from '$lib/entries/model';
 	import { deleteAllData } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
-	import { type AutoLock, prefs, type Theme } from '$lib/prefs.svelte';
+	import { type AutoLock, type CardClick, prefs, type Theme } from '$lib/prefs.svelte';
 
 	const THEMES: { value: Theme; label: string }[] = [
 		{ value: 'auto', label: 'Auto' },
@@ -21,6 +21,11 @@
 		{ value: 15, label: '15 min' },
 		{ value: 30, label: '30 min' },
 		{ value: 0, label: 'Jamais' }
+	];
+
+	const CARD_CLICKS: { value: CardClick; label: string }[] = [
+		{ value: 'expand', label: 'Déplier' },
+		{ value: 'open', label: 'Ouvrir la fiche' }
 	];
 
 	let currentPassword = $state('');
@@ -117,11 +122,32 @@
 
 			<label class="flex cursor-pointer items-start justify-between gap-4">
 				<span class="flex flex-col">
-					<span class="text-sm font-medium">Afficher les liens sur les cartes</span>
-					<span class="text-base-content/60 text-xs">Sinon, ils restent repliés sous « N liens ».</span>
+					<span class="text-sm font-medium">Cartes détaillées</span>
+					<span class="text-base-content/60 text-xs">Tags et liens affichés sur toutes les cartes. Sinon, cartes compactes : une seule se déplie à la fois.</span>
 				</span>
-				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.cardLinksExpanded} />
+				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.detailedCards} />
 			</label>
+
+			{#if !prefs.detailedCards}
+				<div class="flex flex-col gap-2">
+					<span class="flex flex-col">
+						<span class="text-sm font-medium">Clic sur une carte compacte</span>
+						<span class="text-base-content/60 text-xs">L'autre action reste à portée : « Ouvrir la fiche » une fois dépliée, ou la barre « Détails ».</span>
+					</span>
+					<div class="join" role="radiogroup" aria-label="Clic sur une carte compacte">
+						{#each CARD_CLICKS as option (option.value)}
+							<input
+								class="join-item btn btn-sm"
+								type="radio"
+								name="card-click"
+								value={option.value}
+								aria-label={option.label}
+								bind:group={prefs.cardClick}
+							/>
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 			<div class="flex flex-col gap-2">
 				<span class="flex flex-col">

@@ -68,7 +68,11 @@
 	// Filtres et tri : gardés pendant la session, valeurs par défaut à chaque déverrouillage (voir listView).
 	const tagFilter = $derived(listView.tags);
 	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
-	let linksExpanded = $state(prefs.cardLinksExpanded);
+	let detailed = $state(prefs.detailedCards);
+	// Cartes compactes : une seule dépliée à la fois.
+	let openId = $state<string | null>(null);
+	const clickExpands = $derived(!detailed && prefs.cardClick === 'expand');
+	const toggleOpen = (id: string) => (openId = openId === id ? null : id);
 	let error = $state('');
 	const backupInfo = readBackupInfo();
 	let remindBackup = $state(isReminderDue(backupInfo, Date.now()));
@@ -426,17 +430,15 @@
 					Cachées ({hiddenCount})
 				</button>
 			{/if}
-			{#if anyLinks}
-				<button
-					class="btn btn-xs {linksExpanded ? 'btn-primary' : 'btn-ghost'}"
-					aria-pressed={linksExpanded}
-					title={linksExpanded ? 'Replier les liens des cartes' : 'Déplier les liens des cartes'}
-					onclick={() => (linksExpanded = !linksExpanded)}
-				>
-					<Icon name="link" class="size-3" /> Liens
-					<Icon name="chevronDown" class="size-3 transition {linksExpanded ? 'rotate-180' : ''}" />
-				</button>
-			{/if}
+			<button
+				class="btn btn-xs {detailed ? 'btn-primary' : 'btn-ghost'}"
+				aria-pressed={detailed}
+				title={detailed ? 'Cartes compactes' : 'Afficher tags et liens sur toutes les cartes'}
+				onclick={() => (detailed = !detailed)}
+			>
+				Détails
+				<Icon name="chevronDown" class="size-3 transition {detailed ? 'rotate-180' : ''}" />
+			</button>
 			<button
 				class="btn btn-xs {selecting ? 'btn-primary' : 'btn-ghost'}"
 				aria-pressed={selecting}
@@ -467,11 +469,44 @@
 		<p class="text-base-content/60 py-8 text-center">Toutes les fiches sont cachées.</p>
 	{/if}
 
-	<!-- items-start : une carte dont on ouvre les liens s'allonge sans étirer ses voisines. -->
+	{#snippet cardHeader(entry: (typeof results)[number], expandable: boolean, isOpen: boolean)}
+		<figure class="bg-primary/10 relative aspect-square">
+			{#if entry.thumbUrl}
+				<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
+			{:else}
+				<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
+					{entry.name.charAt(0).toUpperCase()}
+				</span>
+			{/if}
+			{#if entry.rating}
+				<!-- Sur l'image pour gagner une ligne ; fond translucide pour rester lisible sur une photo claire. -->
+				<span class="bg-base-100/80 rounded-box absolute bottom-1 left-1 flex px-1 py-0.5">
+					<Rating value={entry.rating} size="xs" />
+				</span>
+			{/if}
+		</figure>
+		<h2
+			class="flex items-center gap-1 font-semibold {prefs.cardSize === 'small'
+				? 'px-2 py-1.5 text-xs'
+				: prefs.cardSize === 'large'
+					? 'px-4 py-3 text-base'
+					: 'px-3 py-2 text-sm'}"
+		>
+			{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
+			<span class="min-w-0 flex-1 truncate">{entry.name}</span>
+			{#if expandable}
+				<Icon name="chevronDown" class="text-base-content/50 size-4 shrink-0 transition {isOpen ? 'rotate-180' : ''}" />
+			{/if}
+		</h2>
+	{/snippet}
+
+	<!-- items-start : une carte dépliée s'allonge sans étirer ses voisines. -->
 	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
 			{@const links = entries.linksOf(entry)}
 			{@const isSelected = selected.includes(entry.id)}
+			{@const entryTags = entries.tagsOf(entry)}
+			{@const isOpen = detailed || openId === entry.id}
 			<li
 				class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
 					? 'opacity-50 hover:opacity-100'
@@ -486,72 +521,61 @@
 						aria-label="Sélectionner {entry.name}"
 					/>
 				{/if}
-				<!-- En mode sélection, un clic sur la carte coche la fiche au lieu de l'ouvrir. -->
-				<a
-					href="/entry/{entry.id}"
-					class="block"
-					onclick={(event) => {
-						if (!selecting) return;
-						event.preventDefault();
-						toggleSelected(entry.id);
-					}}
-				>
-					<figure class="bg-primary/10 aspect-square">
-						{#if entry.thumbUrl}
-							<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
-						{:else}
-							<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
-								{entry.name.charAt(0).toUpperCase()}
-							</span>
-						{/if}
-					</figure>
-					<h2
-						class="truncate font-semibold {prefs.cardSize === 'small'
-							? 'px-2 pt-2 pb-1 text-xs'
-							: prefs.cardSize === 'large'
-								? 'px-4 pt-4 pb-2 text-base'
-								: 'px-3 pt-3 pb-2 text-sm'}"
+				<!-- En mode sélection, un clic sur la carte coche la fiche ; sinon il la déplie ou l'ouvre (Paramètres). -->
+				{#if clickExpands && !selecting}
+					<button type="button" class="block w-full cursor-pointer text-left" aria-expanded={isOpen} onclick={() => toggleOpen(entry.id)}>
+						{@render cardHeader(entry, true, isOpen)}
+					</button>
+				{:else}
+					<a
+						href="/entry/{entry.id}"
+						class="block"
+						onclick={(event) => {
+							if (!selecting) return;
+							event.preventDefault();
+							toggleSelected(entry.id);
+						}}
 					>
-						{#if entry.country}<span class="mr-1" title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
-						{entry.name}
-					</h2>
-					{#if entry.rating}
-						<div class={prefs.cardSize === 'small' ? '-mt-1 px-2 pb-1' : '-mt-1 px-3 pb-2'}>
-							<Rating value={entry.rating} size="xs" />
-						</div>
+						{@render cardHeader(entry, false, isOpen)}
+					</a>
+					{#if !detailed && (entryTags.length || links.length)}
+						<button
+							type="button"
+							class="text-base-content/60 hover:bg-base-200 border-base-200 flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
+							aria-expanded={isOpen}
+							onclick={() => toggleOpen(entry.id)}
+						>
+							<span class="flex-1 text-left">Détails</span>
+							<Icon name="chevronDown" class="size-4 transition {isOpen ? 'rotate-180' : ''}" />
+						</button>
 					{/if}
-					{#if entry.tagIds?.length}
-						{@const entryTags = entries.tagsOf(entry)}
+				{/if}
+
+				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
+				{#if isOpen}
+					{#if entryTags.length}
 						<div class="flex flex-wrap gap-1 px-3 pb-2">
 							{#each entryTags as tag (tag.id)}
 								<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
 							{/each}
 						</div>
 					{/if}
-				</a>
-
-				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
-				{#if links.length && linksExpanded}
-					<ul class="border-base-200 flex flex-wrap gap-1 border-t p-2">
-						{#each links as link, i (i)}
-							<li class="badge badge-soft badge-sm max-w-full truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
-						{/each}
-					</ul>
-				{:else if links.length}
-					<details class="group border-base-200 border-t">
-						<summary
-							class="text-base-content/60 hover:bg-base-200 flex cursor-pointer list-none items-center gap-1 px-3 py-2 text-xs [&::-webkit-details-marker]:hidden"
-						>
-							<Icon name="link" class="size-3" />
-							<span class="flex-1">{links.length} lien{links.length > 1 ? 's' : ''}</span>
-							<Icon name="chevronDown" class="size-4 transition group-open:rotate-180" />
-						</summary>
-						<ul class="flex flex-col gap-1 px-3 pb-3 text-sm">
+					{#if links.length}
+						<ul class="border-base-200 flex flex-col gap-1 border-t px-3 py-2 text-sm">
 							{#each links as link, i (i)}
 								<li class="truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
 							{/each}
 						</ul>
-					</details>
+					{/if}
+					{#if clickExpands}
+						<a
+							class="btn btn-ghost btn-xs border-base-200 w-full justify-between rounded-none border-t"
+							href="/entry/{entry.id}"
+							aria-label="Ouvrir la fiche"
+						>
+							{prefs.cardSize === 'small' ? 'Ouvrir' : 'Ouvrir la fiche'} <Icon name="chevronRight" class="size-4" />
+						</a>
+					{/if}
 				{/if}
 			</li>
 		{/each}

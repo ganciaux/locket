@@ -5,6 +5,7 @@
 		close: 'M6 6l12 12M18 6 6 18',
 		back: 'M15 18l-6-6 6-6',
 		chevronDown: 'M6 9l6 6 6-6',
+		chevronRight: 'M9 6l6 6-6 6',
 		chevronUp: 'M6 15l6-6 6 6',
 		shuffle: 'M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
 		search: 'M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM20 20l-4-4',

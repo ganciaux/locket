@@ -42,30 +42,47 @@ test('site de collection : lien calculé, nom custom, masquage', async ({ page }
 	await expect(page.getByText('Aucun lien.')).toBeVisible();
 });
 
-test('liens sur les cartes : dépliés par défaut, repliables', async ({ page }) => {
+test('cartes compactes : une seule dépliée, détails à la demande', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
 	await addSite(page, 'anime', 'https://anime.fr/search?k=');
+	await createEntry(page, 'Jane Roe');
 	await createEntry(page, 'John Doe');
 
 	await page.getByRole('link', { name: 'Retour', exact: true }).click();
-	const link = page.locator('li.card').getByRole('link', { name: 'anime', exact: true });
-	await expect(link).toBeVisible();
-	await expect(page.getByText('1 lien', { exact: true })).toHaveCount(0);
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	const animeOf = (name: string) => card(name).getByRole('link', { name: 'anime', exact: true });
+	// Compactes par défaut : un clic déplie la carte et replie l'autre.
+	await expect(animeOf('John Doe')).toHaveCount(0);
+	await card('John Doe').getByRole('heading').click();
+	await expect(animeOf('John Doe')).toBeVisible();
+	await card('Jane Roe').getByRole('heading').click();
+	await expect(animeOf('Jane Roe')).toBeVisible();
+	await expect(animeOf('John Doe')).toHaveCount(0);
+	await card('Jane Roe').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
+	await page.getByRole('link', { name: 'Retour', exact: true }).click();
 
-	// Bascule de la liste : vaut pour la visite, Paramètres reste la valeur par défaut.
-	await page.getByRole('button', { name: 'Liens', exact: true }).click();
-	await expect(link).toBeHidden();
-	await expect(page.getByText('1 lien', { exact: true })).toBeVisible();
+	// Bascule de la liste : tout détailler pour la visite, Paramètres reste la valeur par défaut.
+	await page.getByRole('button', { name: 'Détails', exact: true }).click();
+	await expect(animeOf('John Doe')).toBeVisible();
+	await expect(animeOf('Jane Roe')).toBeVisible();
 
+	// Clic = ouvrir la fiche : la barre « Détails » de la carte la déplie.
 	await goSettings(page);
-	await page.getByLabel(/Afficher les liens sur les cartes/).uncheck();
+	await page.getByRole('radio', { name: 'Ouvrir la fiche' }).check();
 	await goHome(page);
-	await expect(link).toBeHidden();
+	await expect(animeOf('John Doe')).toHaveCount(0);
+	await card('John Doe').getByRole('button', { name: 'Détails' }).click();
+	await expect(animeOf('John Doe')).toBeVisible();
+	await card('John Doe').getByRole('heading').click();
+	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
+
+	// Cartes détaillées par défaut pour la suite.
 	await goSettings(page);
-	await page.getByLabel(/Afficher les liens sur les cartes/).check();
+	await page.getByLabel(/Cartes détaillées/).check();
 	await goHome(page);
-	await expect(link).toBeVisible();
+	await expect(animeOf('John Doe')).toBeVisible();
 
 	// Filtre sur la présence de liens.
 	await createEntry(page, 'Sans site');
@@ -74,14 +91,13 @@ test('liens sur les cartes : dépliés par défaut, repliables', async ({ page }
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'Sans site' })).toBeVisible();
 	await goHome(page);
-	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	// Par défaut, seulement les fiches avec liens ; la pastille bascule vers toutes les fiches.
 	await expect(card('John Doe')).toBeVisible();
 	await expect(card('Sans site')).toHaveCount(0);
-	await expect(page.getByText('1 fiche sur 2')).toBeVisible();
+	await expect(page.getByText('2 fiches sur 3')).toBeVisible();
 	await page.getByRole('button', { name: 'Avec liens' }).click();
 	await expect(card('Sans site')).toBeVisible();
-	await expect(page.getByText('2 fiches', { exact: true })).toBeVisible();
+	await expect(page.getByText('3 fiches', { exact: true })).toBeVisible();
 
 	// Sélection : masquer puis réafficher un site de la collection ; la sélection reste ouverte.
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
@@ -89,8 +105,8 @@ test('liens sur les cartes : dépliés par défaut, repliables', async ({ page }
 	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
 	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
 	await page.getByRole('button', { name: 'Masquer', exact: true }).click();
-	// Les liens sont dépliés (par défaut) : on regarde le lien lui-même.
-	const anime = card('John Doe').getByRole('link', { name: 'anime', exact: true });
+	// Cartes détaillées : on regarde le lien lui-même.
+	const anime = animeOf('John Doe');
 	await expect(anime).toHaveCount(0);
 	await expect(page.getByText('1 sélectionnée')).toBeVisible();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
@@ -196,6 +212,7 @@ test('corbeille : suppression réversible, puis définitive', async ({ page }) =
 
 	await goHome(page);
 	await page.getByRole('heading', { name: 'À revoir' }).click();
+	await page.getByRole('link', { name: 'Ouvrir la fiche' }).click();
 	await page.getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
 	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
@@ -235,6 +252,7 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await goHome(page);
 
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await page.getByRole('button', { name: 'Détails', exact: true }).click(); // tags visibles sur les cartes
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await card('Fiche A').getByRole('heading').click(); // coche sans ouvrir la fiche
 	await card('Fiche B').getByLabel('Sélectionner Fiche B').check();
