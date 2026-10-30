@@ -49,6 +49,42 @@ vont dans [MEMORY.md](MEMORY.md).
 - [x] **Corbeille** : suppression réversible, purge après 30 jours à l'ouverture de l'app. *Intermédiaire.*
 - [x] **Sélection multiple** : cacher, afficher, ajouter ou retirer des tags, mettre à la corbeille. *Intermédiaire.*
 
+## 4. Retours d'usage (2026-10-30)
+
+Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEMORY.md. Par thème, du plus simple au plus long.
+
+### Liste et filtres
+- [ ] **Liens des cartes : déplier / replier tout** depuis la liste, en bascule ; le réglage de Paramètres reste la valeur
+      par défaut. *Simple.*
+- [ ] **Filtre « avec liens / sans liens »**, à côté de « Sans tag ». *Simple.*
+- [ ] **Tri aléatoire** (« Tri : aléatoire ») : ordre mélangé une fois par ouverture de la liste, stable pendant qu'on
+      filtre, avec un bouton pour remélanger. *Simple.*
+- [ ] **Compteur « n fiches sur m »** mal placé à gauche sur mobile (barre d'affichage à revoir avec le bouton
+      « Cachées »). *Simple.*
+- [ ] **Note (étoiles)** : 1 à 5, dans le `data` chiffré ; saisie sur la fiche, affichage sur la carte, filtre « au moins
+      N étoiles », tri par note. *Intermédiaire.*
+- [ ] **Pays** : voir « À décider » ci-dessous. *Intermédiaire.*
+
+### Fiches
+- [ ] **Copier le nom** de la fiche dans le presse-papiers (bouton sur la fiche). *Simple.*
+- [ ] **Supprimer : corbeille ou définitif**, au choix, sur la fiche et dans la sélection multiple (aujourd'hui toujours
+      la corbeille ; le définitif n'existe que dans la page Corbeille). *Simple.*
+- [ ] **Import : lister les doublons ignorés** (leurs noms), pas seulement leur nombre. *Simple.*
+
+### Sélection multiple
+- [ ] **« Tout » en bascule** : tout sélectionner, puis tout désélectionner ; état visible quand tout est sélectionné. *Simple.*
+- [ ] **Cartes sélectionnées** : bordure plus fine, ou espace entre les cartes pour qu'elles ne se collent pas. *Simple.*
+- [ ] **Liens des fiches sélectionnées** (« gestion de l'affichage des liens de la collection ») : à préciser. *?*
+
+### Apparence
+- [ ] **Couleur d'accent en thème clair** : jugée mal accordée au logo, une teinte plus foncée est souhaitée. Le code
+      n'a plus d'indigo (accent rouge bordeaux) : repérer où il apparaît encore (capture). *Simple.*
+- [ ] **Mode sombre** : cases à cocher plutôt en blanc. *Simple.*
+
+### À décider
+- [ ] **Pays d'une fiche** : champ dédié (recommandé) ou tag ? Un seul ou plusieurs pays par fiche ? « Anglais » =
+      Angleterre ou Royaume-Uni ? Voir la proposition de la conversation du 2026-10-30.
+
 ## À décider ou plus tard
 
 - [ ] **Déverrouillage par Face ID** (plus tard) : WebAuthn PRF, 3e copie de la DEK, repli sur le mot de passe, relecture

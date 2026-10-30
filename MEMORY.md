@@ -72,8 +72,6 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 
 Après l’étape 9 : voir [AUDIT.md](AUDIT.md) (revue du 2026-10-29).
 
-## À faire plus tard (retours du 2026-10-30)
+## À faire plus tard
 
-- Sélection multiple : faire de « Tout » un bouton à bascule, pour tout sélectionner puis tout désélectionner.
-- Mode sombre : cases à cocher plutôt en blanc.
-- Liste des fiches : ajouter un bouton pour déplier ou replier tous les liens d'un coup ; aujourd'hui l'option n'existe que dans Paramètres.
+Retours d'usage regroupés dans [AUDIT.md](AUDIT.md), section 4 (2026-10-30).
