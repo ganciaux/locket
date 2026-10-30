@@ -25,7 +25,7 @@ const DEFAULTS: Prefs = {
 	autoLockMinutes: 5,
 	collectionId: '',
 	showHidden: false,
-	cardLinksExpanded: false
+	cardLinksExpanded: true
 };
 
 function load(): Prefs {

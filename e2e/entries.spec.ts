@@ -42,7 +42,7 @@ test('site de collection : lien calculé, nom custom, masquage', async ({ page }
 	await expect(page.getByText('Aucun lien.')).toBeVisible();
 });
 
-test('liens sur les cartes : repliés par défaut, affichés avec l’option', async ({ page }) => {
+test('liens sur les cartes : dépliés par défaut, repliables', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
 	await addSite(page, 'anime', 'https://anime.fr/search?k=');
@@ -50,12 +50,6 @@ test('liens sur les cartes : repliés par défaut, affichés avec l’option', a
 
 	await goHome(page);
 	const link = page.locator('li.card').getByRole('link', { name: 'anime', exact: true });
-	await expect(page.getByText('1 lien', { exact: true })).toBeVisible();
-	await expect(link).toBeHidden();
-
-	await goSettings(page);
-	await page.getByLabel(/Afficher les liens sur les cartes/).check();
-	await goHome(page);
 	await expect(link).toBeVisible();
 	await expect(page.getByText('1 lien', { exact: true })).toHaveCount(0);
 
@@ -63,6 +57,15 @@ test('liens sur les cartes : repliés par défaut, affichés avec l’option', a
 	await page.getByRole('button', { name: 'Liens', exact: true }).click();
 	await expect(link).toBeHidden();
 	await expect(page.getByText('1 lien', { exact: true })).toBeVisible();
+
+	await goSettings(page);
+	await page.getByLabel(/Afficher les liens sur les cartes/).uncheck();
+	await goHome(page);
+	await expect(link).toBeHidden();
+	await goSettings(page);
+	await page.getByLabel(/Afficher les liens sur les cartes/).check();
+	await goHome(page);
+	await expect(link).toBeVisible();
 
 	// Filtre sur la présence de liens.
 	await createEntry(page, 'Sans site');
@@ -86,7 +89,7 @@ test('liens sur les cartes : repliés par défaut, affichés avec l’option', a
 	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
 	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
 	await page.getByRole('button', { name: 'Masquer', exact: true }).click();
-	// Les liens sont dépliés (réglage de Paramètres coché plus haut) : on regarde le lien lui-même.
+	// Les liens sont dépliés (par défaut) : on regarde le lien lui-même.
 	const anime = card('John Doe').getByRole('link', { name: 'anime', exact: true });
 	await expect(anime).toHaveCount(0);
 	await expect(page.getByText('1 sélectionnée')).toBeVisible();
