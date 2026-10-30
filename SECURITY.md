@@ -106,7 +106,7 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
 - [x] Dependabot : `.github/dependabot.yml`, mises à jour npm proposées chaque semaine.
 - [x] [Mozilla Observatory](https://developer.mozilla.org/en-US/observatory) et
       [securityheaders.com](https://securityheaders.com) sur https://locket-403b5.web.app : voir le journal (§ 7).
-- [ ] OWASP ZAP, scan « baseline » (passif) du site en ligne.
+- [x] OWASP ZAP, scan « baseline » (passif) du site en ligne : voir le journal (§ 7).
 - [x] Tests des règles Firestore contre les émulateurs : autre compte et sans compte, lecture, liste, écriture et
       suppression sur chaque emplacement (`repository.emulator.test.ts`).
 - [ ] `/security-review` ou l'agent `security-reviewer` (`.claude/agents/`) avant chaque changement de crypto ou d'auth.
@@ -132,6 +132,7 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
 | Date | Vérification | Résultat |
 |---|---|---|
 | 2026-10-29 | `npm audit` | 4 « high », toutes via `@grpc/grpc-js` (GHSA-m9gg-hp2v-232j, GHSA-f596-whhp-79r4), dépendance du SDK Firestore **côté Node** uniquement. Le navigateur passe par WebChannel/HTTPS et n'embarque pas gRPC. Failles côté serveur gRPC ou vérification de certificat Node : **non applicables** à l'app en ligne. `npm audit fix --force` ferait revenir `firebase` à la 9.14 : **ne pas l'appliquer**, attendre une mise à jour du SDK. |
-| 2026-10-30 | Mozilla Observatory, securityheaders.com | **A+** aux deux : Observatory 125/100, 12 tests sur 12, CSP `<meta>` reconnue (`default-src 'none'`, pas de `unsafe`). Restent en option : `Cross-Origin-Opener-Policy` (ajout conseillé, sans risque ici), COEP et CORP (non nécessaires, COEP pourrait gêner Firestore). SRI sans objet : tous les scripts viennent du site. |
+| 2026-10-30 | OWASP ZAP baseline (passif, sans connexion) | 0 FAIL, 62 PASS, 6 WARN, aucun exploitable. « Dangerous JS Functions » : faux positif, vérifié dans le bundle, c'est une méthode nommée `eval` d'un moteur de regex embarqué ; aucun vrai `eval`, `new Function` ni `{@html}`, et la CSP interdit `unsafe-eval`. `innerHTML` n'apparaît que dans les gabarits statiques du runtime Svelte. Cache : voulu (`immutable` pour les fichiers versionnés). Timestamp, Modern Web Application : informatifs. COEP : écarté. |
+| 2026-10-30 | Mozilla Observatory, securityheaders.com | **A+** aux deux : Observatory 125/100, 12 tests sur 12, CSP `<meta>` reconnue (`default-src 'none'`, pas de `unsafe`). `Cross-Origin-Opener-Policy: same-origin` ajouté ensuite. COEP et CORP écartés (non nécessaires, COEP pourrait gêner Firestore). SRI sans objet : tous les scripts viennent du site. |
 | 2026-10-30 | Fichier de sauvegarde altéré à la main | Bug trouvé : seule la 1re fiche était vérifiée, le reste écrasait des fiches saines, et l'erreur vide de Web Crypto sous Chrome laissait le loader tourner. Corrigé : tout le fichier est déchiffré avant la première écriture, y compris pour l'adoption du trousseau. Le manifeste chiffré (format v3) couvre aussi les pièces retirées, les métadonnées et le trousseau, et le contrôle a lieu dès le choix du fichier. |
 | 2026-10-29 | Bundle de prod | Aucun code d'émulateur (`demo-locket`, `127.0.0.1`) ; CSP en `<meta>` avec le hash du script de démarrage vérifié. |
