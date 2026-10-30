@@ -22,7 +22,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 
 | Bien | Où il vit | Protection |
 |---|---|---|
-| Contenu des fiches (nom, liens, dates, tags associés) | Firestore `users/{uid}/entries/{id}.data` | AES-GCM-256 avec la DEK |
+| Contenu des fiches (nom, liens, dates, tags associés, note, pays) | Firestore `users/{uid}/entries/{id}.data` | AES-GCM-256 avec la DEK |
 | Images et miniatures | `users/{uid}/images/{id}.image`, `entries/{id}.thumb` | AES-GCM-256 avec la DEK |
 | Noms et ordre des collections, modèles d'URL de leurs sites | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
 | Noms des tags | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |

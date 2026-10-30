@@ -61,10 +61,10 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
       filtre, avec un bouton pour remélanger. *Simple.*
 - [x] **Compteur « n fiches sur m »** mal placé à gauche sur mobile (barre d'affichage à revoir avec le bouton
       « Cachées »). *Simple.*
-- [ ] **Note (étoiles)** : 1 à 5 étoiles avec demi-étoiles (stockée de 1 à 10, plus précis sans changer l'affichage),
+- [x] **Note (étoiles)** : 1 à 5 étoiles avec demi-étoiles (stockée de 1 à 10, plus précis sans changer l'affichage),
       dans le `data` chiffré ; saisie sur la fiche, affichage sur la carte, filtre « au moins N étoiles », tri par note.
       *Intermédiaire.*
-- [ ] **Pays** : champ dédié, un seul par fiche (voir « À décider »). *Intermédiaire.*
+- [x] **Pays** : champ dédié, un seul par fiche (voir « À décider »). *Intermédiaire.*
 
 ### Fiches
 - [x] **Copier le nom** de la fiche dans le presse-papiers (bouton sur la fiche). *Simple.*
