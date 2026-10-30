@@ -22,6 +22,9 @@ const MESSAGES: Record<string, string> = {
 /** Message affichable en français. Nos propres erreurs (`new Error(...)`) sont déjà rédigées pour l'utilisateur. */
 export function errorMessage(error: unknown): string {
 	if (error instanceof FirebaseError) return MESSAGES[error.code] ?? `Erreur inattendue (${error.code}).`;
-	if (error instanceof Error) return error.message;
+	// Web Crypto : échec d'AES-GCM (donnée altérée ou mauvaise clé). Sous Chrome, son message est vide.
+	if (error instanceof DOMException && error.name === 'OperationError')
+		return 'Données illisibles : elles sont peut-être endommagées. Restaurez une sauvegarde saine.';
+	if (error instanceof Error && error.message) return error.message;
 	return 'Erreur inattendue.';
 }

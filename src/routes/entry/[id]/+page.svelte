@@ -13,6 +13,7 @@
 
 	let error = $state('');
 	let imageUrl = $state<string | null>(null);
+	let imageLoading = $state(false);
 	let confirmDelete = $state(false);
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
@@ -27,18 +28,25 @@
 		if (!user || !dek || !type) return;
 		let url: string | null = null;
 		let cancelled = false;
-		getImage(user.uid, dek, id).then(
-			(bytes) => {
-				if (cancelled || !bytes) return;
-				url = bytesToUrl(bytes, type);
-				imageUrl = url;
-			},
-			(e) => (error = errorMessage(e))
-		);
+		imageLoading = true;
+		getImage(user.uid, dek, id)
+			.then(
+				(bytes) => {
+					if (cancelled || !bytes) return;
+					url = bytesToUrl(bytes, type);
+					imageUrl = url;
+				},
+				(e) => (error = errorMessage(e))
+			)
+			// Aussi sans image (sauvegarde légère dans un compte recréé) : la miniature reste affichée.
+			.finally(() => {
+				if (!cancelled) imageLoading = false;
+			});
 		return () => {
 			cancelled = true;
 			if (url) URL.revokeObjectURL(url);
 			imageUrl = null;
+			imageLoading = false;
 		};
 	});
 
@@ -68,7 +76,7 @@
 		{#if entry.imageType}
 			<figure class="bg-base-200 relative">
 				<img class="max-h-[70vh] w-full object-contain" src={imageUrl ?? entry.thumbUrl} alt={entry.name} />
-				{#if !imageUrl}
+				{#if imageLoading}
 					<span class="loading loading-spinner text-primary absolute top-3 right-3"></span>
 				{/if}
 			</figure>
