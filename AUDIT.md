@@ -54,36 +54,39 @@ vont dans [MEMORY.md](MEMORY.md).
 Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEMORY.md. Par thème, du plus simple au plus long.
 
 ### Liste et filtres
-- [ ] **Liens des cartes : déplier / replier tout** depuis la liste, en bascule ; le réglage de Paramètres reste la valeur
+- [x] **Liens des cartes : déplier / replier tout** depuis la liste, en bascule ; le réglage de Paramètres reste la valeur
       par défaut. *Simple.*
-- [ ] **Filtre « avec liens / sans liens »**, à côté de « Sans tag ». *Simple.*
-- [ ] **Tri aléatoire** (« Tri : aléatoire ») : ordre mélangé une fois par ouverture de la liste, stable pendant qu'on
+- [x] **Filtre « avec liens / sans liens »**, à côté de « Sans tag ». *Simple.*
+- [x] **Tri aléatoire** (« Tri : aléatoire ») : ordre mélangé une fois par ouverture de la liste, stable pendant qu'on
       filtre, avec un bouton pour remélanger. *Simple.*
-- [ ] **Compteur « n fiches sur m »** mal placé à gauche sur mobile (barre d'affichage à revoir avec le bouton
+- [x] **Compteur « n fiches sur m »** mal placé à gauche sur mobile (barre d'affichage à revoir avec le bouton
       « Cachées »). *Simple.*
-- [ ] **Note (étoiles)** : 1 à 5, dans le `data` chiffré ; saisie sur la fiche, affichage sur la carte, filtre « au moins
-      N étoiles », tri par note. *Intermédiaire.*
-- [ ] **Pays** : voir « À décider » ci-dessous. *Intermédiaire.*
+- [ ] **Note (étoiles)** : 1 à 5 étoiles avec demi-étoiles (stockée de 1 à 10, plus précis sans changer l'affichage),
+      dans le `data` chiffré ; saisie sur la fiche, affichage sur la carte, filtre « au moins N étoiles », tri par note.
+      *Intermédiaire.*
+- [ ] **Pays** : champ dédié, un seul par fiche (voir « À décider »). *Intermédiaire.*
 
 ### Fiches
-- [ ] **Copier le nom** de la fiche dans le presse-papiers (bouton sur la fiche). *Simple.*
-- [ ] **Supprimer : corbeille ou définitif**, au choix, sur la fiche et dans la sélection multiple (aujourd'hui toujours
+- [x] **Copier le nom** de la fiche dans le presse-papiers (bouton sur la fiche). *Simple.*
+- [x] **Supprimer : corbeille ou définitif**, au choix, sur la fiche et dans la sélection multiple (aujourd'hui toujours
       la corbeille ; le définitif n'existe que dans la page Corbeille). *Simple.*
-- [ ] **Import : lister les doublons ignorés** (leurs noms), pas seulement leur nombre. *Simple.*
+- [x] **Import : lister les doublons ignorés** (leurs noms), pas seulement leur nombre. *Simple.*
 
 ### Sélection multiple
-- [ ] **« Tout » en bascule** : tout sélectionner, puis tout désélectionner ; état visible quand tout est sélectionné. *Simple.*
-- [ ] **Cartes sélectionnées** : bordure plus fine, ou espace entre les cartes pour qu'elles ne se collent pas. *Simple.*
-- [ ] **Liens des fiches sélectionnées** (« gestion de l'affichage des liens de la collection ») : à préciser. *?*
+- [x] **« Tout » en bascule** : tout sélectionner, puis tout désélectionner ; état visible quand tout est sélectionné. *Simple.*
+- [x] **Cartes sélectionnées** : bordure plus fine, ou espace entre les cartes pour qu'elles ne se collent pas. *Simple.*
+- [x] **Liens des fiches sélectionnées** : précisé le 2026-10-30, c'est le filtre « avec / sans liens » et la bascule
+      déplier / replier ci-dessus.
 
 ### Apparence
-- [ ] **Couleur d'accent en thème clair** : jugée mal accordée au logo, une teinte plus foncée est souhaitée. Le code
-      n'a plus d'indigo (accent rouge bordeaux) : repérer où il apparaît encore (capture). *Simple.*
-- [ ] **Mode sombre** : cases à cocher plutôt en blanc. *Simple.*
+- [ ] **Couleur d'accent en thème clair** : un « violet bleu » est vu, une teinte plus foncée est souhaitée. Vérifié le
+      2026-10-30 : l'accent calculé est bien le rouge bordeaux, thème forcé ou non ; aucune classe secondary/accent/info.
+      Attendre une capture pour savoir où (version en cache sur l'iPhone ? fond rosé des cartes sans image ?). *Simple.*
+- [x] **Mode sombre** : cases à cocher plutôt en blanc. *Simple.*
 
 ### À décider
-- [ ] **Pays d'une fiche** : champ dédié (recommandé) ou tag ? Un seul ou plusieurs pays par fiche ? « Anglais » =
-      Angleterre ou Royaume-Uni ? Voir la proposition de la conversation du 2026-10-30.
+- [x] **Pays d'une fiche** : décidé le 2026-10-30, **un seul pays**, champ dédié (code ISO, drapeau emoji calculé, nom
+      français par `Intl.DisplayNames`, pays favoris en tête), filtre par pays. Angleterre/Écosse/Galles à part, à confirmer.
 
 ## À décider ou plus tard
 
