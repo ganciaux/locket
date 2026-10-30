@@ -86,7 +86,7 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
 
 ### À décider
 - [x] **Pays d'une fiche** : décidé le 2026-10-30, **un seul pays**, champ dédié (code ISO, drapeau emoji calculé, nom
-      français par `Intl.DisplayNames`, pays favoris en tête), filtre par pays. Angleterre/Écosse/Galles à part, à confirmer.
+      français par `Intl.DisplayNames`, pays favoris en tête), filtre par pays. « Anglais » = Royaume-Uni (`GB`), pas d'Angleterre/Écosse/Galles à part (2026-10-30).
 
 ## À décider ou plus tard
 
