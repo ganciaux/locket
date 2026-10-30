@@ -41,8 +41,8 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 - Domaines autorisés (Authentication > Paramètres) : `localhost` retiré le 2026-10-29 ; y ajouter tout domaine personnalisé, sinon `sendSignInLinkToEmail` est refusé.
 - Protection contre l'énumération des emails : active, vérifiée le 2026-10-29. L'app répond pareil sur « Mot de passe oublié »
   que l'adresse ait un compte ou non (inscriptions fermées → `auth/admin-restricted-operation` traité comme un envoi).
-- **Collections** : avant de déployer, vider en prod `users/{uid}/entries`, `users/{uid}/images` et `users/{uid}/meta`
-  (console Firestore), en gardant le document `users/{uid}` (trousseau), sinon plus de connexion possible.
+- **Collections** : prod vidée puis déployée le 2026-10-30 (`entries`, `images` et `meta` supprimés, document `users/{uid}`
+  gardé : il porte le trousseau, sans lui plus de connexion). Plus aucune sauvegarde v1 : anciennes supprimées.
 
 ## Émulateurs
 
@@ -62,6 +62,6 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 7. [x] Sécurité : CSP stricte (`kit.csp` en hash + en-têtes `firebase.json`), code émulateurs hors prod, verrouillage auto
 8. [x] Sauvegarde : export / import JSON chiffré, restauration dans un compte recréé — testé contre les émulateurs
 9. [x] README en français
-10. [x] Collections ordonnées avec tags propres à chacune (2026-10-29) — testé contre les émulateurs et à la main (mobile) ; prod à vider avant déploiement
+10. [x] Collections ordonnées avec tags propres à chacune (2026-10-29) — testé contre les émulateurs et à la main (mobile) ; déployé le 2026-10-30, prod vidée au préalable
 
 Après l’étape 9 : voir [AUDIT.md](AUDIT.md) (revue du 2026-10-29).

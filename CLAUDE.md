@@ -31,7 +31,8 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 ## Organisation
 - `src/lib/crypto/` : **tout** le code crypto (Web Crypto), testé. Aucun autre module n'appelle `crypto.subtle`.
 - `firestore.rules` : accès limité à `users/{uid}/**` pour `request.auth.uid == uid`.
-- `firebase.json` : Hosting (CSP stricte à venir), émulateurs.
+- `firebase.json` : Hosting (cache, en-têtes de sécurité dont `frame-ancestors`), émulateurs.
+- `svelte.config.js` : CSP (`kit.csp` en `<meta>`, hash du script de démarrage recalculé à chaque build).
 
 ## Invariants de sécurité (ne jamais casser)
 - Aucun `console.*` de donnée déchiffrée, mot de passe, jeton ou clé.
