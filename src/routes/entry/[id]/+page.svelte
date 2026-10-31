@@ -4,6 +4,7 @@
 	import { session } from '$lib/auth/session.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
+	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
@@ -74,14 +75,6 @@
 		}
 	}
 
-	let copied = $state(false);
-	async function copyName() {
-		if (!entry) return;
-		await navigator.clipboard.writeText(entry.name);
-		copied = true;
-		setTimeout(() => (copied = false), 1500);
-	}
-
 	const formatDate = (time: number) =>
 		new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 </script>
@@ -115,14 +108,7 @@
 			{/if}
 			<div class="flex items-start gap-2">
 				<h1 class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
-				<button
-					class="btn btn-ghost btn-sm btn-square shrink-0"
-					onclick={copyName}
-					aria-label={copied ? 'Nom copié' : 'Copier le nom'}
-					title={copied ? 'Copié' : 'Copier le nom'}
-				>
-					<Icon name={copied ? 'check' : 'copy'} class="size-4" />
-				</button>
+				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
 			</div>
 
 			<div class="-mt-2 flex items-center gap-2">

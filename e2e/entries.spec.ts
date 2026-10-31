@@ -52,8 +52,15 @@ test('cartes compactes : une seule dépliée, détails à la demande', async ({ 
 	await page.getByRole('link', { name: 'Retour', exact: true }).click();
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	const animeOf = (name: string) => card(name).getByRole('link', { name: 'anime', exact: true });
+	// Copier le nom depuis la liste, sans déplier ni ouvrir la carte.
+	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+	await page.getByRole('button', { name: 'Copier le nom de John Doe' }).click();
+	expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('John Doe');
+	await expect(page.getByRole('button', { name: 'Copié' })).toBeVisible();
+
 	// Compactes par défaut : un clic déplie la carte et replie l'autre.
 	await expect(animeOf('John Doe')).toHaveCount(0);
+	await expect(page).toHaveURL(/\/$/);
 	await card('John Doe').getByRole('heading').click();
 	await expect(animeOf('John Doe')).toBeVisible();
 	await card('Jane Roe').getByRole('heading').click();

@@ -3,6 +3,7 @@
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -512,6 +513,14 @@
 					? 'opacity-50 hover:opacity-100'
 					: ''} {isSelected ? 'outline-primary outline-2 -outline-offset-2' : ''}"
 			>
+				{#if !selecting}
+					<!-- Hors du lien ou du bouton de la carte (pas d'élément cliquable imbriqué), posé sur l'image. -->
+					<CopyButton
+						text={entry.name}
+						label="Copier le nom de {entry.name}"
+						class="btn btn-circle btn-xs bg-base-100/80 absolute top-1.5 right-1.5 z-10 border-0"
+					/>
+				{/if}
 				{#if selecting}
 					<input
 						type="checkbox"
