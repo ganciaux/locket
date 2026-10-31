@@ -81,8 +81,9 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
   est public, n'importe qui peut l'épuiser en demandant des liens pour notre adresse et bloquer la récupération jusqu'au
   lendemain. Pas d'accès aux données ; à attendre ou à contourner avec le dernier lien déjà reçu, s'il n'a pas été ouvert.
 - **Liens de sites** : au clic, le nom de la fiche (ou son terme propre) part en clair vers le site, comme tout lien
-  ouvert. Rien n'est appelé à l'affichage. Le terme est encodé et le domaine du modèle est fixe : une fiche ne peut pas
-  rediriger vers un autre site.
+  ouvert. Rien n'est appelé à l'affichage. Le nom est encodé en entier ; un terme propre peut être un chemin
+  (« / » gardés, « . » et « .. » retirés) ou une adresse du même domaine. Le domaine du modèle reste fixe : une fiche ne
+  peut pas rediriger vers un autre site.
 - **Fiches cachées** : un simple filtre d'affichage, propre à chaque appareil. Quiconque a la session ouverte clique sur
   « Cachées ». Le drapeau est chiffré avec la fiche.
 - **Fiches illisibles** : la liste les signale et l'export les écarte en le disant. Une altération côté Firebase se voit

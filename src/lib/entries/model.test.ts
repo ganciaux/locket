@@ -93,6 +93,17 @@ describe('sites', () => {
 		expect(buildSiteUrl({ ...anime, urlTemplate: 'https://anime.fr/{{name}}' }, '$&')).toBe('https://anime.fr/%24%26');
 	});
 
+	it('un terme propre peut être un chemin ou une adresse du même site', () => {
+		const site = { ...anime, urlTemplate: 'https://anime.com/{{name}}' };
+		expect(buildSiteUrl(site, '/model/name/', true)).toBe('https://anime.com/model/name');
+		expect(buildSiteUrl(site, 'a b/../c?d', true)).toBe('https://anime.com/a%20b/c%3Fd');
+		expect(buildSiteUrl(site, 'https://anime.com/model/name?x=1', true)).toBe('https://anime.com/model/name?x=1');
+		// Une adresse d'un autre domaine reste un simple terme : le domaine du modèle ne change pas.
+		expect(buildSiteUrl(site, 'https://evil.com/x', true)).toBe('https://anime.com/https%3A/evil.com/x');
+		// Le nom de la fiche, lui, reste encodé en entier.
+		expect(buildSiteUrl(site, 'AC/DC')).toBe('https://anime.com/AC%2FDC');
+	});
+
 	it('assemble les liens : sites actifs d’abord, puis liens saisis', () => {
 		const off = { ...anime, id: 's2', label: 'off', enabled: false };
 		const custom = { url: 'https://perso.fr/', label: 'perso' };

@@ -211,8 +211,9 @@
 			<h2 class="card-title text-base"><Icon name="link" /> Liens</h2>
 			{#if activeSites.length}
 				<p class="text-base-content/60 text-xs">
-					Sites de la collection : laissez le terme vide pour chercher le nom de la fiche. Ceux « sur demande » ne
-					s'affichent que si vous les activez ici.
+					Sites de la collection : laissez le terme vide pour chercher le nom de la fiche, ou saisissez un terme, un
+					chemin (model/name) ou l'adresse d'une page du site. Ceux « sur demande » ne s'affichent que si vous les
+					activez ici.
 				</p>
 				{#each activeSites as site (site.id)}
 					{@const shown = siteShown({ hiddenSites, shownSites }, site)}

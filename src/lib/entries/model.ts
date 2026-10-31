@@ -140,8 +140,20 @@ export function parseSiteTemplate(input: string): string {
 	return template;
 }
 
-/** URL d'un site pour ce terme ; null si le modèle n'est pas valable. */
-export const buildSiteUrl = (site: Site, term: string): string | null => parseLinkUrl(fillTemplate(site.urlTemplate, term));
+/**
+ * URL d'un site ; null si le modèle n'est pas valable. Le nom de la fiche est encodé en entier (« AC/DC » reste un
+ * seul mot). Un terme propre (`explicit`) peut être un chemin (« model/name », « / » gardés, « . » et « .. » retirés)
+ * ou l'adresse complète d'une page de ce site ; jamais d'un autre domaine.
+ */
+export function buildSiteUrl(site: Site, term: string, explicit = false): string | null {
+	if (!explicit) return parseLinkUrl(fillTemplate(site.urlTemplate, term));
+	const direct = /^https?:\/\//i.test(term) ? parseLinkUrl(term) : null;
+	const siteUrl = parseLinkUrl(fillTemplate(site.urlTemplate, 'x'));
+	if (direct && siteUrl && new URL(direct).host === new URL(siteUrl).host) return direct;
+	const segments = term.split('/').filter((part) => part && part !== '.' && part !== '..');
+	const path = segments.map(encodeURIComponent).join('/');
+	return parseLinkUrl(site.urlTemplate.replaceAll(NAME_PLACEHOLDER, () => path));
+}
 
 /**
  * Liens à afficher : sites de sa collection affichés sur la fiche (voir `siteShown`),
@@ -154,7 +166,8 @@ export function entryLinks(
 	const fromSites = sites
 		.filter((site) => siteShown(entry, site))
 		.flatMap((site) => {
-			const url = buildSiteUrl(site, entry.siteTerms?.[site.id]?.trim() || entry.name);
+			const term = entry.siteTerms?.[site.id]?.trim();
+			const url = term ? buildSiteUrl(site, term, true) : buildSiteUrl(site, entry.name);
 			return url ? [{ url, label: site.label }] : [];
 		});
 	return [...fromSites, ...entry.links.filter((link) => !link.hidden)];

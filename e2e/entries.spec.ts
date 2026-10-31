@@ -486,4 +486,10 @@ test('site sur demande : absent tant que la fiche ne l’active pas, avec son pr
 	await page.getByLabel('Terme à chercher sur wiki').fill('Son_Goku');
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('link', { name: 'wiki', exact: true })).toHaveAttribute('href', 'https://wiki.fr/Son_Goku');
+
+	// Un terme peut être un chemin : les « / » sont gardés.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByLabel('Terme à chercher sur wiki').fill('/model/name');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('link', { name: 'wiki', exact: true })).toHaveAttribute('href', 'https://wiki.fr/model/name');
 });
