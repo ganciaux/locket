@@ -122,18 +122,24 @@ export function parseLinkUrl(input: string): string | null {
 const withScheme = (text: string): string => (!text || /^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
 
 export const NAME_PLACEHOLDER = '{{name}}';
+/** Variante de {{name}} sans aucun espace : « my name » donne « myname ». */
+export const NOSPACE_PLACEHOLDER = '{{nospace}}';
+const PLACEHOLDER = /\{\{(name|nospace)\}\}/g;
+
+const fill = (template: string, value: (placeholder: string) => string): string =>
+	template.replace(PLACEHOLDER, (_, placeholder: string) => value(placeholder));
 
 /** Le terme est encodé (`%20` vaut partout, `+` seulement dans une querystring) : il ne peut pas sortir de sa place. */
 const fillTemplate = (template: string, term: string): string =>
-	template.replaceAll(NAME_PLACEHOLDER, () => encodeURIComponent(term));
+	fill(template, (placeholder) => encodeURIComponent(placeholder === 'nospace' ? term.replace(/\s+/g, '') : term));
 
 /**
- * Valide le modèle d'URL d'un site ; lève une erreur affichable. Sans {{name}}, le terme va à la fin (préfixe).
+ * Valide le modèle d'URL d'un site ; lève une erreur affichable. Sans {{name}} ni {{nospace}}, le terme va à la fin (préfixe).
  * Le domaine doit être fixe : le contenu d'une fiche ne doit pas décider du site contacté.
  */
 export function parseSiteTemplate(input: string): string {
 	const text = withScheme(input.trim());
-	const template = text.includes(NAME_PLACEHOLDER) ? text : text + NAME_PLACEHOLDER;
+	const template = text.includes(NAME_PLACEHOLDER) || text.includes(NOSPACE_PLACEHOLDER) ? text : text + NAME_PLACEHOLDER;
 	const [a, b] = ['a', 'b'].map((term) => parseLinkUrl(fillTemplate(template, term)));
 	if (!text || !a || !b || new URL(a).host !== new URL(b).host)
 		throw new Error(`Modèle invalide : http(s), domaine fixe, ${NAME_PLACEHOLDER} après le domaine.`);
@@ -143,7 +149,7 @@ export function parseSiteTemplate(input: string): string {
 /**
  * URL d'un site ; null si le modèle n'est pas valable. Le nom de la fiche est encodé en entier (« AC/DC » reste un
  * seul mot). Un terme propre (`explicit`) peut être un chemin (« model/name », « / » gardés, « . » et « .. » retirés)
- * ou l'adresse complète d'une page de ce site ; jamais d'un autre domaine.
+ * ou l'adresse complète d'une page de ce site ; jamais d'un autre domaine. Il est pris tel quel, même pour {{nospace}}.
  */
 export function buildSiteUrl(site: Site, term: string, explicit = false): string | null {
 	if (!explicit) return parseLinkUrl(fillTemplate(site.urlTemplate, term));
@@ -152,7 +158,7 @@ export function buildSiteUrl(site: Site, term: string, explicit = false): string
 	if (direct && siteUrl && new URL(direct).host === new URL(siteUrl).host) return direct;
 	const segments = term.split('/').filter((part) => part && part !== '.' && part !== '..');
 	const path = segments.map(encodeURIComponent).join('/');
-	return parseLinkUrl(site.urlTemplate.replaceAll(NAME_PLACEHOLDER, () => path));
+	return parseLinkUrl(fill(site.urlTemplate, () => path));
 }
 
 /**

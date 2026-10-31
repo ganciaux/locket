@@ -2,7 +2,15 @@
 	// Sites d'une collection : un modèle d'URL devient un lien sur chacune de ses fiches.
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { type Collection, MAX_LABEL_LENGTH, NAME_PLACEHOLDER, type Site, type SiteMode, siteMode } from '$lib/entries/model';
+	import {
+		type Collection,
+		MAX_LABEL_LENGTH,
+		NAME_PLACEHOLDER,
+		NOSPACE_PLACEHOLDER,
+		type Site,
+		type SiteMode,
+		siteMode
+	} from '$lib/entries/model';
 	import { deleteSite, moveSite, saveSite, setSiteMode } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -136,8 +144,8 @@
 				required
 			/>
 			<p class="text-base-content/60 text-xs">
-				{NAME_PLACEHOLDER} sera remplacé par le nom de la fiche, ou par le terme saisi sur la fiche. Sans lui, il est ajouté à
-				la fin de l'adresse. « Sur demande » : le lien n'apparaît que sur les fiches où vous l'activez, pour les sites où le
+				{NAME_PLACEHOLDER} sera remplacé par le nom de la fiche, ou par le terme saisi sur la fiche ; {NOSPACE_PLACEHOLDER}
+				par le nom sans espaces (« my name » → « myname »). Sans eux, le nom est ajouté à la fin de l'adresse. « Sur demande » : le lien n'apparaît que sur les fiches où vous l'activez, pour les sites où le
 				nom ne suffit pas.
 			</p>
 			<ErrorAlert message={form.error} />

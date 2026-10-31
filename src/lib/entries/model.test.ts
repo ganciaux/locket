@@ -93,6 +93,15 @@ describe('sites', () => {
 		expect(buildSiteUrl({ ...anime, urlTemplate: 'https://anime.fr/{{name}}' }, '$&')).toBe('https://anime.fr/%24%26');
 	});
 
+	it('{{nospace}} retire tous les espaces du nom', () => {
+		const site = { ...anime, urlTemplate: 'https://anime.fr/{{nospace}}?q={{name}}' };
+		expect(parseSiteTemplate(site.urlTemplate)).toBe(site.urlTemplate);
+		expect(buildSiteUrl(site, ' my  big\tname ')).toBe('https://anime.fr/mybigname?q=%20my%20%20big%09name%20');
+		expect(buildSiteUrl(site, 'a/b c')).toBe('https://anime.fr/a%2Fbc?q=a%2Fb%20c');
+		// Un terme propre est pris tel quel.
+		expect(buildSiteUrl(site, 'my name', true)).toBe('https://anime.fr/my%20name?q=my%20name');
+	});
+
 	it('un terme propre peut être un chemin ou une adresse du même site', () => {
 		const site = { ...anime, urlTemplate: 'https://anime.com/{{name}}' };
 		expect(buildSiteUrl(site, '/model/name/', true)).toBe('https://anime.com/model/name');
