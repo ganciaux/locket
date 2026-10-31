@@ -470,35 +470,75 @@
 		<p class="text-base-content/60 py-8 text-center">Toutes les fiches sont cachées.</p>
 	{/if}
 
-	{#snippet cardHeader(entry: (typeof results)[number], expandable: boolean, isOpen: boolean)}
-		<figure class="bg-primary/10 relative aspect-square">
-			{#if entry.thumbUrl}
-				<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
-			{:else}
-				<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
-					{entry.name.charAt(0).toUpperCase()}
-				</span>
-			{/if}
-			{#if entry.rating}
-				<!-- Sur l'image pour gagner une ligne ; fond translucide pour rester lisible sur une photo claire. -->
-				<span class="bg-base-100/80 rounded-box absolute bottom-1 left-1 flex px-1 py-0.5">
-					<Rating value={entry.rating} size="xs" />
-				</span>
-			{/if}
-		</figure>
-		<h2
-			class="flex items-center gap-1 font-semibold {prefs.cardSize === 'small'
-				? 'px-2 py-1.5 text-xs'
-				: prefs.cardSize === 'large'
-					? 'px-4 py-3 text-base'
-					: 'px-3 py-2 text-sm'}"
-		>
-			{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
-			<span class="min-w-0 flex-1 truncate">{entry.name}</span>
-			{#if expandable}
-				<Icon name="chevronDown" class="text-base-content/50 size-4 shrink-0 transition {isOpen ? 'rotate-180' : ''}" />
-			{/if}
-		</h2>
+	<!--
+		En-tête d'une carte : le bouton (déplier) ou le lien (ouvrir, cocher) porte le nom, et son ::after couvre toute la
+		zone, image comprise. Le bouton de copie passe au-dessus : deux éléments cliquables ne peuvent pas s'imbriquer.
+	-->
+	{#snippet cardHeader(entry: (typeof results)[number], isOpen: boolean)}
+		{@const expands = clickExpands && !selecting}
+		<div class="relative">
+			<figure class="bg-primary/10 relative aspect-square">
+				{#if entry.thumbUrl}
+					<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
+				{:else}
+					<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
+						{entry.name.charAt(0).toUpperCase()}
+					</span>
+				{/if}
+				{#if entry.rating}
+					<!-- Sur l'image pour gagner une ligne ; fond translucide pour rester lisible sur une photo claire. -->
+					<span class="bg-base-100/80 rounded-box absolute bottom-1 left-1 flex px-1 py-0.5">
+						<Rating value={entry.rating} size="xs" />
+					</span>
+				{/if}
+			</figure>
+			<h2
+				class="flex items-center gap-1 font-semibold {prefs.cardSize === 'small'
+					? 'py-1 pr-1 pl-2 text-xs'
+					: prefs.cardSize === 'large'
+						? 'py-2 pr-3 pl-4 text-base'
+						: 'py-1.5 pr-2 pl-3 text-sm'}"
+			>
+				{#if expands}
+					<button
+						type="button"
+						class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 text-left after:absolute after:inset-0"
+						aria-expanded={isOpen}
+						onclick={() => toggleOpen(entry.id)}
+					>
+						{@render cardName(entry)}
+					</button>
+				{:else}
+					<a
+						href="/entry/{entry.id}"
+						class="flex min-w-0 flex-1 items-center gap-1 after:absolute after:inset-0"
+						onclick={(event) => {
+							if (!selecting) return;
+							event.preventDefault();
+							toggleSelected(entry.id);
+						}}
+					>
+						{@render cardName(entry)}
+					</a>
+				{/if}
+				<!-- Petites cartes : seulement une fois dépliée, pour laisser la place au nom. -->
+				{#if !selecting && (prefs.cardSize !== 'small' || isOpen)}
+					<CopyButton
+						text={entry.name}
+						label="Copier le nom de {entry.name}"
+						class="btn btn-ghost btn-xs btn-square text-base-content/50 relative z-10 shrink-0"
+					/>
+				{/if}
+				{#if expands}
+					<Icon name="chevronDown" class="text-base-content/50 size-4 shrink-0 transition {isOpen ? 'rotate-180' : ''}" />
+				{/if}
+			</h2>
+		</div>
+	{/snippet}
+
+	{#snippet cardName(entry: (typeof results)[number])}
+		{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
+		<span class="min-w-0 flex-1 truncate">{entry.name}</span>
 	{/snippet}
 
 	<!-- items-start : une carte dépliée s'allonge sans étirer ses voisines. -->
@@ -513,14 +553,6 @@
 					? 'opacity-50 hover:opacity-100'
 					: ''} {isSelected ? 'outline-primary outline-2 -outline-offset-2' : ''}"
 			>
-				{#if !selecting}
-					<!-- Hors du lien ou du bouton de la carte (pas d'élément cliquable imbriqué), posé sur l'image. -->
-					<CopyButton
-						text={entry.name}
-						label="Copier le nom de {entry.name}"
-						class="btn btn-circle btn-xs bg-base-100/80 absolute top-1.5 right-1.5 z-10 border-0"
-					/>
-				{/if}
 				{#if selecting}
 					<input
 						type="checkbox"
@@ -531,22 +563,8 @@
 					/>
 				{/if}
 				<!-- En mode sélection, un clic sur la carte coche la fiche ; sinon il la déplie ou l'ouvre (Paramètres). -->
-				{#if clickExpands && !selecting}
-					<button type="button" class="block w-full cursor-pointer text-left" aria-expanded={isOpen} onclick={() => toggleOpen(entry.id)}>
-						{@render cardHeader(entry, true, isOpen)}
-					</button>
-				{:else}
-					<a
-						href="/entry/{entry.id}"
-						class="block"
-						onclick={(event) => {
-							if (!selecting) return;
-							event.preventDefault();
-							toggleSelected(entry.id);
-						}}
-					>
-						{@render cardHeader(entry, false, isOpen)}
-					</a>
+				{@render cardHeader(entry, isOpen)}
+				{#if !clickExpands || selecting}
 					{#if !detailed && (entryTags.length || links.length)}
 						<button
 							type="button"
