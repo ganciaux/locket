@@ -9,7 +9,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
-	import { type Link, MAX_NAME_LENGTH, parseLinkUrl, searchKey } from '$lib/entries/model';
+	import { type Link, MAX_NAME_LENGTH, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -28,6 +28,8 @@
 	let siteTerms = $state<Record<string, string>>({ ...entry?.siteTerms });
 	// svelte-ignore state_referenced_locally
 	let hiddenSites = $state([...(entry?.hiddenSites ?? [])]);
+	// svelte-ignore state_referenced_locally
+	let shownSites = $state([...(entry?.shownSites ?? [])]);
 	// svelte-ignore state_referenced_locally
 	let hidden = $state(!!entry?.hidden);
 	// svelte-ignore state_referenced_locally
@@ -90,10 +92,14 @@
 		tagIds = [];
 		siteTerms = {};
 		hiddenSites = [];
+		shownSites = [];
 	}
 
-	function toggleHidden(siteId: string) {
-		hiddenSites = hiddenSites.includes(siteId) ? hiddenSites.filter((id) => id !== siteId) : [...hiddenSites, siteId];
+	function toggleSite(site: Site) {
+		const show = !siteShown({ hiddenSites, shownSites }, site);
+		const next = withSiteVisibility({ hiddenSites, shownSites }, [site], () => show);
+		hiddenSites = next.hiddenSites ?? [];
+		shownSites = next.shownSites ?? [];
 	}
 
 	/** Seuls les termes remplis et les sites encore connus sont gardés (ceux d'un site inactif aussi). */
@@ -133,6 +139,7 @@
 				tagIds: knownTagIds,
 				siteTerms: knownSiteTerms(),
 				hiddenSites: hiddenSites.filter((id) => collectionSites.some((site) => site.id === id)),
+				shownSites: shownSites.filter((id) => collectionSites.some((site) => site.id === id)),
 				hidden,
 				rating,
 				country,
@@ -204,25 +211,26 @@
 			<h2 class="card-title text-base"><Icon name="link" /> Liens</h2>
 			{#if activeSites.length}
 				<p class="text-base-content/60 text-xs">
-					Sites de la collection : décochez pour masquer le lien sur cette fiche, laissez vide pour chercher son nom.
+					Sites de la collection : laissez le terme vide pour chercher le nom de la fiche. Ceux « sur demande » ne
+					s'affichent que si vous les activez ici.
 				</p>
 				{#each activeSites as site (site.id)}
-					{@const hidden = hiddenSites.includes(site.id)}
+					{@const shown = siteShown({ hiddenSites, shownSites }, site)}
 					<div class="flex items-center gap-2">
 						<input
 							type="checkbox"
 							class="toggle toggle-primary toggle-sm"
-							checked={!hidden}
-							onchange={() => toggleHidden(site.id)}
+							checked={shown}
+							onchange={() => toggleSite(site)}
 							aria-label="Afficher {site.label} sur cette fiche"
 							title="Afficher sur cette fiche"
 						/>
 						<label class="input input-sm min-w-0 flex-1">
-							<span class="label">{site.label}</span>
+							<span class="label" title={site.optIn ? 'Sur demande : à activer sur la fiche' : undefined}>{site.label}</span>
 							<input
 								placeholder={name}
 								aria-label="Terme à chercher sur {site.label}"
-								disabled={hidden}
+								disabled={!shown}
 								bind:value={siteTerms[site.id]}
 							/>
 						</label>

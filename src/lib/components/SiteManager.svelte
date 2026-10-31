@@ -2,12 +2,18 @@
 	// Sites d'une collection : un modèle d'URL devient un lien sur chacune de ses fiches.
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { type Collection, MAX_LABEL_LENGTH, NAME_PLACEHOLDER, type Site } from '$lib/entries/model';
-	import { deleteSite, moveSite, saveSite, toggleSite } from '$lib/entries/store.svelte';
+	import { type Collection, MAX_LABEL_LENGTH, NAME_PLACEHOLDER, type Site, type SiteMode, siteMode } from '$lib/entries/model';
+	import { deleteSite, moveSite, saveSite, setSiteMode } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
 	let { collection }: { collection: Collection } = $props();
+
+	const MODES: { value: SiteMode; label: string }[] = [
+		{ value: 'all', label: 'Toutes les fiches' },
+		{ value: 'optIn', label: 'Sur demande' },
+		{ value: 'off', label: 'Inutilisé' }
+	];
 
 	const sites = $derived(collection.sites ?? []);
 	const activeCount = $derived(sites.filter((site) => site.enabled).length);
@@ -76,17 +82,19 @@
 						<Icon name="chevronDown" class="size-4" />
 					</button>
 				</div>
-				<input
-					type="checkbox"
-					class="toggle toggle-primary toggle-sm"
-					checked={site.enabled}
-					onchange={() => run(() => toggleSite(collection.id, site.id))}
-					aria-label="Utiliser {site.label}"
-					title="Utiliser ce site"
-				/>
-				<span class="min-w-0 flex-1">
+				<span class="flex min-w-0 flex-1 flex-col gap-1">
 					<span class="block truncate text-sm font-medium">{site.label}</span>
 					<span class="text-base-content/50 block truncate text-xs">{site.urlTemplate}</span>
+					<select
+						class="select select-sm w-full max-w-52"
+						value={siteMode(site)}
+						onchange={(event) => run(() => setSiteMode(collection.id, site.id, event.currentTarget.value as SiteMode))}
+						aria-label="Utilisation de {site.label}"
+					>
+						{#each MODES as mode (mode.value)}
+							<option value={mode.value}>{mode.label}</option>
+						{/each}
+					</select>
 				</span>
 				{#if confirmId === site.id}
 					<button class="btn btn-error btn-xs" onclick={() => run(() => deleteSite(collection.id, site.id))}>Supprimer</button>
@@ -128,7 +136,9 @@
 				required
 			/>
 			<p class="text-base-content/60 text-xs">
-				{NAME_PLACEHOLDER} sera remplacé par le nom de la fiche. Sans lui, le nom est ajouté à la fin de l'adresse.
+				{NAME_PLACEHOLDER} sera remplacé par le nom de la fiche, ou par le terme saisi sur la fiche. Sans lui, il est ajouté à
+				la fin de l'adresse. « Sur demande » : le lien n'apparaît que sur les fiches où vous l'activez, pour les sites où le
+				nom ne suffit pas.
 			</p>
 			<ErrorAlert message={form.error} />
 			<div class="flex gap-2">

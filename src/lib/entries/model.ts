@@ -19,6 +19,8 @@ export type EntryData = {
 	siteTerms?: Record<string, string>;
 	/** Sites de la collection qui ne donnent pas de lien sur cette fiche. */
 	hiddenSites?: string[];
+	/** Sites « sur demande » de la collection activés sur cette fiche. */
+	shownSites?: string[];
 	/** Rangée à l'écart : absente de la liste sauf avec le bouton « Cachées ». Simple filtre, pas une protection. */
 	hidden?: boolean;
 	/** Note de 1 à `MAX_RATING` : 5 étoiles par demi-étoile ; absente, la fiche n'est pas notée. */
@@ -45,7 +47,49 @@ export const isTrashExpired = (deletedAt: number | undefined, now: number): bool
 export type Collection = { id: string; name: string; sites?: Site[] };
 
 /** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
-export type Site = { id: string; label: string; urlTemplate: string; enabled: boolean };
+export type Site = {
+	id: string;
+	label: string;
+	urlTemplate: string;
+	enabled: boolean;
+	/** Sur demande : le lien n'apparaît que sur les fiches qui l'activent (terme propre souvent nécessaire). */
+	optIn?: boolean;
+};
+
+/** Mode d'un site dans l'administration : inutilisé, sur toutes les fiches, ou seulement celles qui l'activent. */
+export type SiteMode = 'off' | 'all' | 'optIn';
+
+export const siteMode = (site: Site): SiteMode => (!site.enabled ? 'off' : site.optIn ? 'optIn' : 'all');
+
+export const withSiteMode = (site: Site, mode: SiteMode): Site => ({
+	...site,
+	enabled: mode !== 'off',
+	optIn: mode === 'off' ? site.optIn : mode === 'optIn' || undefined
+});
+
+type SiteChoices = Pick<EntryData, 'hiddenSites' | 'shownSites'>;
+
+/** Lien du site affiché sur la fiche : site utilisé, puis non masqué (toutes les fiches) ou activé (sur demande). */
+export const siteShown = (entry: SiteChoices, site: Site): boolean =>
+	site.enabled && (site.optIn ? !!entry.shownSites?.includes(site.id) : !entry.hiddenSites?.includes(site.id));
+
+/**
+ * Affiche ou masque des sites sur une fiche : `visible` renvoie true, false, ou undefined pour ne pas y toucher.
+ * Un site pour toutes les fiches passe par `hiddenSites`, un site sur demande par `shownSites` ; les deux listes
+ * sont gardées, pour retrouver les choix de la fiche si le mode du site change.
+ */
+export function withSiteVisibility(entry: SiteChoices, sites: Site[], visible: (siteId: string) => boolean | undefined): SiteChoices {
+	const hidden = new Set(entry.hiddenSites ?? []);
+	const shown = new Set(entry.shownSites ?? []);
+	for (const site of sites) {
+		const show = visible(site.id);
+		if (show === undefined) continue;
+		const [set, add] = site.optIn ? [shown, show] : [hidden, !show];
+		if (add) set.add(site.id);
+		else set.delete(site.id);
+	}
+	return { hiddenSites: hidden.size ? [...hidden] : undefined, shownSites: shown.size ? [...shown] : undefined };
+}
 
 /**
  * Une fiche dont la collection est inconnue (catalogue perdu ou altéré) deviendrait invisible : sa collection
@@ -100,15 +144,15 @@ export function parseSiteTemplate(input: string): string {
 export const buildSiteUrl = (site: Site, term: string): string | null => parseLinkUrl(fillTemplate(site.urlTemplate, term));
 
 /**
- * Liens à afficher : sites actifs de sa collection et non masqués sur la fiche
- * (avec le nom de la fiche, sauf terme propre), puis liens saisis non masqués.
+ * Liens à afficher : sites de sa collection affichés sur la fiche (voir `siteShown`),
+ * avec le nom de la fiche sauf terme propre, puis liens saisis non masqués.
  */
 export function entryLinks(
-	entry: Pick<EntryData, 'name' | 'links' | 'siteTerms' | 'hiddenSites'>,
+	entry: Pick<EntryData, 'name' | 'links' | 'siteTerms' | 'hiddenSites' | 'shownSites'>,
 	sites: Site[] = []
 ): Link[] {
 	const fromSites = sites
-		.filter((site) => site.enabled && !entry.hiddenSites?.includes(site.id))
+		.filter((site) => siteShown(entry, site))
 		.flatMap((site) => {
 			const url = buildSiteUrl(site, entry.siteTerms?.[site.id]?.trim() || entry.name);
 			return url ? [{ url, label: site.label }] : [];

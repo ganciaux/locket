@@ -17,6 +17,10 @@ import {
 	matchesSearch,
 	moveItem,
 	findSameName,
+	siteMode,
+	siteShown,
+	withSiteMode,
+	withSiteVisibility,
 	restoredName,
 	parseLabel,
 	parseLinkUrl,
@@ -403,5 +407,37 @@ describe('restoredName', () => {
 		const name = restoredName('x'.repeat(MAX_NAME_LENGTH), at);
 		expect(name).toHaveLength(MAX_NAME_LENGTH);
 		expect(name.endsWith('(2026-10-30 09:05:07)')).toBe(true);
+	});
+});
+
+describe('sites sur demande', () => {
+	const all = { id: 'all', label: 'anime', urlTemplate: 'https://a.fr/?q={{name}}', enabled: true };
+	const optIn = { id: 'opt', label: 'wiki', urlTemplate: 'https://w.fr/{{name}}', enabled: true, optIn: true };
+
+	it('un site sur demande n’apparaît que sur les fiches qui l’activent', () => {
+		expect(siteShown({}, all)).toBe(true);
+		expect(siteShown({}, optIn)).toBe(false);
+		expect(siteShown({ shownSites: ['opt'] }, optIn)).toBe(true);
+		expect(siteShown({ shownSites: ['opt'] }, { ...optIn, enabled: false })).toBe(false);
+		expect(entryLinks({ name: 'Goku', links: [], shownSites: ['opt'], siteTerms: { opt: 'Son_Goku' } }, [all, optIn]).map((l) => l.url)).toEqual([
+			'https://a.fr/?q=Goku',
+			'https://w.fr/Son_Goku'
+		]);
+	});
+
+	it('afficher ou masquer passe par la bonne liste et garde les choix de l’autre mode', () => {
+		const shown = withSiteVisibility({ hiddenSites: ['all'] }, [all, optIn], () => true);
+		expect(shown).toEqual({ hiddenSites: undefined, shownSites: ['opt'] });
+		const hidden = withSiteVisibility(shown, [all, optIn], (id) => (id === 'opt' ? false : undefined));
+		expect(hidden).toEqual({ hiddenSites: undefined, shownSites: undefined });
+	});
+
+	it('mode d’administration', () => {
+		expect(siteMode(all)).toBe('all');
+		expect(siteMode(withSiteMode(all, 'optIn'))).toBe('optIn');
+		const off = withSiteMode(optIn, 'off');
+		expect(siteMode(off)).toBe('off');
+		expect(off.optIn).toBe(true);
+		expect(withSiteMode(off, 'all').optIn).toBeUndefined();
 	});
 });

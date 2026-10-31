@@ -73,6 +73,7 @@ export type EntryInput = {
 	tagIds: string[];
 	siteTerms?: Record<string, string>;
 	hiddenSites?: string[];
+	shownSites?: string[];
 	hidden?: boolean;
 	rating?: number;
 	country?: string;
@@ -104,6 +105,7 @@ export async function saveEntry(
 		...(input.tagIds.length && { tagIds: input.tagIds }),
 		...(input.siteTerms && Object.keys(input.siteTerms).length && { siteTerms: input.siteTerms }),
 		...(input.hiddenSites?.length && { hiddenSites: input.hiddenSites }),
+		...(input.shownSites?.length && { shownSites: input.shownSites }),
 		...(parseRating(input.rating) && { rating: input.rating }),
 		...(parseCountry(input.country) && { country: input.country }),
 		...(input.hidden && { hidden: true })

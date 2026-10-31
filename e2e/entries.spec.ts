@@ -458,3 +458,25 @@ test('corbeille : une fiche restaurée dont le nom est repris est renommée', as
 	await expect(page.locator('li.card').filter({ hasText: 'Doublon (' })).toHaveCount(1);
 	await expect(page.getByText('2 fiches', { exact: true })).toBeVisible();
 });
+
+test('site sur demande : absent tant que la fiche ne l’active pas, avec son propre terme', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await addSite(page, 'anime', 'https://anime.fr/search?k=');
+	await page.getByLabel('Libellé du site').fill('wiki');
+	await page.getByLabel("Modèle d'URL").fill('https://wiki.fr/{{name}}');
+	await page.getByRole('button', { name: 'Ajouter un site' }).click();
+	await page.getByLabel('Utilisation de wiki').selectOption({ label: 'Sur demande' });
+	await expect(page.getByText('Sites (2 actifs sur 2)')).toBeVisible();
+
+	await createEntry(page, 'Goku');
+	await expect(page.getByRole('link', { name: 'anime', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'wiki', exact: true })).toHaveCount(0);
+
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect(page.getByLabel('Terme à chercher sur wiki')).toBeDisabled();
+	await page.getByLabel('Afficher wiki sur cette fiche').check();
+	await page.getByLabel('Terme à chercher sur wiki').fill('Son_Goku');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('link', { name: 'wiki', exact: true })).toHaveAttribute('href', 'https://wiki.fr/Son_Goku');
+});

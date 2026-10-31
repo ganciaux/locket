@@ -20,6 +20,9 @@ import {
 	byName,
 	entryLinks,
 	findSameName,
+	type SiteMode,
+	withSiteMode,
+	withSiteVisibility,
 	restoredName,
 	isTrashExpired,
 	type CountryFilter,
@@ -291,14 +294,8 @@ export const setEntriesHidden = (targets: ListItem[], hidden: boolean): Promise<
  */
 export function changeEntriesSites(targets: ListItem[], siteIds: string[], mode: 'show' | 'hide' | 'set'): Promise<void> {
 	return patchEntries(targets, (entry) => {
-		const current = entry.hiddenSites ?? [];
-		const next =
-			mode === 'set'
-				? entries.sitesIn(entry.collectionId).map((site) => site.id).filter((id) => !siteIds.includes(id))
-				: mode === 'hide'
-					? [...new Set([...current, ...siteIds])]
-					: current.filter((id) => !siteIds.includes(id));
-		return { hiddenSites: next.length ? next : undefined, updatedAt: Date.now() };
+		const visible = (id: string) => (siteIds.includes(id) ? mode !== 'hide' : mode === 'set' ? false : undefined);
+		return { ...withSiteVisibility(entry, entries.sitesIn(entry.collectionId), visible), updatedAt: Date.now() };
 	});
 }
 
@@ -421,10 +418,10 @@ export async function moveSite(collectionId: string, id: string, delta: -1 | 1):
 	if (next !== sites) await replaceSites(collectionId, next);
 }
 
-export const toggleSite = (collectionId: string, id: string): Promise<void> =>
+export const setSiteMode = (collectionId: string, id: string, mode: SiteMode): Promise<void> =>
 	replaceSites(
 		collectionId,
-		entries.sitesIn(collectionId).map((site) => (site.id === id ? { ...site, enabled: !site.enabled } : site))
+		entries.sitesIn(collectionId).map((site) => (site.id === id ? withSiteMode(site, mode) : site))
 	);
 
 /** Les termes propres des fiches sont oubliés à leur prochaine modification, comme les tags supprimés. */
