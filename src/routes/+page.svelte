@@ -7,6 +7,7 @@
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { listView } from '$lib/entries/listView.svelte';
 	import {
@@ -741,12 +742,5 @@
 		{/if}
 	</div>
 {:else if entries.active}
-	<a
-		href="/entry/new"
-		class="btn btn-primary btn-circle btn-lg fixed right-6 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-lg"
-		aria-label="Nouvelle fiche"
-		title="Nouvelle fiche"
-	>
-		<Icon name="plus" class="size-7" />
-	</a>
+	<NewEntryButton />
 {/if}

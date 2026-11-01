@@ -159,7 +159,16 @@
 		<div class="card-body gap-4">
 			<Field label="Nom">
 				<div class="input input-lg w-full {nameChecked && (sameName ? 'input-error' : 'input-success')}">
-					<input class="grow" bind:value={name} maxlength={MAX_NAME_LENGTH} required aria-describedby="name-status" />
+					<!-- Création : le nom se saisit tout de suite. -->
+					<!-- svelte-ignore a11y_autofocus -->
+					<input
+						class="grow"
+						bind:value={name}
+						maxlength={MAX_NAME_LENGTH}
+						required
+						aria-describedby="name-status"
+						autofocus={!entry}
+					/>
 					{#if nameChecked}
 						<Icon name={sameName ? 'close' : 'check'} class="size-5 shrink-0 {sameName ? 'text-error' : 'text-success'}" />
 					{/if}

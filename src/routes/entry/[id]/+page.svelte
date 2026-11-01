@@ -6,6 +6,7 @@
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
 	import { TRASH_DAYS, countryFlag, countryName, formatRating } from '$lib/entries/model';
@@ -174,4 +175,5 @@
 			{/if}
 		</div>
 	</article>
+	<NewEntryButton />
 {/if}

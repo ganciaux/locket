@@ -15,6 +15,7 @@ async function addSite(page: Page, label: string, urlTemplate: string) {
 async function createEntry(page: Page, name: string) {
 	await goHome(page);
 	await page.locator('a[href="/entry/new"]').first().click();
+	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
 	await page.getByLabel('Nom', { exact: true }).fill(name);
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name })).toBeVisible();
@@ -510,4 +511,20 @@ test('recherche : filtre la liste, effacée d’un clic', async ({ page }) => {
 	await expect(search).toHaveValue('');
 	await expect(search).toBeFocused();
 	await expect(cards).toHaveCount(2);
+});
+
+test('nouvelle fiche depuis une fiche, nom prêt à saisir', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Jane Roe');
+
+	await page.getByRole('link', { name: 'Nouvelle fiche' }).click();
+	await expect(page.getByRole('heading', { name: 'Nouvelle fiche' })).toBeVisible();
+	await page.keyboard.type('John Doe');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
+
+	// En modification, le focus n'est pas forcé sur le nom.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect(page.getByLabel('Nom', { exact: true })).not.toBeFocused();
 });
