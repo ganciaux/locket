@@ -578,6 +578,10 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await expect(rows.first()).toContainText('Alpha');
 	await expect(rows.nth(2)).toContainText('Charlie');
 	await page.getByRole('button', { name: 'Retirer Charlie du classement' }).click();
+	await page.getByRole('button', { name: 'Annuler' }).click();
+	await expect(rows).toHaveCount(3);
+	await page.getByRole('button', { name: 'Retirer Charlie du classement' }).click();
+	await page.getByRole('button', { name: 'Retirer', exact: true }).click();
 	await expect(rows).toHaveCount(2);
 	await expect(page.getByText('2 classées, 1 à classer · 1 sans image, non classable')).toBeVisible();
 
@@ -586,6 +590,13 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await page.getByRole('link', { name: 'Lancer le classement (1)' }).click();
 	// Image complète et non miniature (300 px au plus).
 	await expect.poll(() => page.locator('figure img').first().evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
+	// Quitter en cours de duels : le classement reste, la fiche en cours attend, et on reprend plus tard.
+	await page.getByRole('button', { name: 'Préférer Charlie', exact: true }).click();
+	await expect(page.getByText(/^Encore 1 duel/)).toBeVisible();
+	await page.getByRole('link', { name: 'Retour' }).click();
+	await expect(rows).toHaveCount(2);
+	await expect(page.getByText('2 classées, 1 à classer')).toBeVisible();
+	await page.getByRole('link', { name: 'Lancer le classement (1)' }).click();
 	await duel(allRanked);
 	await page.getByRole('link', { name: 'Voir le classement' }).click();
 	await expect(rows).toHaveCount(3);
@@ -612,6 +623,8 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await expect(page.getByText('1re sur 2 au classement')).toBeVisible();
 	await page.getByRole('link', { name: 'Reclasser' }).click();
 	await page.getByRole('button', { name: 'Préférer Charlie', exact: true }).click();
+	await expect(page.getByText('2e sur 2 au classement')).toBeVisible();
+	await page.getByRole('button', { name: 'Retirer', exact: true }).click();
 	await expect(page.getByText('2e sur 2 au classement')).toBeVisible();
 	await page.getByRole('button', { name: 'Retirer', exact: true }).click();
 	await expect(page.getByText('Pas encore classée')).toBeVisible();

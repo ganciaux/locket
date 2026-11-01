@@ -8,13 +8,15 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import Rating from '$lib/components/Rating.svelte';
+	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { TRASH_DAYS, countryFlag, countryName, formatRating } from '$lib/entries/model';
-	import { deleteForever, entries, loadEntries, rateEntry, removeFromRanking, trashEntries } from '$lib/entries/store.svelte';
+	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
 	let error = $state('');
 	let confirmDelete = $state(false);
+	let confirmUnrank = $state(false);
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
@@ -40,16 +42,6 @@
 			error = errorMessage(e);
 		} finally {
 			savingRating = false;
-		}
-	}
-
-	async function unrank() {
-		if (!entry) return;
-		error = '';
-		try {
-			await removeFromRanking(entry.collectionId, entry.id);
-		} catch (e) {
-			error = errorMessage(e);
 		}
 	}
 
@@ -108,10 +100,13 @@
 						{rank ? `${rank === 1 ? '1re' : `${rank}e`} sur ${entries.ranking(entry.collectionId).length} au classement` : 'Pas encore classée'}
 					</span>
 					<a class="btn btn-ghost btn-xs" href="/ranking/duel?id={entry.id}">{rank ? 'Reclasser' : 'Classer'}</a>
-					{#if rank}
-						<button class="btn btn-ghost btn-xs" onclick={unrank}>Retirer</button>
+					{#if rank && !confirmUnrank}
+						<button class="btn btn-ghost btn-xs" onclick={() => (confirmUnrank = true)}>Retirer</button>
 					{/if}
 				</div>
+				{#if rank && confirmUnrank}
+					<UnrankConfirm {entry} onclose={() => (confirmUnrank = false)} />
+				{/if}
 			{/if}
 
 			{#if entries.tagsOf(entry).length}

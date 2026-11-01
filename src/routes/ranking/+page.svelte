@@ -2,12 +2,13 @@
 	// Gestion du classement de la collection active : fiches dans l'ordre, lancement des duels (voir duel/+page.svelte).
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { isRankable } from '$lib/entries/model';
-	import { type ListItem, entries, loadEntries, removeFromRanking, selectCollection } from '$lib/entries/store.svelte';
+	import { type ListItem, entries, loadEntries, selectCollection } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	let error = $state('');
-	let busy = $state(false);
+	let confirmId = $state<string | null>(null);
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
@@ -15,43 +16,35 @@
 	const ranked = $derived(collection ? entries.ranking(collection.id).flatMap((id) => entries.find(id) ?? []) : []);
 	const unranked = $derived(collection ? entries.unranked(collection.id) : []);
 	const withoutImage = $derived((entries.activeItems ?? []).filter((item) => !isRankable(item)).length);
-
-	async function remove(item: ListItem) {
-		busy = true;
-		error = '';
-		try {
-			await removeFromRanking(item.collectionId, item.id);
-		} catch (e) {
-			error = errorMessage(e);
-		} finally {
-			busy = false;
-		}
-	}
 </script>
 
 {#snippet row(item: ListItem, rank?: number)}
-	<li class="bg-base-100 rounded-box flex items-center gap-2 p-2 shadow-sm">
-		{#if rank}<span class="badge badge-sm badge-neutral shrink-0">#{rank}</span>{/if}
-		<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover" />
-		<a class="link-hover min-w-0 flex-1 truncate text-sm font-semibold" href="/entry/{item.id}">{item.name}</a>
-		<a
-			class="btn btn-ghost btn-sm btn-square shrink-0"
-			href="/ranking/duel?id={item.id}"
-			aria-label="{rank ? 'Reclasser' : 'Classer'} {item.name}"
-			title={rank ? 'Reclasser' : 'Classer'}
-		>
-			<Icon name="podium" class="size-4" />
-		</a>
-		{#if rank}
-			<button
+	<li class="bg-base-100 rounded-box flex flex-col gap-2 p-2 shadow-sm">
+		<div class="flex items-center gap-2">
+			{#if rank}<span class="badge badge-sm badge-neutral shrink-0">#{rank}</span>{/if}
+			<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover" />
+			<a class="link-hover min-w-0 flex-1 truncate text-sm font-semibold" href="/entry/{item.id}">{item.name}</a>
+			<a
 				class="btn btn-ghost btn-sm btn-square shrink-0"
-				disabled={busy}
-				aria-label="Retirer {item.name} du classement"
-				title="Retirer du classement"
-				onclick={() => remove(item)}
+				href="/ranking/duel?id={item.id}"
+				aria-label="{rank ? 'Reclasser' : 'Classer'} {item.name}"
+				title={rank ? 'Reclasser' : 'Classer'}
 			>
-				<Icon name="close" class="size-4" />
-			</button>
+				<Icon name="podium" class="size-4" />
+			</a>
+			{#if rank && confirmId !== item.id}
+				<button
+					class="btn btn-ghost btn-sm btn-square shrink-0"
+					aria-label="Retirer {item.name} du classement"
+					title="Retirer du classement"
+					onclick={() => (confirmId = item.id)}
+				>
+					<Icon name="close" class="size-4" />
+				</button>
+			{/if}
+		</div>
+		{#if confirmId === item.id}
+			<UnrankConfirm entry={item} onclose={() => (confirmId = null)} />
 		{/if}
 	</li>
 {/snippet}
