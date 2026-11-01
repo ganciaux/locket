@@ -53,6 +53,7 @@
 		{ value: 'created', label: 'Tri : récentes' },
 		{ value: 'updated', label: 'Tri : modifiées' },
 		{ value: 'rating', label: 'Tri : note' },
+		{ value: 'rank', label: 'Tri : classement' },
 		{ value: 'random', label: 'Tri : aléatoire' }
 	];
 	// Note minimale, en demi-étoiles : 6 = 3 étoiles.
@@ -440,6 +441,12 @@
 					<Icon name="shuffle" class="size-4" />
 				</button>
 			{/if}
+			{#if listView.sort === 'rank' && entries.active}
+				{@const unranked = entries.unranked(entries.active.id).length}
+				<a class="btn btn-ghost btn-xs" href="/ranking" title="Classer les fiches par duels">
+					<Icon name="podium" class="size-4" /> Classer{unranked ? ` (${unranked})` : ''}
+				</a>
+			{/if}
 		</div>
 		<div class="flex items-center gap-2">
 			{#if hiddenCount}
@@ -504,6 +511,11 @@
 				{:else}
 					<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
 						{entry.name.charAt(0).toUpperCase()}
+					</span>
+				{/if}
+				{#if entries.rankOf(entry)}
+					<span class="badge badge-sm badge-neutral absolute top-1 right-1" title="Rang dans le classement">
+						#{entries.rankOf(entry)}
 					</span>
 				{/if}
 				{#if entry.rating}

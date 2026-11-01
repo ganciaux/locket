@@ -44,7 +44,13 @@ export const isTrashExpired = (deletedAt: number | undefined, now: number): bool
 	deletedAt !== undefined && now - deletedAt >= TRASH_DAYS * DAY_MS;
 
 /** Regroupement exclusif des fiches (Manga, Chanteurs…) ; l'ordre du catalogue est l'ordre d'affichage. */
-export type Collection = { id: string; name: string; sites?: Site[] };
+export type Collection = {
+	id: string;
+	name: string;
+	sites?: Site[];
+	/** Classement par duels : ids de la meilleure fiche à la moins bonne ; une fiche absente n'est pas classée. */
+	ranking?: string[];
+};
 
 /** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
 export type Site = {
@@ -271,7 +277,7 @@ export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
 export const byName = (a: { name: string }, b: { name: string }): number =>
 	a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
 
-export type SortOrder = 'name' | 'created' | 'updated' | 'random' | 'rating';
+export type SortOrder = 'name' | 'created' | 'updated' | 'random' | 'rating' | 'rank';
 type Sortable = { id: string; name: string; createdAt: number; updatedAt: number; rating?: number };
 
 /**
@@ -289,17 +295,67 @@ export function shuffleRank(id: string, seed: number): number {
 
 /**
  * Par nom (A→Z), du plus récent au plus ancien, de la meilleure note à la moins bonne (non notées à la fin),
- * ou mélangé selon `seed` ; à égalité, par nom.
+ * par classement (non classées à la fin), ou mélangé selon `seed` ; à égalité, par nom.
  */
 export const sortBy =
-	(order: SortOrder, seed = 0) =>
+	(order: SortOrder, seed = 0, rank: (id: string) => number | undefined = () => undefined) =>
 	(a: Sortable, b: Sortable): number => {
+		if (order === 'rank') return (rank(a.id) ?? Infinity) - (rank(b.id) ?? Infinity) || byName(a, b);
 		if (order === 'created') return b.createdAt - a.createdAt || byName(a, b);
 		if (order === 'updated') return b.updatedAt - a.updatedAt || byName(a, b);
 		if (order === 'random') return shuffleRank(a.id, seed) - shuffleRank(b.id, seed) || byName(a, b);
 		if (order === 'rating') return (b.rating ?? 0) - (a.rating ?? 0) || byName(a, b);
 		return byName(a, b);
 	};
+
+// ---------------------------------------------------------------------------
+// Classement : la fiche à classer affronte celle du milieu de la plage encore possible (dichotomie),
+// soit environ log2(n) duels par fiche.
+
+/** Seules les fiches avec image se classent : un duel oppose deux images. */
+export const isRankable = (entry: { imageType?: string }): boolean => !!entry.imageType;
+
+/**
+ * Classement effectif : l'ordre enregistré, réduit à `items` (fiches vivantes de la collection) qui ont une image.
+ * Une fiche mise à la corbeille, déplacée ou sans image en sort sans rien réécrire : les suivantes remontent
+ * d'un rang, et elle retrouve sa place si elle revient.
+ */
+export function rankedIds(ranking: string[] | undefined, items: { id: string; imageType?: string }[]): string[] {
+	const rankable = new Set(items.filter(isRankable).map((item) => item.id));
+	return (ranking ?? []).filter((id) => rankable.has(id));
+}
+
+/** Place encore possible, entre les indices `lo` et `hi` du classement effectif (bornes comprises). */
+export type Insertion = { lo: number; hi: number };
+
+export const startInsertion = (count: number): Insertion => ({ lo: 0, hi: count });
+export const insertionDone = ({ lo, hi }: Insertion): boolean => lo >= hi;
+/** Indice de l'adversaire : le milieu de la plage. */
+export const opponentIndex = ({ lo, hi }: Insertion): number => (lo + hi) >> 1;
+/** Duels restants au plus. */
+export const duelsLeft = ({ lo, hi }: Insertion): number => Math.ceil(Math.log2(hi - lo + 1));
+
+export function chooseInsertion(insertion: Insertion, candidateWins: boolean): Insertion {
+	const mid = opponentIndex(insertion);
+	return candidateWins ? { lo: insertion.lo, hi: mid } : { lo: mid + 1, hi: insertion.hi };
+}
+
+/**
+ * Classement enregistré avec `id` au rang `index` de `ranked` (classement effectif, sans `id`). Les fiches hors du
+ * classement effectif (corbeille…) gardent leur place ; celles qui n'existent plus (absentes de `known`) sont retirées.
+ */
+export function withRanked(
+	ranking: string[] | undefined,
+	ranked: string[],
+	id: string,
+	index: number,
+	known: Set<string>
+): string[] {
+	const rest = (ranking ?? []).filter((other) => other !== id && known.has(other));
+	const at =
+		index < ranked.length ? rest.indexOf(ranked[index]) : index > 0 ? rest.indexOf(ranked[index - 1]) + 1 : 0;
+	return [...rest.slice(0, at), id, ...rest.slice(at)];
+}
 
 // ---------------------------------------------------------------------------
 // Note

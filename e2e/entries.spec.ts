@@ -528,3 +528,69 @@ test('nouvelle fiche depuis une fiche, nom prêt à saisir', async ({ page }) =>
 	await page.getByRole('link', { name: 'Modifier' }).click();
 	await expect(page.getByLabel('Nom', { exact: true })).not.toBeFocused();
 });
+
+test('classement par duels : rangs sur les cartes, décalés par la corbeille, reclassement', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	for (const name of ['Charlie', 'Alpha', 'Bravo']) {
+		await goHome(page);
+		await page.locator('a[href="/entry/new"]').first().click();
+		await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
+		await page.evaluate(async () => {
+			const canvas = Object.assign(document.createElement('canvas'), { width: 8, height: 8 });
+			const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+			const data = new DataTransfer();
+			data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
+			window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+		});
+		await expect(page.getByAltText('Aperçu')).toBeVisible();
+		await page.getByLabel('Nom', { exact: true }).fill(name);
+		await page.getByRole('button', { name: 'Enregistrer' }).click();
+		await expect(page.getByRole('heading', { name })).toBeVisible();
+	}
+	// Sans image : jamais classée.
+	await createEntry(page, 'Delta');
+
+	// Préférence : l'ordre alphabétique, quels que soient la fiche tirée et le côté.
+	const duel = async (done: ReturnType<Page['getByText']>) => {
+		for (let i = 0; i < 10; i++) {
+			await expect(page.getByText('Laquelle préférez-vous ?').or(done)).toBeVisible();
+			if (await done.isVisible()) return;
+			const choices = page.getByRole('button', { name: /^Préférer / });
+			await expect(choices.first()).toBeEnabled();
+			const names = await choices.evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label')!));
+			await page.getByRole('button', { name: names.sort()[0], exact: true }).click();
+		}
+		throw new Error('Trop de duels');
+	};
+
+	await goHome(page);
+	await page.getByLabel('Trier par').selectOption('rank');
+	await page.getByRole('link', { name: 'Classer (3)' }).click();
+	await duel(page.getByText('Toutes les fiches avec image sont classées.'));
+	await expect(page.getByText('3 classées, 0 à classer')).toBeVisible();
+
+	await page.getByRole('link', { name: 'Voir la liste' }).click();
+	await page.getByLabel('Trier par').selectOption('rank');
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await expect(page.locator('li.card').first()).toContainText('Alpha');
+	await expect(card('Alpha')).toContainText('#1');
+	await expect(card('Charlie')).toContainText('#3');
+	await expect(card('Delta')).not.toContainText('#');
+
+	// Bravo à la corbeille : Charlie remonte, sans réécrire le classement.
+	await card('Bravo').getByRole('heading').click();
+	await card('Bravo').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
+	await page.getByLabel('Trier par').selectOption('rank');
+	await expect(card('Charlie')).toContainText('#2');
+
+	// Reclasser Alpha : il perd contre Charlie, puis revient sur sa fiche.
+	await card('Alpha').getByRole('heading').click();
+	await card('Alpha').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await expect(page.getByText('1re sur 2 au classement')).toBeVisible();
+	await page.getByRole('link', { name: 'Reclasser' }).click();
+	await page.getByRole('button', { name: 'Préférer Charlie', exact: true }).click();
+	await expect(page.getByText('2e sur 2 au classement')).toBeVisible();
+});

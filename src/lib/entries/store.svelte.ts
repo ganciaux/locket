@@ -19,6 +19,9 @@ import {
 	type TagFilter,
 	byName,
 	entryLinks,
+	isRankable,
+	rankedIds,
+	withRanked,
 	findSameName,
 	type SiteMode,
 	withSiteMode,
@@ -65,6 +68,11 @@ const active = $derived(collections && (collections.find((c) => c.id === prefs.c
 // La corbeille reste chargée, mais hors de tout ce qui s'affiche ou se compte.
 const liveItems = $derived(items && items.filter((item) => !item.deletedAt));
 const activeItems = $derived(liveItems && liveItems.filter((item) => item.collectionId === active?.id));
+const inCollection = (collectionId: string) => (liveItems ?? []).filter((item) => item.collectionId === collectionId);
+const rankingOf = (collectionId: string): string[] =>
+	rankedIds(collections?.find((c) => c.id === collectionId)?.ranking, inCollection(collectionId));
+// Rangs de la collection active (1 = la meilleure), pour les cartes et le tri.
+const activeRanks = $derived(new Map(active ? rankingOf(active.id).map((id, i) => [id, i + 1]) : []));
 const activeTags = $derived(tags && tags.filter((tag) => tag.collectionId === active?.id));
 
 const withThumbUrl = (entry: EntrySummary): ListItem => ({
@@ -148,7 +156,20 @@ export const entries = {
 				matchesRatingFilter(item.rating, rating) &&
 				matchesCountryFilter(item.country, country)
 		);
-		return order === 'name' ? found : found.sort(sortBy(order, shuffleSeed));
+		return order === 'name' ? found : found.sort(sortBy(order, shuffleSeed, (id) => activeRanks.get(id)));
+	},
+	/** Classement effectif d'une collection, de la meilleure fiche à la moins bonne. */
+	ranking: rankingOf,
+	/** Rang dans sa collection ; undefined si la fiche n'est pas classée. */
+	rankOf(item: ListItem): number | undefined {
+		if (item.collectionId === active?.id) return activeRanks.get(item.id);
+		const rank = rankingOf(item.collectionId).indexOf(item.id) + 1;
+		return rank || undefined;
+	},
+	/** Fiches avec image pas encore classées. */
+	unranked(collectionId: string): ListItem[] {
+		const ranked = new Set(rankingOf(collectionId));
+		return inCollection(collectionId).filter((item) => isRankable(item) && !ranked.has(item.id));
 	},
 	/** Fiche de la collection déjà nommée ainsi ; undefined si le nom est libre ou si rien n'est chargé. */
 	sameName(collectionId: string, name: string, exceptId?: string): ListItem | undefined {
@@ -393,6 +414,19 @@ export async function deleteCollection(id: string): Promise<void> {
 	// Écrit après les collections : en cas d'échec, des tags orphelins restent, invisibles et sans effet.
 	if (currentTags.some((tag) => tag.collectionId === id))
 		await replaceTags(currentTags.filter((tag) => tag.collectionId !== id));
+}
+
+/**
+ * Classe une fiche au rang `index` (à partir de 0) de `ranked`, le classement effectif sans elle. Les ids de fiches
+ * supprimées pour de bon sont oubliés au passage.
+ */
+export function placeInRanking(collectionId: string, id: string, ranked: string[], index: number): Promise<void> {
+	const known = new Set((items ?? []).map((item) => item.id));
+	return replaceCollections(
+		loaded(collections).map((c) =>
+			c.id === collectionId ? { ...c, ranking: withRanked(c.ranking, ranked, id, index, known) } : c
+		)
+	);
 }
 
 const replaceSites = (collectionId: string, sites: Site[]): Promise<void> =>

@@ -7,6 +7,13 @@ import {
 	type TagFilter,
 	buildSiteUrl,
 	byName,
+	chooseInsertion,
+	duelsLeft,
+	insertionDone,
+	opponentIndex,
+	rankedIds,
+	startInsertion,
+	withRanked,
 	encodeUnderLimit,
 	entryLinks,
 	fitWithin,
@@ -459,5 +466,54 @@ describe('sites sur demande', () => {
 		expect(siteMode(off)).toBe('off');
 		expect(off.optIn).toBe(true);
 		expect(withSiteMode(off, 'all').optIn).toBeUndefined();
+	});
+});
+
+describe('classement', () => {
+	const items = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ id, imageType: 'image/webp' }));
+
+	it('ignore les fiches absentes ou sans image, sans réécrire le classement', () => {
+		const live = [...items.filter((item) => item.id !== 'b'), { id: 'x' }];
+		expect(rankedIds(['a', 'b', 'x', 'c', 'gone'], live)).toEqual(['a', 'c']);
+		expect(rankedIds(undefined, items)).toEqual([]);
+	});
+
+	it('trouve la place par dichotomie, en log2(n) duels au plus', () => {
+		const ranked = ['a', 'b', 'c', 'd', 'e'];
+		// La fiche à classer bat « d » et « e », perd contre « a », « b », « c » : 4e place.
+		const beats = new Set(['d', 'e']);
+		let insertion = startInsertion(ranked.length);
+		let duels = 0;
+		while (!insertionDone(insertion)) {
+			insertion = chooseInsertion(insertion, beats.has(ranked[opponentIndex(insertion)]));
+			duels++;
+		}
+		expect(insertion.lo).toBe(3);
+		expect(duels).toBeLessThanOrEqual(duelsLeft(startInsertion(ranked.length)));
+		expect(insertionDone(startInsertion(0))).toBe(true);
+	});
+
+	it('insère à son rang, garde les fiches hors classement effectif et retire celles qui n’existent plus', () => {
+		const known = new Set(['a', 'b', 'c', 't', 'n']);
+		// « t » est à la corbeille (hors classement effectif), « gone » n'existe plus.
+		const ranking = ['a', 't', 'b', 'gone', 'c'];
+		const ranked = ['a', 'b', 'c'];
+		expect(withRanked(ranking, ranked, 'n', 0, known)).toEqual(['n', 'a', 't', 'b', 'c']);
+		expect(withRanked(ranking, ranked, 'n', 2, known)).toEqual(['a', 't', 'b', 'n', 'c']);
+		expect(withRanked(ranking, ranked, 'n', 3, known)).toEqual(['a', 't', 'b', 'c', 'n']);
+		expect(withRanked(undefined, [], 'n', 0, known)).toEqual(['n']);
+		// Reclasser : la fiche quitte son ancienne place.
+		expect(withRanked(['a', 'b', 'c'], ['b', 'c'], 'a', 2, known)).toEqual(['b', 'c', 'a']);
+	});
+
+	it('trie par classement, non classées à la fin par nom', () => {
+		const rank = (id: string) => ({ z: 1, y: 2 })[id];
+		const sortable = [
+			{ id: 'a', name: 'A', createdAt: 0, updatedAt: 0 },
+			{ id: 'y', name: 'Y', createdAt: 0, updatedAt: 0 },
+			{ id: 'b', name: 'B', createdAt: 0, updatedAt: 0 },
+			{ id: 'z', name: 'Z', createdAt: 0, updatedAt: 0 }
+		];
+		expect(sortable.sort(sortBy('rank', 0, rank)).map((e) => e.id)).toEqual(['z', 'y', 'a', 'b']);
 	});
 });

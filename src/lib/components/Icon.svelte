@@ -20,7 +20,8 @@
 		import: 'M12 4v11M7 10l5 5 5-5M4 20h16',
 		tag: 'M3 12V4h8l10 10-8 8zM7.5 7.5h.01',
 		check: 'M5 12l5 5 9-10',
-		folder: 'M3 6h6l2 2h10v11H3z'
+		folder: 'M3 6h6l2 2h10v11H3z',
+		podium: 'M3 20h18M4 20v-6h5v6M9 20V8h6v12M15 20v-9h5v9'
 	} as const;
 
 	export type IconName = keyof typeof PATHS;

@@ -119,6 +119,17 @@
 				</span>
 			</div>
 
+			{#if entry.imageType}
+				{@const rank = entries.rankOf(entry)}
+				<div class="-mt-2 flex items-center gap-2 text-sm">
+					<Icon name="podium" class="size-4 opacity-60" />
+					<span class="text-base-content/60">
+						{rank ? `${rank === 1 ? '1re' : `${rank}e`} sur ${entries.ranking(entry.collectionId).length} au classement` : 'Pas encore classée'}
+					</span>
+					<a class="btn btn-ghost btn-xs" href="/ranking?id={entry.id}">{rank ? 'Reclasser' : 'Classer'}</a>
+				</div>
+			{/if}
+
 			{#if entries.tagsOf(entry).length}
 				<div class="-mt-2 flex flex-wrap gap-2">
 					{#each entries.tagsOf(entry) as tag (tag.id)}
