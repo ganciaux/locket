@@ -1,182 +1,110 @@
 <script lang="ts">
-	// Classement par duels : la fiche à classer affronte celle du milieu de la plage encore possible (voir model.ts).
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
+	// Gestion du classement de la collection active : fiches dans l'ordre, lancement des duels (voir duel/+page.svelte).
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import {
-		type Insertion,
-		chooseInsertion,
-		duelsLeft,
-		insertionDone,
-		isRankable,
-		opponentIndex,
-		startInsertion
-	} from '$lib/entries/model';
-	import { entries, loadEntries, placeInRanking } from '$lib/entries/store.svelte';
+	import { isRankable } from '$lib/entries/model';
+	import { type ListItem, entries, loadEntries, removeFromRanking, selectCollection } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
-	// `?id=` : reclasser cette fiche, puis revenir sur elle ; sinon, les fiches non classées l'une après l'autre.
-	const rerankId = page.url.searchParams.get('id');
-
-	let ready = $state(false);
 	let error = $state('');
-	let collectionId = $state('');
-	let candidateId = $state<string | null>(null);
-	// Classement effectif sans la fiche à classer, figé pendant ses duels.
-	let ranked = $state.raw<string[]>([]);
-	let insertion = $state<Insertion>(startInsertion(0));
-	let history = $state.raw<Insertion[]>([]);
-	let skipped = $state.raw<string[]>([]);
-	// Côté de la fiche à classer, tiré à chaque duel : toujours à gauche, elle serait favorisée.
-	let swap = $state(false);
-	let saving = $state(false);
+	let busy = $state(false);
 
-	const collection = $derived(entries.collections?.find((c) => c.id === collectionId));
-	const candidate = $derived(candidateId ? entries.find(candidateId) : undefined);
-	const opponent = $derived(insertionDone(insertion) ? undefined : entries.find(ranked[opponentIndex(insertion)]));
-	const rankedCount = $derived(collectionId ? entries.ranking(collectionId).length : 0);
-	const pending = $derived(collectionId ? entries.unranked(collectionId) : []);
+	loadEntries().catch((e) => (error = errorMessage(e)));
 
-	loadEntries().then(
-		() => {
-			const target = rerankId ? entries.find(rerankId) : undefined;
-			if (target && isRankable(target)) {
-				collectionId = target.collectionId;
-				start(target.id);
-			} else if (!rerankId && entries.active) {
-				collectionId = entries.active.id;
-				next();
-			}
-			ready = true;
-		},
-		(e) => (error = errorMessage(e))
-	);
+	const collection = $derived(entries.active);
+	const ranked = $derived(collection ? entries.ranking(collection.id).flatMap((id) => entries.find(id) ?? []) : []);
+	const unranked = $derived(collection ? entries.unranked(collection.id) : []);
+	const withoutImage = $derived((entries.activeItems ?? []).filter((item) => !isRankable(item)).length);
 
-	function start(id: string) {
-		candidateId = id;
-		ranked = entries.ranking(collectionId).filter((other) => other !== id);
-		insertion = startInsertion(ranked.length);
-		history = [];
-		swap = Math.random() < 0.5;
-		// La toute première fiche classée n'a pas d'adversaire.
-		if (insertionDone(insertion)) save();
-	}
-
-	function next() {
-		const choices = entries.unranked(collectionId).filter((item) => !skipped.includes(item.id));
-		if (choices.length) start(choices[Math.floor(Math.random() * choices.length)].id);
-		else candidateId = null;
-	}
-
-	function choose(candidateWins: boolean) {
-		history = [...history, insertion];
-		insertion = chooseInsertion(insertion, candidateWins);
-		swap = Math.random() < 0.5;
-		if (insertionDone(insertion)) save();
-	}
-
-	function undo() {
-		insertion = history[history.length - 1];
-		history = history.slice(0, -1);
-	}
-
-	function skip() {
-		if (candidateId) skipped = [...skipped, candidateId];
-		next();
-	}
-
-	async function save() {
-		if (!candidateId) return;
-		saving = true;
+	async function remove(item: ListItem) {
+		busy = true;
 		error = '';
 		try {
-			await placeInRanking(collectionId, candidateId, ranked, insertion.lo);
-			if (rerankId) await goto(`/entry/${rerankId}`, { replaceState: true });
-			else next();
+			await removeFromRanking(item.collectionId, item.id);
 		} catch (e) {
 			error = errorMessage(e);
 		} finally {
-			saving = false;
+			busy = false;
 		}
 	}
 </script>
 
-<a href={rerankId ? `/entry/${rerankId}` : '/'} class="btn btn-ghost btn-sm mb-4 -ml-2">
-	<Icon name="back" class="size-4" />
-	{rerankId ? 'Retour à la fiche' : 'Mes fiches'}
-</a>
+{#snippet row(item: ListItem, rank?: number)}
+	<li class="bg-base-100 rounded-box flex items-center gap-2 p-2 shadow-sm">
+		{#if rank}<span class="badge badge-sm badge-neutral shrink-0">#{rank}</span>{/if}
+		<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover" />
+		<a class="link-hover min-w-0 flex-1 truncate text-sm font-semibold" href="/entry/{item.id}">{item.name}</a>
+		<a
+			class="btn btn-ghost btn-sm btn-square shrink-0"
+			href="/ranking/duel?id={item.id}"
+			aria-label="{rank ? 'Reclasser' : 'Classer'} {item.name}"
+			title={rank ? 'Reclasser' : 'Classer'}
+		>
+			<Icon name="podium" class="size-4" />
+		</a>
+		{#if rank}
+			<button
+				class="btn btn-ghost btn-sm btn-square shrink-0"
+				disabled={busy}
+				aria-label="Retirer {item.name} du classement"
+				title="Retirer du classement"
+				onclick={() => remove(item)}
+			>
+				<Icon name="close" class="size-4" />
+			</button>
+		{/if}
+	</li>
+{/snippet}
 
-<h1 class="text-2xl font-bold">Classement</h1>
-{#if collection}
-	<p class="text-base-content/60 mb-4 text-sm">
-		{collection.name} · {rankedCount} classée{rankedCount > 1 ? 's' : ''}, {pending.length} à classer
-	</p>
-{/if}
+<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
+
+<h1 class="mb-3 text-2xl font-bold">Classement</h1>
 
 <ErrorAlert message={error} />
 
-{#if !ready && !error}
+{#if !error && !entries.items}
 	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
-{:else if candidate && opponent}
-	<p class="mb-3 font-semibold">Laquelle préférez-vous ?</p>
-	<div class="grid grid-cols-2 gap-3">
-		{#each swap ? [opponent, candidate] : [candidate, opponent] as item (item.id)}
-			<button
-				type="button"
-				class="card bg-base-100 cursor-pointer overflow-hidden text-left shadow-sm transition hover:shadow-md disabled:opacity-60"
-				disabled={saving}
-				aria-label="Préférer {item.name}"
-				onclick={() => choose(item.id === candidate.id)}
-			>
-				<figure class="bg-primary/10 aspect-square">
-					{#if item.thumbUrl}
-						<img src={item.thumbUrl} alt="" class="size-full object-cover" />
-					{:else}
-						<span class="text-primary text-5xl font-bold" aria-hidden="true">{item.name.charAt(0).toUpperCase()}</span>
-					{/if}
-				</figure>
-				<span class="truncate px-3 py-2 text-sm font-semibold">{item.name}</span>
-			</button>
-		{/each}
-	</div>
-	<p class="text-base-content/60 mt-3 text-xs" role="status">
-		Encore {duelsLeft(insertion)} duel{duelsLeft(insertion) > 1 ? 's' : ''} au plus pour « {candidate.name} ».
-	</p>
-	<div class="mt-4 flex flex-wrap gap-2">
-		<button class="btn btn-sm" disabled={!history.length || saving} onclick={undo}>Annuler le dernier choix</button>
-		{#if !rerankId}
-			<button class="btn btn-ghost btn-sm" disabled={saving} onclick={skip}>Passer cette fiche</button>
-		{/if}
-	</div>
-{:else if candidate}
-	{#if error}
-		<button class="btn btn-primary mt-4" onclick={save}>Réessayer</button>
-	{:else}
-		<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+{:else if !collection}
+	<p class="alert alert-info alert-soft">Aucune collection.</p>
+{:else}
+	{#if (entries.collections?.length ?? 0) > 1}
+		<select
+			class="select select-sm mb-3 w-full"
+			aria-label="Collection"
+			value={collection.id}
+			onchange={(event) => selectCollection(event.currentTarget.value)}
+		>
+			{#each entries.collections ?? [] as option (option.id)}
+				<option value={option.id}>{option.name}</option>
+			{/each}
+		</select>
 	{/if}
-{:else if ready}
-	<p class="alert alert-info alert-soft">
-		{#if !collection}
-			{rerankId ? 'Fiche introuvable, ou sans image : seules les fiches avec image se classent.' : 'Aucune collection.'}
-		{:else if rankedCount + pending.length === 0}
-			Aucune fiche avec image dans cette collection : seules les fiches avec image se classent.
-		{:else if skipped.length}
-			Plus de fiche à classer pour l'instant ({skipped.length} passée{skipped.length > 1 ? 's' : ''}).
-		{:else}
-			Toutes les fiches avec image sont classées.
-		{/if}
+	<p class="text-base-content/60 mb-3 text-sm">
+		{collection.name} · {ranked.length} classée{ranked.length > 1 ? 's' : ''}, {unranked.length} à classer{withoutImage
+			? ` · ${withoutImage} sans image, non classable${withoutImage > 1 ? 's' : ''}`
+			: ''}
 	</p>
-	<div class="mt-4 flex flex-wrap gap-2">
-		{#if skipped.length}
-			<button
-				class="btn btn-sm"
-				onclick={() => {
-					skipped = [];
-					next();
-				}}>Reprendre les fiches passées</button
-			>
-		{/if}
-		<a class="btn btn-primary btn-sm" href="/">Voir la liste</a>
-	</div>
+	{#if unranked.length}
+		<a class="btn btn-primary mb-4" href="/ranking/duel"><Icon name="podium" class="size-4" /> Lancer le classement ({unranked.length})</a>
+	{:else if ranked.length}
+		<p class="alert alert-success alert-soft mb-4">Toutes les fiches avec image sont classées.</p>
+	{:else}
+		<p class="alert alert-info alert-soft">Aucune fiche avec image dans cette collection : seules les fiches avec image se classent.</p>
+	{/if}
+
+	{#if ranked.length}
+		<ol class="mb-4 flex flex-col gap-2">
+			{#each ranked as item, i (item.id)}
+				{@render row(item, i + 1)}
+			{/each}
+		</ol>
+	{/if}
+	{#if unranked.length}
+		<h2 class="mb-2 font-semibold">À classer</h2>
+		<ul class="flex flex-col gap-2">
+			{#each unranked as item (item.id)}
+				{@render row(item)}
+			{/each}
+		</ul>
+	{/if}
 {/if}

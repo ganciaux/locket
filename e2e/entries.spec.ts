@@ -136,6 +136,7 @@ test('colle une image dans le formulaire, sans gêner le collage de texte', asyn
 	await signUp(page);
 	await addFirstCollection(page);
 	await page.locator('a[href="/entry/new"]').first().click();
+	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
 
 	const paste = (withImage: boolean) =>
 		page.evaluate(async (image) => {
@@ -537,7 +538,7 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 		await page.locator('a[href="/entry/new"]').first().click();
 		await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
 		await page.evaluate(async () => {
-			const canvas = Object.assign(document.createElement('canvas'), { width: 8, height: 8 });
+			const canvas = Object.assign(document.createElement('canvas'), { width: 400, height: 400 });
 			const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
 			const data = new DataTransfer();
 			data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
@@ -567,10 +568,29 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await goHome(page);
 	await page.getByLabel('Trier par').selectOption('rank');
 	await page.getByRole('link', { name: 'Classer (3)' }).click();
-	await duel(page.getByText('Toutes les fiches avec image sont classées.'));
-	await expect(page.getByText('3 classées, 0 à classer')).toBeVisible();
+	const allRanked = page.getByText('Toutes les fiches avec image sont classées.');
+	await duel(allRanked);
 
-	await page.getByRole('link', { name: 'Voir la liste' }).click();
+	// Gestion : les fiches dans l'ordre, retrait, puis classement relancé depuis les paramètres.
+	await page.getByRole('link', { name: 'Voir le classement' }).click();
+	const rows = page.locator('ol li');
+	await expect(rows).toHaveCount(3);
+	await expect(rows.first()).toContainText('Alpha');
+	await expect(rows.nth(2)).toContainText('Charlie');
+	await page.getByRole('button', { name: 'Retirer Charlie du classement' }).click();
+	await expect(rows).toHaveCount(2);
+	await expect(page.getByText('2 classées, 1 à classer · 1 sans image, non classable')).toBeVisible();
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer le classement' }).click();
+	await page.getByRole('link', { name: 'Lancer le classement (1)' }).click();
+	// Image complète et non miniature (300 px au plus).
+	await expect.poll(() => page.locator('figure img').first().evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
+	await duel(allRanked);
+	await page.getByRole('link', { name: 'Voir le classement' }).click();
+	await expect(rows).toHaveCount(3);
+
+	await goHome(page);
 	await page.getByLabel('Trier par').selectOption('rank');
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	await expect(page.locator('li.card').first()).toContainText('Alpha');
@@ -593,4 +613,6 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await page.getByRole('link', { name: 'Reclasser' }).click();
 	await page.getByRole('button', { name: 'Préférer Charlie', exact: true }).click();
 	await expect(page.getByText('2e sur 2 au classement')).toBeVisible();
+	await page.getByRole('button', { name: 'Retirer', exact: true }).click();
+	await expect(page.getByText('Pas encore classée')).toBeVisible();
 });

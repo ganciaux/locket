@@ -175,6 +175,7 @@
 			<h2 class="card-title text-lg">Collections</h2>
 			<p class="text-base-content/60 -mt-1 text-sm">Manga, Chanteurs, Sportifs… : chaque fiche appartient à une collection.</p>
 			<a class="btn btn-outline btn-primary self-start" href="/collections"><Icon name="folder" class="size-4" /> Gérer les collections</a>
+			<a class="btn btn-outline btn-primary self-start" href="/ranking"><Icon name="podium" class="size-4" /> Gérer le classement</a>
 		</div>
 	</section>
 

@@ -416,18 +416,21 @@ export async function deleteCollection(id: string): Promise<void> {
 		await replaceTags(currentTags.filter((tag) => tag.collectionId !== id));
 }
 
+const replaceRanking = (collectionId: string, change: (ranking: string[] | undefined) => string[]): Promise<void> =>
+	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, ranking: change(c.ranking) } : c)));
+
 /**
  * Classe une fiche au rang `index` (à partir de 0) de `ranked`, le classement effectif sans elle. Les ids de fiches
  * supprimées pour de bon sont oubliés au passage.
  */
 export function placeInRanking(collectionId: string, id: string, ranked: string[], index: number): Promise<void> {
 	const known = new Set((items ?? []).map((item) => item.id));
-	return replaceCollections(
-		loaded(collections).map((c) =>
-			c.id === collectionId ? { ...c, ranking: withRanked(c.ranking, ranked, id, index, known) } : c
-		)
-	);
+	return replaceRanking(collectionId, (ranking) => withRanked(ranking, ranked, id, index, known));
 }
+
+/** La fiche redevient non classée ; les suivantes remontent d'un rang. */
+export const removeFromRanking = (collectionId: string, id: string): Promise<void> =>
+	replaceRanking(collectionId, (ranking = []) => ranking.filter((other) => other !== id));
 
 const replaceSites = (collectionId: string, sites: Site[]): Promise<void> =>
 	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, sites } : c)));

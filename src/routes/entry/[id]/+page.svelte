@@ -1,58 +1,25 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { session } from '$lib/auth/session.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
+	import FullImage from '$lib/components/FullImage.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import Rating from '$lib/components/Rating.svelte';
-	import { bytesToUrl } from '$lib/entries/images';
 	import { TRASH_DAYS, countryFlag, countryName, formatRating } from '$lib/entries/model';
-	import { getImage } from '$lib/entries/repository';
-	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
+	import { deleteForever, entries, loadEntries, rateEntry, removeFromRanking, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
 	let error = $state('');
-	let imageUrl = $state<string | null>(null);
-	let imageLoading = $state(false);
 	let confirmDelete = $state(false);
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
 	const id = $derived(page.params.id ?? '');
 	const entry = $derived(entries.find(id));
-
-	// L'image complète n'est téléchargée et déchiffrée qu'ici, puis libérée en quittant la page.
-	$effect(() => {
-		const { user, dek } = session;
-		const type = entry?.imageType;
-		if (!user || !dek || !type) return;
-		let url: string | null = null;
-		let cancelled = false;
-		imageLoading = true;
-		getImage(user.uid, dek, id)
-			.then(
-				(bytes) => {
-					if (cancelled || !bytes) return;
-					url = bytesToUrl(bytes, type);
-					imageUrl = url;
-				},
-				(e) => (error = errorMessage(e))
-			)
-			// Aussi sans image (sauvegarde légère dans un compte recréé) : la miniature reste affichée.
-			.finally(() => {
-				if (!cancelled) imageLoading = false;
-			});
-		return () => {
-			cancelled = true;
-			if (url) URL.revokeObjectURL(url);
-			imageUrl = null;
-			imageLoading = false;
-		};
-	});
 
 	// Corbeille par défaut ; la suppression définitive emporte aussi l'image, sans retour possible.
 	let removeMode = $state<'trash' | 'forever'>('trash');
@@ -76,6 +43,16 @@
 		}
 	}
 
+	async function unrank() {
+		if (!entry) return;
+		error = '';
+		try {
+			await removeFromRanking(entry.collectionId, entry.id);
+		} catch (e) {
+			error = errorMessage(e);
+		}
+	}
+
 	const formatDate = (time: number) =>
 		new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 </script>
@@ -94,10 +71,14 @@
 	<article class="card bg-base-100 overflow-hidden shadow-sm">
 		{#if entry.imageType}
 			<figure class="bg-base-200 relative">
-				<img class="max-h-[70vh] w-full object-contain" src={imageUrl ?? entry.thumbUrl} alt={entry.name} />
-				{#if imageLoading}
-					<span class="loading loading-spinner text-primary absolute top-3 right-3"></span>
-				{/if}
+				<FullImage
+					{id}
+					type={entry.imageType}
+					thumbUrl={entry.thumbUrl}
+					alt={entry.name}
+					class="max-h-[70vh] w-full object-contain"
+					onfail={(e) => (error = errorMessage(e))}
+				/>
 			</figure>
 		{/if}
 		<div class="card-body gap-4">
@@ -126,7 +107,10 @@
 					<span class="text-base-content/60">
 						{rank ? `${rank === 1 ? '1re' : `${rank}e`} sur ${entries.ranking(entry.collectionId).length} au classement` : 'Pas encore classée'}
 					</span>
-					<a class="btn btn-ghost btn-xs" href="/ranking?id={entry.id}">{rank ? 'Reclasser' : 'Classer'}</a>
+					<a class="btn btn-ghost btn-xs" href="/ranking/duel?id={entry.id}">{rank ? 'Reclasser' : 'Classer'}</a>
+					{#if rank}
+						<button class="btn btn-ghost btn-xs" onclick={unrank}>Retirer</button>
+					{/if}
 				</div>
 			{/if}
 

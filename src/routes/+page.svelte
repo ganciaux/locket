@@ -443,7 +443,7 @@
 			{/if}
 			{#if listView.sort === 'rank' && entries.active}
 				{@const unranked = entries.unranked(entries.active.id).length}
-				<a class="btn btn-ghost btn-xs" href="/ranking" title="Classer les fiches par duels">
+				<a class="btn btn-ghost btn-xs" href="/ranking/duel" title="Classer les fiches par duels">
 					<Icon name="podium" class="size-4" /> Classer{unranked ? ` (${unranked})` : ''}
 				</a>
 			{/if}
