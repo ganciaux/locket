@@ -75,6 +75,7 @@
 	const clickExpands = $derived(!detailed && prefs.cardClick === 'expand');
 	const toggleOpen = (id: string) => (openId = openId === id ? null : id);
 	let error = $state('');
+	let searchInput = $state<HTMLInputElement>();
 	const backupInfo = readBackupInfo();
 	let remindBackup = $state(isReminderDue(backupInfo, Date.now()));
 
@@ -308,7 +309,26 @@
 	{/if}
 	<label class="input mb-3 w-full">
 		<Icon name="search" class="size-4 opacity-50" />
-		<input type="search" placeholder="Rechercher dans {entries.active?.name}" aria-label="Rechercher" bind:value={listView.query} />
+		<input
+			type="search"
+			placeholder="Rechercher dans {entries.active?.name}"
+			aria-label="Rechercher"
+			bind:this={searchInput}
+			bind:value={listView.query}
+		/>
+		{#if listView.query}
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs btn-circle -mr-1"
+				aria-label="Effacer la recherche"
+				onclick={() => {
+					listView.query = '';
+					searchInput?.focus();
+				}}
+			>
+				<Icon name="close" class="size-4" />
+			</button>
+		{/if}
 	</label>
 
 	<!--

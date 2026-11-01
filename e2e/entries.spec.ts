@@ -493,3 +493,21 @@ test('site sur demande : absent tant que la fiche ne l’active pas, avec son pr
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('link', { name: 'wiki', exact: true })).toHaveAttribute('href', 'https://wiki.fr/model/name');
 });
+
+test('recherche : filtre la liste, effacée d’un clic', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Jane Roe');
+	await createEntry(page, 'John Doe');
+	await goHome(page);
+
+	const cards = page.locator('li.card');
+	const search = page.getByLabel('Rechercher');
+	await expect(page.getByRole('button', { name: 'Effacer la recherche' })).toHaveCount(0);
+	await search.fill('jane');
+	await expect(cards).toHaveCount(1);
+	await page.getByRole('button', { name: 'Effacer la recherche' }).click();
+	await expect(search).toHaveValue('');
+	await expect(search).toBeFocused();
+	await expect(cards).toHaveCount(2);
+});
