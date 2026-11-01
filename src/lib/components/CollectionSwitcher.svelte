@@ -44,6 +44,9 @@
 			<li class="border-base-200 mt-1 border-t pt-1">
 				<a href="/collections" onclick={() => (open = false)}><Icon name="settings" class="size-4" /> Gérer les collections</a>
 			</li>
+			<li>
+				<a href="/ranking" onclick={() => (open = false)}><Icon name="podium" class="size-4" /> Gérer le classement</a>
+			</li>
 		</ul>
 	</details>
 {/if}

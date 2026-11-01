@@ -601,6 +601,12 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await page.getByRole('link', { name: 'Voir le classement' }).click();
 	await expect(rows).toHaveCount(3);
 
+	// Aussi accessible depuis le menu des collections.
+	await goHome(page);
+	await page.locator('summary').first().click();
+	await page.getByRole('link', { name: 'Gérer le classement' }).click();
+	await expect(page.getByRole('heading', { name: 'Classement' })).toBeVisible();
+
 	await goHome(page);
 	await page.getByLabel('Trier par').selectOption('rank');
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
