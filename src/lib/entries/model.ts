@@ -50,6 +50,8 @@ export type Collection = {
 	sites?: Site[];
 	/** Classement par duels : ids de la meilleure fiche à la moins bonne ; une fiche absente n'est pas classée. */
 	ranking?: string[];
+	/** Nouveau classement en cours : reçoit les duels, puis remplace `ranking` une fois terminé. */
+	rankingDraft?: string[];
 };
 
 /** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
@@ -355,6 +357,15 @@ export function withRanked(
 	const at =
 		index < ranked.length ? rest.indexOf(ranked[index]) : index > 0 ? rest.indexOf(ranked[index - 1]) + 1 : 0;
 	return [...rest.slice(0, at), id, ...rest.slice(at)];
+}
+
+// ---------------------------------------------------------------------------
+// Navigation entre fiches
+
+/** Position de `id` dans `ids` et ses voisines ; null s'il n'y figure pas. Pas de boucle : les extrémités s'arrêtent. */
+export function neighbours(ids: string[], id: string): { position: number; count: number; previous?: string; next?: string } | null {
+	const index = ids.indexOf(id);
+	return index < 0 ? null : { position: index + 1, count: ids.length, previous: ids[index - 1], next: ids[index + 1] };
 }
 
 // ---------------------------------------------------------------------------

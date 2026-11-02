@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { session } from '$lib/auth/session.svelte';
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
@@ -9,6 +10,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
+	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
 	import { listView } from '$lib/entries/listView.svelte';
 	import {
 		MAX_LABEL_LENGTH,
@@ -101,6 +103,15 @@
 		})
 	);
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
+
+	// La fiche ouverte navigue dans ces résultats, filtres et tri compris.
+	beforeNavigate(({ to }) => {
+		if (to?.route.id === '/entry/[id]') rememberEntryNav(results.map((item) => item.id), '/', 'Mes fiches');
+	});
+	afterNavigate(({ from }) => {
+		if (from?.route.id?.startsWith('/entry/[id]')) restoreEntryNavScroll('/');
+	});
+
 	// Pays présents dans la collection, avec leur nombre de fiches, par nom.
 	const countries = $derived.by(() => {
 		const counts = new Map<string, number>();

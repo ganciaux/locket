@@ -14,7 +14,7 @@
 		opponentIndex,
 		startInsertion
 	} from '$lib/entries/model';
-	import { entries, loadEntries, placeInRanking } from '$lib/entries/store.svelte';
+	import { entries, finishNewRanking, loadEntries, placeInRanking } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	// `?id=` : reclasser cette fiche, puis repartir ; sinon, les fiches non classées l'une après l'autre.
@@ -37,12 +37,14 @@
 	// Côté de la fiche à classer, tiré à chaque duel : toujours à gauche, elle serait favorisée.
 	let swap = $state(false);
 	let saving = $state(false);
+	let draftFinished = $state(false);
 
 	const collection = $derived(entries.collections?.find((c) => c.id === collectionId));
 	const candidate = $derived(candidateId ? entries.find(candidateId) : undefined);
 	const opponent = $derived(insertionDone(insertion) ? undefined : entries.find(ranked[opponentIndex(insertion)]));
-	const rankedCount = $derived(collectionId ? entries.ranking(collectionId).length : 0);
+	const rankedCount = $derived(collectionId ? entries.rankingTarget(collectionId).length : 0);
 	const pending = $derived(collectionId ? entries.unranked(collectionId) : []);
+	const inDraft = $derived(!!collectionId && !!entries.rankingDraft(collectionId));
 
 	loadEntries().then(
 		() => {
@@ -61,7 +63,7 @@
 
 	function start(id: string) {
 		candidateId = id;
-		ranked = entries.ranking(collectionId).filter((other) => other !== id);
+		ranked = entries.rankingTarget(collectionId).filter((other) => other !== id);
 		insertion = startInsertion(ranked.length);
 		history = [];
 		swap = Math.random() < 0.5;
@@ -71,8 +73,26 @@
 
 	function next() {
 		const choices = entries.unranked(collectionId).filter((item) => !skipped.includes(item.id));
-		if (choices.length) start(choices[Math.floor(Math.random() * choices.length)].id);
-		else candidateId = null;
+		if (choices.length) {
+			start(choices[Math.floor(Math.random() * choices.length)].id);
+			return;
+		}
+		candidateId = null;
+		// Toutes les fiches sont passées par les duels : le nouveau classement remplace l'ancien.
+		if (entries.rankingDraft(collectionId) && !skipped.length) finishDraft();
+	}
+
+	async function finishDraft() {
+		saving = true;
+		error = '';
+		try {
+			await finishNewRanking(collectionId);
+			draftFinished = true;
+		} catch (e) {
+			error = errorMessage(e);
+		} finally {
+			saving = false;
+		}
 	}
 
 	function choose(candidateWins: boolean) {
@@ -110,7 +130,7 @@
 
 <a href={backHref} class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Retour</a>
 
-<h1 class="text-2xl font-bold">Classement</h1>
+<h1 class="text-2xl font-bold">{inDraft ? 'Nouveau classement' : 'Classement'}</h1>
 {#if collection}
 	<p class="text-base-content/60 mb-4 text-sm">
 		{collection.name} · {rankedCount} classée{rankedCount > 1 ? 's' : ''}, {pending.length} à classer
@@ -164,7 +184,9 @@
 	{/if}
 {:else if ready}
 	<p class="alert alert-info alert-soft">
-		{#if !collection}
+		{#if draftFinished}
+			Nouveau classement terminé : il remplace le précédent.
+		{:else if !collection}
 			{rerankId ? 'Fiche introuvable, ou sans image : seules les fiches avec image se classent.' : 'Aucune collection.'}
 		{:else if rankedCount + pending.length === 0}
 			Aucune fiche avec image dans cette collection : seules les fiches avec image se classent.
@@ -183,6 +205,12 @@
 					next();
 				}}>Reprendre les fiches passées</button
 			>
+			{#if inDraft}
+				<button class="btn btn-sm" disabled={saving} onclick={finishDraft}>Terminer sans elles</button>
+			{/if}
+		{/if}
+		{#if error && inDraft && !skipped.length}
+			<button class="btn btn-sm" disabled={saving} onclick={finishDraft}>Réessayer</button>
 		{/if}
 		<a class="btn btn-primary btn-sm" href="/ranking">Voir le classement</a>
 	</div>

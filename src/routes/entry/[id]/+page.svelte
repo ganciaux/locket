@@ -9,7 +9,8 @@
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
-	import { TRASH_DAYS, countryFlag, countryName, formatRating } from '$lib/entries/model';
+	import { entryNav } from '$lib/entries/entryNav.svelte';
+	import { TRASH_DAYS, countryFlag, countryName, formatRating, neighbours } from '$lib/entries/model';
 	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -23,11 +24,36 @@
 	const id = $derived(page.params.id ?? '');
 	const entry = $derived(entries.find(id));
 
+	// Liste d'origine si la fiche y figure (voir entryNav) ; sinon sa collection, par nom.
+	const origin = $derived(entryNav.current?.ids.includes(id) ? entryNav.current : null);
+	const navIds = $derived(
+		(origin?.ids ?? (entry ? entries.siblings(entry).map((item) => item.id) : [])).filter((other) => entries.find(other))
+	);
+	const position = $derived(neighbours(navIds, id));
+	const backHref = $derived(origin?.backHref ?? '/');
+	const backLabel = $derived(origin?.backLabel ?? 'Mes fiches');
+
+	// Remplace l'adresse : le retour du navigateur ramène à la page d'origine, pas à chaque fiche parcourue.
+	const open = (other: string | undefined) => other && goto(`/entry/${other}`, { replaceState: true });
+
+	function onKeydown(event: KeyboardEvent) {
+		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+		if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable]')) return;
+		if (event.key === 'ArrowLeft') open(position?.previous);
+		if (event.key === 'ArrowRight') open(position?.next);
+	}
+
+	// Le composant reste en place d'une fiche à l'autre : une confirmation ouverte ne doit pas suivre.
+	$effect(() => {
+		void id;
+		confirmDelete = confirmUnrank = false;
+	});
+
 	// Corbeille par défaut ; la suppression définitive emporte aussi l'image, sans retour possible.
 	let removeMode = $state<'trash' | 'forever'>('trash');
 	const removal = formAction(async () => {
 		if (entry) await (removeMode === 'forever' ? deleteForever([entry]) : trashEntries([entry]));
-		await goto('/', { replaceState: true });
+		await goto(backHref, { replaceState: true });
 	});
 
 	// Notée directement depuis la fiche : enregistrée aussitôt, comme « Cacher ».
@@ -49,7 +75,34 @@
 		new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 </script>
 
-<a href="/" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Mes fiches</a>
+<svelte:window onkeydown={onKeydown} />
+
+<div class="mb-4 flex items-center gap-2">
+	<a href={backHref} class="btn btn-ghost btn-sm -ml-2"><Icon name="back" class="size-4" /> {backLabel}</a>
+	{#if position && position.count > 1}
+		<div class="ml-auto flex items-center gap-1">
+			<button
+				class="btn btn-ghost btn-sm btn-square"
+				disabled={!position.previous}
+				aria-label="Fiche précédente"
+				title="Fiche précédente (flèche gauche)"
+				onclick={() => open(position.previous)}
+			>
+				<Icon name="back" class="size-4" />
+			</button>
+			<span class="text-base-content/60 text-xs" role="status">{position.position} / {position.count}</span>
+			<button
+				class="btn btn-ghost btn-sm btn-square"
+				disabled={!position.next}
+				aria-label="Fiche suivante"
+				title="Fiche suivante (flèche droite)"
+				onclick={() => open(position.next)}
+			>
+				<Icon name="forward" class="size-4" />
+			</button>
+		</div>
+	{/if}
+</div>
 
 <ErrorAlert message={error} />
 
@@ -63,14 +116,16 @@
 	<article class="card bg-base-100 overflow-hidden shadow-sm">
 		{#if entry.imageType}
 			<figure class="bg-base-200 relative">
-				<FullImage
-					{id}
-					type={entry.imageType}
-					thumbUrl={entry.thumbUrl}
-					alt={entry.name}
-					class="max-h-[70vh] w-full object-contain"
-					onfail={(e) => (error = errorMessage(e))}
-				/>
+				{#key id}
+					<FullImage
+						{id}
+						type={entry.imageType}
+						thumbUrl={entry.thumbUrl}
+						alt={entry.name}
+						class="max-h-[70vh] w-full object-contain"
+						onfail={(e) => (error = errorMessage(e))}
+					/>
+				{/key}
 			</figure>
 		{/if}
 		<div class="card-body gap-4">
@@ -160,7 +215,7 @@
 					<button class="btn btn-outline btn-error" onclick={() => (confirmDelete = true)}>
 						<Icon name="trash" class="size-4" /> Supprimer
 					</button>
-					<a class="btn btn-ghost" href="/"><Icon name="back" class="size-4" /> Retour</a>
+					<a class="btn btn-ghost" href={backHref}><Icon name="back" class="size-4" /> Retour</a>
 				</div>
 			{/if}
 		</div>

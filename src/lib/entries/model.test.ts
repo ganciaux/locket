@@ -23,6 +23,7 @@ import {
 	matchesFilter,
 	matchesSearch,
 	moveItem,
+	neighbours,
 	findSameName,
 	siteMode,
 	siteShown,
@@ -65,6 +66,18 @@ describe('corbeille', () => {
 		expect(isTrashExpired(undefined, now)).toBe(false);
 		expect(isTrashExpired(now - 29 * day, now)).toBe(false);
 		expect(isTrashExpired(now - 30 * day, now)).toBe(true);
+	});
+});
+
+describe('neighbours', () => {
+	it('donne la position et les voisines, sans boucler aux extrémités', () => {
+		expect(neighbours(['a', 'b', 'c'], 'b')).toEqual({ position: 2, count: 3, previous: 'a', next: 'c' });
+		expect(neighbours(['a', 'b'], 'a')).toEqual({ position: 1, count: 2, previous: undefined, next: 'b' });
+		expect(neighbours(['a', 'b'], 'b')).toEqual({ position: 2, count: 2, previous: 'a', next: undefined });
+	});
+
+	it('renvoie null pour une fiche hors de la liste', () => {
+		expect(neighbours(['a'], 'z')).toBeNull();
 	});
 });
 

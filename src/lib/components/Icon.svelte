@@ -4,6 +4,7 @@
 		plus: 'M12 5v14M5 12h14',
 		close: 'M6 6l12 12M18 6 6 18',
 		back: 'M15 18l-6-6 6-6',
+		forward: 'M9 18l6-6-6-6',
 		chevronDown: 'M6 9l6 6 6-6',
 		chevronRight: 'M9 6l6 6-6 6',
 		chevronUp: 'M6 15l6-6 6 6',

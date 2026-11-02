@@ -1,5 +1,5 @@
 /**
- * Préparation des images dans le navigateur (canvas) : image principale ≤ 1600 px, miniature ≤ 300 px.
+ * Préparation des images dans le navigateur (canvas) : image principale ≤ 1600 px, miniature ≤ 640 px.
  * WebP si le navigateur sait l'encoder, sinon JPEG (Safari renvoie du PNG pour un type non supporté).
  */
 import type { Bytes } from '$lib/crypto/encoding';
@@ -7,8 +7,9 @@ import { encodeUnderLimit, fitWithin } from './model';
 import type { PreparedImage } from './repository';
 
 const IMAGE_MAX_PX = 1600;
-const THUMB_MAX_PX = 300;
-const THUMB_QUALITY = 0.7;
+// Carte L sur téléphone : toute la largeur, soit environ 1000 pixels physiques sur un écran 3x.
+const THUMB_MAX_PX = 640;
+const THUMB_QUALITY = 0.75;
 
 let supportsWebp: Promise<boolean> | undefined;
 

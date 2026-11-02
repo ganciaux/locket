@@ -71,6 +71,10 @@ const activeItems = $derived(liveItems && liveItems.filter((item) => item.collec
 const inCollection = (collectionId: string) => (liveItems ?? []).filter((item) => item.collectionId === collectionId);
 const rankingOf = (collectionId: string): string[] =>
 	rankedIds(collections?.find((c) => c.id === collectionId)?.ranking, inCollection(collectionId));
+const draftOf = (collectionId: string): string[] | null => {
+	const draft = collections?.find((c) => c.id === collectionId)?.rankingDraft;
+	return draft ? rankedIds(draft, inCollection(collectionId)) : null;
+};
 // Rangs de la collection active (1 = la meilleure), pour les cartes et le tri.
 const activeRanks = $derived(new Map(active ? rankingOf(active.id).map((id, i) => [id, i + 1]) : []));
 const activeTags = $derived(tags && tags.filter((tag) => tag.collectionId === active?.id));
@@ -160,15 +164,21 @@ export const entries = {
 	},
 	/** Classement effectif d'une collection, de la meilleure fiche à la moins bonne. */
 	ranking: rankingOf,
+	/** Nouveau classement en cours, sans rapport avec les rangs affichés ; null s'il n'y en a pas. */
+	rankingDraft: draftOf,
+	/** Classement qui reçoit les duels : le nouveau s'il y en a un, sinon le classement actuel. */
+	rankingTarget(collectionId: string): string[] {
+		return draftOf(collectionId) ?? rankingOf(collectionId);
+	},
 	/** Rang dans sa collection ; undefined si la fiche n'est pas classée. */
 	rankOf(item: ListItem): number | undefined {
 		if (item.collectionId === active?.id) return activeRanks.get(item.id);
 		const rank = rankingOf(item.collectionId).indexOf(item.id) + 1;
 		return rank || undefined;
 	},
-	/** Fiches avec image pas encore classées. */
+	/** Fiches avec image pas encore classées, dans le classement qui reçoit les duels. */
 	unranked(collectionId: string): ListItem[] {
-		const ranked = new Set(rankingOf(collectionId));
+		const ranked = new Set(entries.rankingTarget(collectionId));
 		return inCollection(collectionId).filter((item) => isRankable(item) && !ranked.has(item.id));
 	},
 	/** Fiche de la collection déjà nommée ainsi ; undefined si le nom est libre ou si rien n'est chargé. */
@@ -177,6 +187,10 @@ export const entries = {
 	},
 	find(id: string): ListItem | undefined {
 		return liveItems?.find((item) => item.id === id);
+	},
+	/** Fiches de sa collection, par nom : navigation d'une fiche ouverte sans passer par une liste. Cachées selon la préférence. */
+	siblings(entry: ListItem): ListItem[] {
+		return inCollection(entry.collectionId).filter((item) => prefs.showHidden || !item.hidden || item.id === entry.id);
 	},
 	/** Tags connus d'une fiche : ceux de sa collection (les identifiants de tags supprimés sont ignorés). */
 	tagsOf(entry: { collectionId: string; tagIds?: string[] }): Tag[] {
@@ -416,21 +430,43 @@ export async function deleteCollection(id: string): Promise<void> {
 		await replaceTags(currentTags.filter((tag) => tag.collectionId !== id));
 }
 
-const replaceRanking = (collectionId: string, change: (ranking: string[] | undefined) => string[]): Promise<void> =>
-	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, ranking: change(c.ranking) } : c)));
+const updateRankings = (collectionId: string, change: (collection: Collection) => Partial<Collection>): Promise<void> =>
+	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, ...change(c) } : c)));
 
 /**
- * Classe une fiche au rang `index` (à partir de 0) de `ranked`, le classement effectif sans elle. Les ids de fiches
- * supprimées pour de bon sont oubliés au passage.
+ * Classe une fiche au rang `index` (à partir de 0) de `ranked`, le classement effectif sans elle, dans celui qui reçoit
+ * les duels. Les ids de fiches supprimées pour de bon sont oubliés au passage.
  */
 export function placeInRanking(collectionId: string, id: string, ranked: string[], index: number): Promise<void> {
 	const known = new Set((items ?? []).map((item) => item.id));
-	return replaceRanking(collectionId, (ranking) => withRanked(ranking, ranked, id, index, known));
+	return updateRankings(collectionId, ({ ranking, rankingDraft }) =>
+		rankingDraft
+			? { rankingDraft: withRanked(rankingDraft, ranked, id, index, known) }
+			: { ranking: withRanked(ranking, ranked, id, index, known) }
+	);
 }
 
-/** La fiche redevient non classée ; les suivantes remontent d'un rang. */
+/** La fiche redevient non classée, y compris dans un nouveau classement en cours ; les suivantes remontent d'un rang. */
 export const removeFromRanking = (collectionId: string, id: string): Promise<void> =>
-	replaceRanking(collectionId, (ranking = []) => ranking.filter((other) => other !== id));
+	updateRankings(collectionId, ({ ranking = [], rankingDraft }) => ({
+		ranking: ranking.filter((other) => other !== id),
+		rankingDraft: rankingDraft?.filter((other) => other !== id)
+	}));
+
+/** Repart de zéro à côté du classement actuel, qui reste affiché jusqu'à `finishNewRanking`. */
+export const startNewRanking = (collectionId: string): Promise<void> =>
+	updateRankings(collectionId, () => ({ rankingDraft: [] }));
+
+/** Le nouveau classement remplace l'actuel, même incomplet : les fiches absentes redeviennent non classées. */
+export const finishNewRanking = (collectionId: string): Promise<void> =>
+	updateRankings(collectionId, ({ ranking, rankingDraft }) => ({ ranking: rankingDraft ?? ranking, rankingDraft: undefined }));
+
+export const abandonNewRanking = (collectionId: string): Promise<void> =>
+	updateRankings(collectionId, () => ({ rankingDraft: undefined }));
+
+/** Toutes les fiches redeviennent non classées, nouveau classement en cours compris. */
+export const deleteRanking = (collectionId: string): Promise<void> =>
+	updateRankings(collectionId, () => ({ ranking: undefined, rankingDraft: undefined }));
 
 const replaceSites = (collectionId: string, sites: Site[]): Promise<void> =>
 	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, sites } : c)));
