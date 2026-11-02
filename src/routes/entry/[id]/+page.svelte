@@ -14,6 +14,7 @@
 	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
+	import { swipe } from '$lib/swipe';
 
 	let error = $state('');
 	let confirmDelete = $state(false);
@@ -113,7 +114,22 @@
 {:else if entry}
 	{@const collection = entries.collections?.find((c) => c.id === entry.collectionId)}
 	{@const links = entries.linksOf(entry)}
-	<article class="card bg-base-100 overflow-hidden shadow-sm">
+	<article
+		class="card bg-base-100 overflow-hidden shadow-sm"
+		use:swipe={{ onleft: () => open(position?.next), onright: () => open(position?.previous) }}
+	>
+		<header class="flex flex-col gap-1 p-4 sm:px-6">
+			<div class="flex items-start gap-2">
+				<h1 class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
+				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
+			</div>
+			{#if collection}
+				<p class="text-base-content/60 flex items-center gap-1 text-xs">
+					<Icon name="folder" class="size-3" />{collection.name}
+					{#if entry.country}<span aria-hidden="true">·</span><span class="mr-0.5">{countryFlag(entry.country)}</span><span>{countryName(entry.country)}</span>{/if}
+				</p>
+			{/if}
+		</header>
 		{#if entry.imageType}
 			<figure class="bg-base-200 relative">
 				{#key id}
@@ -122,25 +138,14 @@
 						type={entry.imageType}
 						thumbUrl={entry.thumbUrl}
 						alt={entry.name}
-						class="max-h-[70vh] w-full object-contain"
+						class="max-h-[60vh] w-full object-contain"
 						onfail={(e) => (error = errorMessage(e))}
 					/>
 				{/key}
 			</figure>
 		{/if}
 		<div class="card-body gap-4">
-			{#if collection}
-				<p class="text-base-content/60 -mb-3 flex items-center gap-1 text-xs">
-					<Icon name="folder" class="size-3" />{collection.name}
-					{#if entry.country}<span aria-hidden="true">·</span><span class="mr-0.5">{countryFlag(entry.country)}</span><span>{countryName(entry.country)}</span>{/if}
-				</p>
-			{/if}
-			<div class="flex items-start gap-2">
-				<h1 class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
-				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
-			</div>
-
-			<div class="-mt-2 flex items-center gap-2">
+			<div class="flex items-center gap-2">
 				<Rating value={entry.rating} onchange={rate} disabled={savingRating} />
 				<span class="text-base-content/60 text-sm">
 					{entry.rating ? `${formatRating(entry.rating)} / 5` : 'Pas encore notée'}

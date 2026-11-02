@@ -60,5 +60,38 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
 	}
 }
 
+/** Une miniature déjà à la taille maximale n'a rien à gagner à être refaite. */
+export async function isFullSizeThumb(thumb: Bytes, type: string): Promise<boolean> {
+	const source = await createImageBitmap(new Blob([thumb], { type }));
+	const fullSize = Math.max(source.width, source.height) >= THUMB_MAX_PX;
+	source.close();
+	return fullSize;
+}
+
+/** Refait une miniature depuis l'image stockée ; null si ce navigateur n'encode pas le format de la fiche (WebP sur Safari). */
+export async function rebuildThumb(image: Bytes, type: string): Promise<Bytes | null> {
+	if (type === 'image/webp' && (await outputType()) !== type) return null;
+	const source = await createImageBitmap(new Blob([image], { type }));
+	try {
+		return await encode(source, THUMB_MAX_PX, type, THUMB_QUALITY);
+	} finally {
+		source.close();
+	}
+}
+
+/** Couleurs d'une version 8 × 8 de l'image (RVB), pour comparer deux images : voir similar.ts. */
+export async function imageFingerprint(image: Bytes, type: string): Promise<Uint8ClampedArray> {
+	const source = await createImageBitmap(new Blob([image], { type }));
+	try {
+		const canvas = Object.assign(document.createElement('canvas'), { width: 8, height: 8 });
+		const context = canvas.getContext('2d', { willReadFrequently: true });
+		if (!context) throw new Error('Canvas indisponible.');
+		context.drawImage(source, 0, 0, 8, 8);
+		return context.getImageData(0, 0, 8, 8).data.filter((_, i) => i % 4 !== 3);
+	} finally {
+		source.close();
+	}
+}
+
 /** URL affichable pour des octets déchiffrés ; à libérer avec URL.revokeObjectURL. */
 export const bytesToUrl = (bytes: Bytes, type: string): string => URL.createObjectURL(new Blob([bytes], { type }));

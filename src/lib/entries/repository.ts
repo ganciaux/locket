@@ -4,11 +4,25 @@
  *   users/{uid}/images/{id}  : { image }         (lu seulement à l'ouverture d'une fiche)
  * Le SDK web lit les documents en entier : l'image à part évite de la télécharger pour afficher la liste.
  * AAD = "<id>/<champ>" : un chiffré déplacé vers une autre fiche ou un autre champ ne se déchiffre plus.
+ *   users/{uid}/meta/version : { token }         (aléa changé à chaque écriture de fiche, voir `commitEntries`)
  */
-import { type DocumentReference, collection, doc, getDoc, getDocs, limit, query, writeBatch } from 'firebase/firestore';
-import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson } from '$lib/crypto/crypto';
+import {
+	Bytes as FirestoreBytes,
+	type DocumentReference,
+	type Transaction,
+	collection,
+	doc,
+	getDoc,
+	getDocs,
+	limit,
+	query,
+	runTransaction,
+	writeBatch
+} from 'firebase/firestore';
+import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson, randomBytes } from '$lib/crypto/crypto';
 import type { Bytes } from '$lib/crypto/encoding';
-import { db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
+import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
+import { type CacheChanges, type CachedEntry, applyToCache, cachedToken, clearCache, fillCache, readCache } from './cache';
 import { type Entry, type EntryData, type Link, fitsInDoc, parseCountry, parseRating } from './model';
 
 type StoredEntry = { data: StoredEncrypted; thumb?: StoredEncrypted };
@@ -23,31 +37,56 @@ export type EntrySummary = Entry & { thumb?: Bytes };
 const entriesRef = (uid: string) => collection(db, 'users', uid, 'entries');
 const entryRef = (uid: string, id: string) => doc(db, 'users', uid, 'entries', id);
 const imageRef = (uid: string, id: string) => doc(db, 'users', uid, 'images', id);
+const versionRef = (uid: string) => doc(db, 'users', uid, 'meta', 'version');
 
-async function decryptSummary(dek: CryptoKey, id: string, stored: StoredEntry): Promise<EntrySummary> {
-	const data = await decryptJson<EntryData>(dek, fromStored(stored.data), `${id}/data`);
+const toCached = (id: string, stored: StoredEntry): CachedEntry => ({
+	id,
+	data: fromStored(stored.data),
+	...(stored.thumb && { thumb: fromStored(stored.thumb) })
+});
+
+/**
+ * Seule porte d'écriture des fiches : le jeton change dans la même transaction, un appareil à jour ne manque donc pas
+ * une modification faite par cette version de l'app (les règles Firestore ne l'imposent pas). La copie locale ne suit que si le jeton lu est le sien : sinon un autre appareil a écrit entre-temps,
+ * et elle sera rechargée au prochain déverrouillage.
+ * Une à la fois : en parallèle, les transactions se disputeraient le jeton jusqu'à échouer.
+ */
+function commitEntries(uid: string, write: (writes: Transaction) => void, changes: CacheChanges): Promise<void> {
+	const commit = commitQueue.then(() => commitNow(uid, write, changes));
+	commitQueue = commit.catch(() => {});
+	return commit;
+}
+
+let commitQueue: Promise<void> = Promise.resolve();
+
+async function commitNow(uid: string, write: (writes: Transaction) => void, changes: CacheChanges): Promise<void> {
+	const known = await cachedToken(uid);
+	const next = FirestoreBytes.fromUint8Array(randomBytes(16));
+	const inSync = await runTransaction(db, async (writes) => {
+		const version = await writes.get(versionRef(uid));
+		write(writes);
+		writes.set(versionRef(uid), { token: next });
+		return (version.data()?.token as FirestoreBytes | undefined)?.toBase64() === known;
+	});
+	if (known && inSync) await applyToCache(uid, known, next.toBase64(), changes);
+}
+
+async function decryptSummary(dek: CryptoKey, stored: CachedEntry): Promise<EntrySummary> {
+	const { id } = stored;
+	const data = await decryptJson<EntryData>(dek, stored.data, `${id}/data`);
 	// Une miniature abîmée ne doit pas rendre illisible une fiche saine : elle s'affiche sans.
-	const thumb = stored.thumb ? await decrypt(dek, fromStored(stored.thumb), `${id}/thumb`).catch(() => undefined) : undefined;
+	const thumb = stored.thumb ? await decrypt(dek, stored.thumb, `${id}/thumb`).catch(() => undefined) : undefined;
 	return { ...data, id, thumb };
 }
 
-/**
- * Une fiche illisible (altérée) n'empêche pas de lire les autres : `onUnreadable` reçoit son id.
- * Sans `onUnreadable`, l'erreur est levée.
- */
-export async function listEntries(
-	uid: string,
-	dek: CryptoKey,
-	onUnreadable?: (id: string) => void
-): Promise<EntrySummary[]> {
-	const snapshot = await getDocs(entriesRef(uid));
+async function decryptSummaries(dek: CryptoKey, stored: CachedEntry[], onUnreadable?: (id: string) => void) {
 	const results = await Promise.all(
-		snapshot.docs.map(async (d) => {
+		stored.map(async (entry) => {
 			try {
-				return await decryptSummary(dek, d.id, d.data() as StoredEntry);
+				return await decryptSummary(dek, entry);
 			} catch (e) {
 				if (!onUnreadable) throw e;
-				onUnreadable(d.id);
+				onUnreadable(entry.id);
 				return null;
 			}
 		})
@@ -55,9 +94,39 @@ export async function listEntries(
 	return results.filter((entry) => entry !== null);
 }
 
+/**
+ * Une fiche illisible (altérée) n'empêche pas de lire les autres : `onUnreadable` reçoit son id.
+ * Sans `onUnreadable`, l'erreur est levée.
+ * Le jeton est lu avant les fiches : une écriture entre les deux laisse au pire une copie à recharger, jamais une copie
+ * périmée sous un jeton à jour.
+ */
+export async function listEntries(
+	uid: string,
+	dek: CryptoKey,
+	onUnreadable?: (id: string) => void
+): Promise<EntrySummary[]> {
+	const version = await getDoc(versionRef(uid));
+	const token = (version.data()?.token as FirestoreBytes | undefined)?.toBase64();
+	const cached = token ? await readCache(uid, token) : null;
+	if (cached) {
+		let damaged = false;
+		const list = await decryptSummaries(dek, cached, () => (damaged = true));
+		// Une miniature perdue ici disparaîtrait de Firestore à la prochaine modification de la fiche.
+		const withThumb = new Set(cached.filter((entry) => entry.thumb).map((entry) => entry.id));
+		if (!damaged && !list.some((entry) => withThumb.has(entry.id) && !entry.thumb)) return list;
+		// La suppression des fiches illisibles agit sur Firestore : seule sa version peut les déclarer telles.
+		await clearCache();
+	}
+	const snapshot = await getDocs(entriesRef(uid));
+	const stored = snapshot.docs.map((d) => toCached(d.id, d.data() as StoredEntry));
+	// Hors réseau, le SDK peut répondre sans erreur avec une liste partielle ; après une déconnexion, plus rien à garder.
+	if (token && !snapshot.metadata.fromCache && auth.currentUser?.uid === uid) await fillCache(uid, token, stored);
+	return decryptSummaries(dek, stored, onUnreadable);
+}
+
 export async function getEntry(uid: string, dek: CryptoKey, id: string): Promise<EntrySummary | null> {
 	const snapshot = await getDoc(entryRef(uid, id));
-	return snapshot.exists() ? decryptSummary(dek, id, snapshot.data() as StoredEntry) : null;
+	return snapshot.exists() ? decryptSummary(dek, toCached(id, snapshot.data() as StoredEntry)) : null;
 }
 
 export async function getImage(uid: string, dek: CryptoKey, id: string): Promise<Bytes | null> {
@@ -111,20 +180,21 @@ export async function saveEntry(
 		...(input.hidden && { hidden: true })
 	};
 
-	const batch = writeBatch(db);
 	const stored: StoredEntry = { data: toStored(await encryptJson(dek, data, `${id}/data`)) };
 	const thumb = keepImage ? existing?.thumb : input.image?.thumb;
 	if (thumb) stored.thumb = toStored(await encrypt(dek, thumb, `${id}/thumb`));
 
-	if (input.image) {
-		const image = await encrypt(dek, input.image.image, `${id}/image`);
-		if (!fitsInDoc(image.data)) throw new Error('Image trop volumineuse.');
-		batch.set(imageRef(uid, id), { image: toStored(image) } satisfies StoredImage);
-	} else if (input.image === null) {
-		batch.delete(imageRef(uid, id));
-	}
-	batch.set(entryRef(uid, id), stored);
-	await batch.commit();
+	const image = input.image ? await encrypt(dek, input.image.image, `${id}/image`) : undefined;
+	if (image && !fitsInDoc(image.data)) throw new Error('Image trop volumineuse.');
+	await commitEntries(
+		uid,
+		(writes) => {
+			if (image) writes.set(imageRef(uid, id), { image: toStored(image) } satisfies StoredImage);
+			else if (input.image === null) writes.delete(imageRef(uid, id));
+			writes.set(entryRef(uid, id), stored);
+		},
+		{ put: [toCached(id, stored)] }
+	);
 
 	return { ...data, id, thumb };
 }
@@ -141,15 +211,19 @@ export async function createEntries(
 ): Promise<EntrySummary[]> {
 	const created: EntrySummary[] = [];
 	for (let start = 0; start < names.length; start += IMPORT_BATCH_SIZE) {
-		const batch = writeBatch(db);
+		const stored: CachedEntry[] = [];
 		for (const name of names.slice(start, start + IMPORT_BATCH_SIZE)) {
 			const id = doc(entriesRef(uid)).id;
 			const now = Date.now();
 			const data: EntryData = { collectionId, name, links: [], createdAt: now, updatedAt: now };
-			batch.set(entryRef(uid, id), { data: toStored(await encryptJson(dek, data, `${id}/data`)) } satisfies StoredEntry);
+			stored.push({ id, data: await encryptJson(dek, data, `${id}/data`) });
 			created.push({ ...data, id });
 		}
-		await batch.commit();
+		await commitEntries(
+			uid,
+			(writes) => stored.forEach(({ id, data }) => writes.set(entryRef(uid, id), { data: toStored(data) } satisfies StoredEntry)),
+			{ put: stored }
+		);
 	}
 	return created;
 }
@@ -166,28 +240,51 @@ export async function patchStoredEntries<T extends EntrySummary & { thumbUrl?: s
 ): Promise<T[]> {
 	const updated: T[] = [];
 	for (let start = 0; start < entries.length; start += IMPORT_BATCH_SIZE) {
-		const batch = writeBatch(db);
+		const patched: Pick<CachedEntry, 'id' | 'data'>[] = [];
+		const chunk: T[] = [];
 		for (const entry of entries.slice(start, start + IMPORT_BATCH_SIZE)) {
 			const next = { ...entry, ...patch(entry) };
 			const { id, thumb: _thumb, thumbUrl: _thumbUrl, ...data } = next;
-			batch.update(entryRef(uid, id), { data: toStored(await encryptJson(dek, data, `${id}/data`)) });
-			updated.push(next);
+			patched.push({ id, data: await encryptJson(dek, data, `${id}/data`) });
+			chunk.push(next);
 		}
-		await batch.commit();
+		await commitEntries(
+			uid,
+			(writes) => patched.forEach(({ id, data }) => writes.update(entryRef(uid, id), { data: toStored(data) })),
+			{ patch: patched }
+		);
+		updated.push(...chunk);
 	}
 	return updated;
 }
 
-export async function deleteEntries(uid: string, ids: string[]): Promise<void> {
-	await deleteInBatches(ids.flatMap((id) => [entryRef(uid, id), imageRef(uid, id)]));
+/** Remplace seulement des miniatures (IV neuf) : `data` et l'image ne sont pas retouchées. */
+export async function saveThumbs(uid: string, dek: CryptoKey, thumbs: { id: string; thumb: Bytes }[]): Promise<void> {
+	const patched = await Promise.all(thumbs.map(async ({ id, thumb }) => ({ id, thumb: await encrypt(dek, thumb, `${id}/thumb`) })));
+	await commitEntries(
+		uid,
+		(writes) => patched.forEach(({ id, thumb }) => writes.update(entryRef(uid, id), { thumb: toStored(thumb) })),
+		{ patch: patched }
+	);
 }
 
-export async function deleteEntry(uid: string, id: string): Promise<void> {
-	const batch = writeBatch(db);
-	batch.delete(entryRef(uid, id));
-	batch.delete(imageRef(uid, id));
-	await batch.commit();
+export async function deleteEntries(uid: string, ids: string[]): Promise<void> {
+	const size = MAX_BATCH_WRITES / 2; // fiche + image
+	for (let start = 0; start < ids.length; start += size) {
+		const chunk = ids.slice(start, start + size);
+		await commitEntries(
+			uid,
+			(writes) =>
+				chunk.forEach((id) => {
+					writes.delete(entryRef(uid, id));
+					writes.delete(imageRef(uid, id));
+				}),
+			{ remove: chunk }
+		);
+	}
 }
+
+export const deleteEntry = (uid: string, id: string): Promise<void> => deleteEntries(uid, [id]);
 
 // ---------------------------------------------------------------------------
 // Sauvegarde : documents bruts (toujours chiffrés), sans passer par la DEK.
@@ -230,24 +327,35 @@ export async function writeStoredEntries(
 	entries: StoredEntryCopy[],
 	includesImages: boolean
 ): Promise<void> {
-	let batch = writeBatch(db);
-	let writes = 0;
+	async function commit(chunk: StoredEntryCopy[]) {
+		await commitEntries(
+			uid,
+			(writes) => {
+				for (const entry of chunk) {
+					const stored: StoredEntry = { data: toStored(entry.data), ...(entry.thumb && { thumb: toStored(entry.thumb) }) };
+					writes.set(entryRef(uid, entry.id), stored);
+					if (entry.image) writes.set(imageRef(uid, entry.id), { image: toStored(entry.image) } satisfies StoredImage);
+					else if (includesImages) writes.delete(imageRef(uid, entry.id));
+				}
+			},
+			// Sans le champ image : le cache ne garde jamais d'image complète.
+			{ put: chunk.map(({ id, data, thumb }) => ({ id, data, ...(thumb && { thumb }) })) }
+		);
+	}
+
+	let chunk: StoredEntryCopy[] = [];
 	let bytes = 0;
 	for (const entry of entries) {
 		const size = entry.data.data.length + (entry.thumb?.data.length ?? 0) + (entry.image?.data.length ?? 0);
-		if (writes + 2 > MAX_BATCH_WRITES || (writes > 0 && bytes + size > MAX_BATCH_BYTES)) {
-			await batch.commit();
-			batch = writeBatch(db);
-			writes = bytes = 0;
+		if ((chunk.length + 1) * 2 > MAX_BATCH_WRITES || (chunk.length > 0 && bytes + size > MAX_BATCH_BYTES)) {
+			await commit(chunk);
+			chunk = [];
+			bytes = 0;
 		}
-		const stored: StoredEntry = { data: toStored(entry.data), ...(entry.thumb && { thumb: toStored(entry.thumb) }) };
-		batch.set(entryRef(uid, entry.id), stored);
-		if (entry.image) batch.set(imageRef(uid, entry.id), { image: toStored(entry.image) } satisfies StoredImage);
-		else if (includesImages) batch.delete(imageRef(uid, entry.id));
-		writes += 2;
+		chunk.push(entry);
 		bytes += size;
 	}
-	if (writes) await batch.commit();
+	if (chunk.length) await commit(chunk);
 }
 
 /** Supprime les fiches hors de `keep`, avec leurs images (restauration, suppression totale). Retourne leur nombre. */

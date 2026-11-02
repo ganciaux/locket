@@ -55,6 +55,14 @@ service cloud.firestore {
         && isEncrypted(request.resource.data.data);
     }
 
+    // Jeton de version des fiches : un aléa de 16 octets, sans contenu. L'app ne le supprime jamais.
+    match /users/{uid}/meta/version {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['token'])
+        && request.resource.data.token is bytes && request.resource.data.token.size() == 16;
+    }
+
     // Tout le reste est refusé par défaut.
   }
 }

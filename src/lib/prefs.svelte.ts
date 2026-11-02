@@ -6,8 +6,8 @@ export type Theme = 'auto' | 'light' | 'dark';
 export type CardSize = 'small' | 'medium' | 'large';
 /** Minutes d'inactivité avant verrouillage ; 0 = jamais. */
 export type AutoLock = 0 | 1 | 5 | 15 | 30;
-/** Clic sur une carte compacte : la déplier (tags, liens) ou ouvrir la fiche. */
-export type CardClick = 'expand' | 'open';
+/** Clic sur une carte : l'agrandir au-dessus de la liste ou ouvrir la fiche. */
+export type CardClick = 'zoom' | 'open';
 type Prefs = {
 	theme: Theme;
 	linksInNewTab: boolean;
@@ -16,7 +16,7 @@ type Prefs = {
 	/** Collection affichée : identifiant aléatoire, rien de lisible. Vide ou inconnue → la première. */
 	collectionId: string;
 	showHidden: boolean;
-	/** Cartes détaillées : tags et liens affichés partout ; sinon compactes, une seule dépliée à la fois. */
+	/** Cartes détaillées : tags et liens affichés partout ; sinon compactes. */
 	detailedCards: boolean;
 	cardClick: CardClick;
 };
@@ -30,7 +30,7 @@ const DEFAULTS: Prefs = {
 	collectionId: '',
 	showHidden: false,
 	detailedCards: false,
-	cardClick: 'expand'
+	cardClick: 'zoom'
 };
 
 function load(): Prefs {
@@ -38,7 +38,9 @@ function load(): Prefs {
 		const stored: Partial<Prefs> = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
 		// Seules les clés connues : un réglage retiré (ex. `cardLinksExpanded`) disparaît du stockage.
 		const known = Object.keys(DEFAULTS).filter((key) => key in stored).map((key) => [key, stored[key as keyof Prefs]]);
-		return { ...DEFAULTS, ...Object.fromEntries(known) };
+		const loaded: Prefs = { ...DEFAULTS, ...Object.fromEntries(known) };
+		// Ancienne valeur `expand` : le dépliage est devenu l'agrandissement.
+		return { ...loaded, cardClick: loaded.cardClick === 'open' ? 'open' : 'zoom' };
 	} catch {
 		return { ...DEFAULTS };
 	}

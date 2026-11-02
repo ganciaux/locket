@@ -7,7 +7,7 @@ import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Bytes, collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { generateDek, randomBytes } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
-import { createEntries, deleteEntries, deleteEntry, getImage, listEntries, patchStoredEntries, saveEntry } from './repository';
+import { createEntries, deleteEntries, deleteEntry, getImage, listEntries, patchStoredEntries, saveEntry, saveThumbs } from './repository';
 import { collectionCatalog, tagCatalog } from './catalog';
 
 let uid: string;
@@ -75,7 +75,27 @@ describe('fiches (émulateurs)', () => {
 		const listed = await listEntries(uid, dek);
 		expect(listed.map((e) => e.name).sort()).toEqual([...names].sort());
 		expect(listed.every((e) => e.collectionId === 'col-1' && e.links.length === 0 && !e.imageType)).toBe(true);
+		await deleteEntries(uid, created.map((e) => e.id));
+	}, 30_000);
+
+	it('remplace une miniature sans toucher aux données ni à l’image', async () => {
+		const created = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Vue', links: [], tagIds: [], image });
+		const before = (await getDoc(doc(db, 'users', uid, 'entries', created.id))).data()!;
+		const thumb = randomBytes(2_000);
+		await saveThumbs(uid, dek, [{ id: created.id, thumb }]);
+		const after = (await getDoc(doc(db, 'users', uid, 'entries', created.id))).data()!;
+		expect(after.data.iv.isEqual(before.data.iv)).toBe(true);
+		expect(after.thumb.iv.isEqual(before.thumb.iv)).toBe(false);
+		const [listed] = await listEntries(uid, dek);
+		expect(listed.thumb).toEqual(thumb);
+		expect(await getImage(uid, dek, created.id)).toEqual(image.image);
+		await deleteEntry(uid, created.id);
+	}, 30_000);
+
+	it('des écritures simultanées passent toutes', async () => {
+		const created = await createEntries(uid, dek, 'col-1', ['A', 'B', 'C', 'D', 'E', 'F']);
 		await Promise.all(created.map((e) => deleteEntry(uid, e.id)));
+		expect(await listEntries(uid, dek)).toEqual([]);
 	}, 30_000);
 
 	it('enregistre le catalogue de tags chiffré', async () => {
@@ -206,6 +226,12 @@ describe('fiches (émulateurs)', () => {
 		await expect(setDoc(entry, { data: encrypted, nom: 'en clair' })).rejects.toMatchObject(denied);
 		await expect(setDoc(doc(db, 'users', uid, 'autre', 'x'), { data: encrypted })).rejects.toMatchObject(denied);
 		await expect(setDoc(doc(db, 'users', uid, 'meta', 'autre'), { data: encrypted })).rejects.toMatchObject(denied);
+		const version = doc(db, 'users', uid, 'meta', 'version');
+		await expect(setDoc(version, { token: 'en clair' })).rejects.toMatchObject(denied);
+		await expect(setDoc(version, { token: Bytes.fromUint8Array(randomBytes(8)) })).rejects.toMatchObject(denied);
+		await expect(setDoc(version, { token: Bytes.fromUint8Array(randomBytes(16)), nom: 'en clair' })).rejects.toMatchObject(denied);
+		await setDoc(version, { token: Bytes.fromUint8Array(randomBytes(16)) });
+		await expect(deleteDoc(version)).rejects.toMatchObject(denied);
 		await expect(setDoc(doc(db, 'users', uid), { wrappedDek: encrypted })).rejects.toMatchObject(denied);
 		await setDoc(doc(db, 'users', uid), { wrappedDek: encrypted, recoveryDek: encrypted });
 		await expect(deleteDoc(doc(db, 'users', uid))).rejects.toMatchObject(denied);
@@ -222,6 +248,7 @@ describe('fiches (émulateurs)', () => {
 			`users/${uid}/images/${mine.id}`,
 			`users/${uid}/meta/tags`,
 			`users/${uid}/meta/collections`,
+			`users/${uid}/meta/version`,
 			'autre/document'
 		];
 		async function expectRefused() {

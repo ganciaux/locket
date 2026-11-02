@@ -4,6 +4,7 @@
  *  - déverrouillé : DEK en mémoire uniquement, perdue à la fermeture → écran « Déverrouiller ».
  */
 import { onAuthStateChanged, signOut as firebaseSignOut, type User } from 'firebase/auth';
+import { clearCache } from '$lib/entries/cache';
 import { auth } from '$lib/firebase';
 
 // La DEK est rattachée à l'uid qui l'a déballée : un changement d'utilisateur la rend caduque
@@ -15,6 +16,8 @@ let unlocked = $state.raw<Unlocked | null>(null);
 let recoveryDamaged = $state(false);
 
 onAuthStateChanged(auth, (next) => {
+	// Aussi quand la session se termine sans `signOut` : révoquée depuis un autre appareil, par exemple.
+	if (!next || (user && user.uid !== next.uid)) clearCache();
 	user = next;
 	if (unlocked && unlocked.uid !== next?.uid) unlocked = null;
 });
@@ -51,5 +54,6 @@ export function lock(): void {
 
 export async function signOut(): Promise<void> {
 	unlocked = null;
+	await clearCache();
 	await firebaseSignOut(auth);
 }

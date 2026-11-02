@@ -5,8 +5,8 @@
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import EntryZoom from '$lib/components/EntryZoom.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
-	import Rating from '$lib/components/Rating.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
@@ -20,6 +20,7 @@
 		UNRATED,
 		countryFlag,
 		countryName,
+		formatRating,
 		linkTitle
 	} from '$lib/entries/model';
 	import {
@@ -74,10 +75,10 @@
 	const tagFilter = $derived(listView.tags);
 	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
 	let detailed = $state(prefs.detailedCards);
-	// Cartes compactes : une seule dépliée à la fois.
-	let openId = $state<string | null>(null);
-	const clickExpands = $derived(!detailed && prefs.cardClick === 'expand');
-	const toggleOpen = (id: string) => (openId = openId === id ? null : id);
+	const clickZooms = $derived(prefs.cardClick === 'zoom');
+	// Fiche agrandie, avec les résultats du moment : noter une fiche ne doit pas changer la suite si le filtre l'exclut.
+	let zoom = $state<{ id: string; ids: string[] } | null>(null);
+	const openZoom = (id: string) => (zoom = { id, ids: results.map((item) => item.id) });
 	let error = $state('');
 	let searchInput = $state<HTMLInputElement>();
 	const backupInfo = readBackupInfo();
@@ -106,7 +107,7 @@
 
 	// La fiche ouverte navigue dans ces résultats, filtres et tri compris.
 	beforeNavigate(({ to }) => {
-		if (to?.route.id === '/entry/[id]') rememberEntryNav(results.map((item) => item.id), '/', 'Mes fiches');
+		if (to?.route.id?.startsWith('/entry/[id]')) rememberEntryNav(results.map((item) => item.id), '/', 'Mes fiches');
 	});
 	afterNavigate(({ from }) => {
 		if (from?.route.id?.startsWith('/entry/[id]')) restoreEntryNavScroll('/');
@@ -510,32 +511,12 @@
 	{/if}
 
 	<!--
-		En-tête d'une carte : le bouton (déplier) ou le lien (ouvrir, cocher) porte le nom, et son ::after couvre toute la
+		En-tête d'une carte : le bouton (agrandir) ou le lien (ouvrir, cocher) porte le nom, et son ::after couvre toute la
 		zone, image comprise. Le bouton de copie passe au-dessus : deux éléments cliquables ne peuvent pas s'imbriquer.
 	-->
-	{#snippet cardHeader(entry: (typeof results)[number], isOpen: boolean)}
-		{@const expands = clickExpands && !selecting}
+	{#snippet cardHeader(entry: (typeof results)[number])}
+		{@const zooms = clickZooms && !selecting}
 		<div class="relative">
-			<figure class="bg-primary/10 relative aspect-square">
-				{#if entry.thumbUrl}
-					<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
-				{:else}
-					<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
-						{entry.name.charAt(0).toUpperCase()}
-					</span>
-				{/if}
-				{#if entries.rankOf(entry)}
-					<span class="badge badge-sm badge-neutral absolute top-1 right-1" title="Rang dans le classement">
-						#{entries.rankOf(entry)}
-					</span>
-				{/if}
-				{#if entry.rating}
-					<!-- Sur l'image pour gagner une ligne ; fond translucide pour rester lisible sur une photo claire. -->
-					<span class="bg-base-100/80 rounded-box absolute bottom-1 left-1 flex px-1 py-0.5">
-						<Rating value={entry.rating} size="xs" />
-					</span>
-				{/if}
-			</figure>
 			<h2
 				class="flex items-center gap-1 font-semibold {prefs.cardSize === 'small'
 					? 'py-1 pr-1 pl-2 text-xs'
@@ -543,19 +524,19 @@
 						? 'py-2 pr-3 pl-4 text-base'
 						: 'py-1.5 pr-2 pl-3 text-sm'}"
 			>
-				{#if expands}
+				{#if zooms}
 					<button
 						type="button"
-						class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 text-left after:absolute after:inset-0"
-						aria-expanded={isOpen}
-						onclick={() => toggleOpen(entry.id)}
+						class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 text-left after:absolute after:inset-0 after:z-[1]"
+						aria-haspopup="dialog"
+						onclick={() => openZoom(entry.id)}
 					>
 						{@render cardName(entry)}
 					</button>
 				{:else}
 					<a
 						href="/entry/{entry.id}"
-						class="flex min-w-0 flex-1 items-center gap-1 after:absolute after:inset-0"
+						class="flex min-w-0 flex-1 items-center gap-1 after:absolute after:inset-0 after:z-[1]"
 						onclick={(event) => {
 							if (!selecting) return;
 							event.preventDefault();
@@ -565,18 +546,43 @@
 						{@render cardName(entry)}
 					</a>
 				{/if}
-				<!-- Petites cartes : seulement une fois dépliée, pour laisser la place au nom. -->
-				{#if !selecting && (prefs.cardSize !== 'small' || isOpen)}
+				{#if !selecting}
 					<CopyButton
 						text={entry.name}
 						label="Copier le nom de {entry.name}"
 						class="btn btn-ghost btn-xs btn-square text-base-content/50 relative z-10 shrink-0"
 					/>
 				{/if}
-				{#if expands}
-					<Icon name="chevronDown" class="text-base-content/50 size-4 shrink-0 transition {isOpen ? 'rotate-180' : ''}" />
-				{/if}
 			</h2>
+			<figure class="bg-primary/10 relative aspect-square">
+				{#if entry.thumbUrl}
+					<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
+				{:else}
+					<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
+						{entry.name.charAt(0).toUpperCase()}
+					</span>
+				{/if}
+				<!-- Note et rang sur l'image pour ne pas ajouter de ligne ; translucides pour laisser voir la photo. -->
+				{#if entry.rating}
+					<span class="badge badge-sm bg-base-100/70 absolute bottom-1 left-1 border-0" role="img" aria-label="Note : {formatRating(entry.rating)} sur 5">
+						★ {formatRating(entry.rating)}
+					</span>
+				{/if}
+				{#if entries.rankOf(entry)}
+					<span class="badge badge-sm bg-neutral/70 text-neutral-content absolute right-1 bottom-1 border-0" title="Rang dans le classement">
+						#{entries.rankOf(entry)}
+					</span>
+				{/if}
+				{#if selecting}
+					<input
+						type="checkbox"
+						class="checkbox checkbox-sm bg-base-100 absolute top-1 left-1 z-10"
+						checked={selected.includes(entry.id)}
+						onchange={() => toggleSelected(entry.id)}
+						aria-label="Sélectionner {entry.name}"
+					/>
+				{/if}
+			</figure>
 		</div>
 	{/snippet}
 
@@ -585,45 +591,34 @@
 		<span class="min-w-0 flex-1 truncate">{entry.name}</span>
 	{/snippet}
 
-	<!-- items-start : une carte dépliée s'allonge sans étirer ses voisines. -->
+	<!-- items-start : une carte détaillée s'allonge sans étirer ses voisines. -->
 	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
 			{@const links = entries.linksOf(entry)}
 			{@const isSelected = selected.includes(entry.id)}
 			{@const entryTags = entries.tagsOf(entry)}
-			{@const isOpen = detailed || openId === entry.id}
 			<li
+				id="card-{entry.id}"
 				class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
 					? 'opacity-50 hover:opacity-100'
 					: ''} {isSelected ? 'outline-primary outline-2 -outline-offset-2' : ''}"
 			>
-				{#if selecting}
-					<input
-						type="checkbox"
-						class="checkbox checkbox-sm bg-base-100 absolute top-2 left-2 z-10"
-						checked={isSelected}
-						onchange={() => toggleSelected(entry.id)}
-						aria-label="Sélectionner {entry.name}"
-					/>
-				{/if}
-				<!-- En mode sélection, un clic sur la carte coche la fiche ; sinon il la déplie ou l'ouvre (Paramètres). -->
-				{@render cardHeader(entry, isOpen)}
-				{#if !clickExpands || selecting}
-					{#if !detailed && (entryTags.length || links.length)}
-						<button
-							type="button"
-							class="text-base-content/60 hover:bg-base-200 border-base-200 flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
-							aria-expanded={isOpen}
-							onclick={() => toggleOpen(entry.id)}
-						>
-							<span class="flex-1 text-left">Détails</span>
-							<Icon name="chevronDown" class="size-4 transition {isOpen ? 'rotate-180' : ''}" />
-						</button>
-					{/if}
+				<!-- En mode sélection, un clic sur la carte coche la fiche ; sinon il l'agrandit ou l'ouvre (Paramètres). -->
+				{@render cardHeader(entry)}
+				{#if (!clickZooms || selecting) && !detailed && (entryTags.length || links.length)}
+					<button
+						type="button"
+						class="text-base-content/60 hover:bg-base-200 border-base-200 flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
+						aria-haspopup="dialog"
+						onclick={() => openZoom(entry.id)}
+					>
+						<span class="flex-1 text-left">Détails</span>
+						<Icon name="chevronRight" class="size-4" />
+					</button>
 				{/if}
 
 				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
-				{#if isOpen}
+				{#if detailed}
 					{#if entryTags.length}
 						<div class="flex flex-wrap gap-1 px-3 pb-2">
 							{#each entryTags as tag (tag.id)}
@@ -638,19 +633,19 @@
 							{/each}
 						</ul>
 					{/if}
-					{#if clickExpands}
-						<a
-							class="btn btn-ghost btn-xs border-base-200 w-full justify-between rounded-none border-t"
-							href="/entry/{entry.id}"
-							aria-label="Ouvrir la fiche"
-						>
-							{prefs.cardSize === 'small' ? 'Ouvrir' : 'Ouvrir la fiche'} <Icon name="chevronRight" class="size-4" />
-						</a>
-					{/if}
 				{/if}
 			</li>
 		{/each}
 	</ul>
+{/if}
+
+{#if zoom}
+	<EntryZoom
+		id={zoom.id}
+		ids={zoom.ids}
+		onchange={(id) => zoom && (zoom.id = id)}
+		onclose={() => (zoom = null)}
+	/>
 {/if}
 
 {#if selecting}

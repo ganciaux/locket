@@ -7,7 +7,8 @@ import { verifyPassword } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { prefs } from '$lib/prefs.svelte';
 import { collectionCatalog, tagCatalog } from './catalog';
-import { bytesToUrl } from './images';
+import type { Bytes } from '$lib/crypto/encoding';
+import { bytesToUrl, isFullSizeThumb, rebuildThumb } from './images';
 import {
 	NO_TAG_FILTER,
 	type Collection,
@@ -46,8 +47,10 @@ import {
 	deleteEntry,
 	deleteRemainingImages,
 	deleteStoredEntriesExcept,
+	getImage,
 	listEntries,
 	patchStoredEntries,
+	saveThumbs,
 	type EntrySummary
 } from './repository';
 
@@ -350,6 +353,43 @@ export function changeEntriesTags(targets: ListItem[], tagIds: string[], mode: '
 					: current.filter((id) => !tagIds.includes(id));
 		return { tagIds: next.length ? next : undefined, updatedAt: Date.now() };
 	});
+}
+
+const THUMBS_PER_WRITE = 25;
+
+/**
+ * Refait les miniatures trop petites depuis les images stockées : une lecture et une écriture par fiche concernée.
+ * Écrit par petits lots : après une interruption, relancer ne reprend que ce qui reste.
+ */
+export async function regenerateThumbs(onProgress: (done: number, total: number) => void): Promise<{ updated: number; failed: number }> {
+	const { uid, dek } = unlocked();
+	await loadEntries();
+	const targets = (items ?? []).filter((item) => item.imageType);
+	let done = 0;
+	let updated = 0;
+	let failed = 0;
+	let pending: (ListItem & { thumb: Bytes })[] = [];
+
+	async function flush() {
+		await saveThumbs(uid, dek, pending);
+		upsertEntries(pending);
+		updated += pending.length;
+		pending = [];
+	}
+
+	for (const item of targets) {
+		const type = item.imageType!;
+		if (!(item.thumb && (await isFullSizeThumb(item.thumb, type).catch(() => false)))) {
+			const image = await getImage(uid, dek, item.id).catch(() => null);
+			const thumb = image && (await rebuildThumb(image, type).catch(() => null));
+			if (thumb) pending.push({ ...item, thumb });
+			else failed++;
+			if (pending.length === THUMBS_PER_WRITE) await flush();
+		}
+		onProgress(++done, targets.length);
+	}
+	if (pending.length) await flush();
+	return { updated, failed };
 }
 
 /** Suppression définitive depuis la corbeille, images comprises. */

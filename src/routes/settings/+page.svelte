@@ -5,7 +5,7 @@
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { TRASH_DAYS } from '$lib/entries/model';
-	import { deleteAllData } from '$lib/entries/store.svelte';
+	import { deleteAllData, regenerateThumbs } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
 	import { type AutoLock, type CardClick, prefs, type Theme } from '$lib/prefs.svelte';
 
@@ -24,7 +24,7 @@
 	];
 
 	const CARD_CLICKS: { value: CardClick; label: string }[] = [
-		{ value: 'expand', label: 'Déplier' },
+		{ value: 'zoom', label: 'Agrandir' },
 		{ value: 'open', label: 'Ouvrir la fiche' }
 	];
 
@@ -70,6 +70,13 @@
 
 	// Suppression totale : le mot à taper évite qu'un mot de passe prérempli suffise.
 	const WIPE_WORD = 'SUPPRIMER';
+	let thumbProgress = $state('');
+	let thumbResult = $state<{ updated: number; failed: number } | null>(null);
+	const thumbs = formAction(async () => {
+		thumbResult = null;
+		thumbResult = await regenerateThumbs((done, total) => (thumbProgress = `${done} / ${total}`));
+	});
+
 	let wipeOpen = $state(false);
 	let wipePassword = $state('');
 	let wipeWord = $state('');
@@ -128,26 +135,24 @@
 				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.detailedCards} />
 			</label>
 
-			{#if !prefs.detailedCards}
-				<div class="flex flex-col gap-2">
-					<span class="flex flex-col">
-						<span class="text-sm font-medium">Clic sur une carte compacte</span>
-						<span class="text-base-content/60 text-xs">L'autre action reste à portée : « Ouvrir la fiche » une fois dépliée, ou la barre « Détails ».</span>
-					</span>
-					<div class="join" role="radiogroup" aria-label="Clic sur une carte compacte">
-						{#each CARD_CLICKS as option (option.value)}
-							<input
-								class="join-item btn btn-sm"
-								type="radio"
-								name="card-click"
-								value={option.value}
-								aria-label={option.label}
-								bind:group={prefs.cardClick}
-							/>
-						{/each}
-					</div>
+			<div class="flex flex-col gap-2">
+				<span class="flex flex-col">
+					<span class="text-sm font-medium">Clic sur une carte</span>
+					<span class="text-base-content/60 text-xs">Agrandir affiche la carte au-dessus de la liste, avec ses liens et un accès à la fiche. L'autre action reste à portée : la barre « Détails ».</span>
+				</span>
+				<div class="join" role="radiogroup" aria-label="Clic sur une carte">
+					{#each CARD_CLICKS as option (option.value)}
+						<input
+							class="join-item btn btn-sm"
+							type="radio"
+							name="card-click"
+							value={option.value}
+							aria-label={option.label}
+							bind:group={prefs.cardClick}
+						/>
+					{/each}
 				</div>
-			{/if}
+			</div>
 
 			<div class="flex flex-col gap-2">
 				<span class="flex flex-col">
@@ -201,6 +206,28 @@
 			<p class="text-base-content/60 -mt-1 text-sm">Les fiches supprimées y restent {TRASH_DAYS} jours.</p>
 			<a class="btn btn-outline btn-primary self-start" href="/trash"><Icon name="trash" class="size-4" /> Ouvrir la corbeille</a>
 		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<form class="card-body gap-3" onsubmit={thumbs.submit}>
+			<h2 class="card-title text-lg">Miniatures</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">
+				Refait les miniatures trop petites depuis les images stockées, pour toutes les collections. Chaque fiche concernée
+				télécharge son image : à lancer plutôt en Wi-Fi. Si c'est interrompu, relancez : seul le reste sera refait.
+			</p>
+			<ErrorAlert message={thumbs.error} />
+			{#if thumbResult}
+				<p role="status" class="alert alert-success alert-soft">
+					{thumbResult.updated} miniature{thumbResult.updated > 1 ? 's' : ''} refaite{thumbResult.updated > 1 ? 's' : ''}.
+					{#if thumbResult.failed}
+						{thumbResult.failed} n'ont pas pu l'être : image illisible, ou format que ce navigateur n'encode pas (essayez sur un PC).
+					{/if}
+				</p>
+			{/if}
+			<button class="btn btn-outline btn-primary self-start" disabled={thumbs.busy}>
+				{#if thumbs.busy}<span class="loading loading-spinner loading-sm"></span> {thumbProgress}{:else}Régénérer les miniatures{/if}
+			</button>
+		</form>
 	</section>
 
 	<section class="card bg-base-100 shadow-sm">

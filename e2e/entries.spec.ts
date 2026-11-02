@@ -1,6 +1,18 @@
 import { readFile } from 'node:fs/promises';
 import { PASSWORD, addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+
+/** Glissement du doigt, simulé : Chrome de bureau ne le produit pas. */
+const swipeOn = (target: Locator, dx: number) =>
+	target.evaluate((node, dx) => {
+		const touch = (clientX: number) => new Touch({ identifier: 1, target: node, clientX: 200 + clientX, clientY: 200 });
+		const send = (type: string, x: number, active: boolean) =>
+			node.dispatchEvent(
+				new TouchEvent(type, { bubbles: true, touches: active ? [touch(x)] : [], changedTouches: [touch(x)] })
+			);
+		send('touchstart', 0, true);
+		send('touchend', dx, false);
+	}, dx);
 
 async function addSite(page: Page, label: string, urlTemplate: string) {
 	await goSettings(page);
@@ -20,6 +32,90 @@ async function createEntry(page: Page, name: string) {
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name })).toBeVisible();
 }
+
+async function lockAndUnlock(page: Page) {
+	await goHome(page);
+	await page.getByRole('button', { name: 'Verrouiller' }).click();
+	await page.getByLabel('Mot de passe').fill(PASSWORD);
+	await page.getByRole('button', { name: 'Déverrouiller' }).click();
+}
+
+/** Compte les fiches du cache IndexedDB, ou en retire ou abîme une ; retourne leur nombre avant l'action. */
+const editCache = (page: Page, action: 'count' | 'drop' | 'damage' | 'expire') =>
+	page.evaluate(async (action) => {
+		const done = <T>(req: IDBRequest<T>) =>
+			new Promise<T>((resolve, reject) => {
+				req.onsuccess = () => resolve(req.result);
+				req.onerror = () => reject(req.error);
+			});
+		const open = indexedDB.open('stash-cache');
+		const cache = await done(open);
+		const tx = cache.transaction(['entries', 'state'], 'readwrite');
+		const store = tx.objectStore('entries');
+		const list = await done(store.getAll());
+		if (action === 'expire') {
+			const state = await done(tx.objectStore('state').get('current'));
+			await done(tx.objectStore('state').put({ ...state, filledAt: 0 }, 'current'));
+		}
+		if (action === 'drop') await done(store.delete(list[0].id));
+		if (action === 'damage') {
+			list[0].data.data[0] ^= 1;
+			await done(store.put(list[0]));
+		}
+		cache.close();
+		return list.length;
+	}, action);
+
+test('cache local : suit ses écritures et celles d’un autre appareil, résiste à une copie abîmée', async ({ page, browser }) => {
+	const { email } = await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Alpha');
+	await createEntry(page, 'Bravo');
+	const names = page.getByRole('heading', { level: 2 });
+	await lockAndUnlock(page);
+	await expect(names).toHaveCount(2);
+	await expect.poll(() => editCache(page, 'count')).toBe(2);
+
+	// Une écriture de cet appareil met la copie à jour, sans rechargement complet.
+	await createEntry(page, 'Charlie');
+	expect(await editCache(page, 'count')).toBe(3);
+
+	// La copie sert bien : une fiche retirée de la copie disparaît, Firestore n'a pas été relu.
+	await editCache(page, 'drop');
+	await lockAndUnlock(page);
+	await expect(names).toHaveCount(2);
+
+	// Copie trop ancienne : relue depuis Firestore.
+	await editCache(page, 'expire');
+	await lockAndUnlock(page);
+	await expect(names).toHaveCount(3);
+
+	// Copie abîmée : relue depuis Firestore, jamais déclarée illisible.
+	await editCache(page, 'drop');
+	await editCache(page, 'damage');
+	await lockAndUnlock(page);
+	await expect(names).toHaveCount(3);
+	await expect(page.getByText(/illisible/)).toHaveCount(0);
+
+	// Autre appareil : son écriture change le jeton, la copie d'ici est rechargée.
+	const other = await (await browser.newContext()).newPage();
+	await other.goto('/');
+	await other.getByLabel('Email').fill(email);
+	await other.getByLabel('Mot de passe').fill(PASSWORD);
+	await other.getByRole('button', { name: 'Se connecter' }).click();
+	await expect(other.getByRole('heading', { name: 'Alpha' })).toBeVisible();
+	await createEntry(other, 'Delta');
+	await other.context().close();
+	await lockAndUnlock(page);
+	await expect(names).toHaveCount(4);
+	await expect.poll(() => editCache(page, 'count')).toBe(4);
+
+	// Déconnexion : plus rien sur l'appareil.
+	await goSettings(page);
+	await page.getByRole('button', { name: 'Se déconnecter' }).click();
+	await expect(page.getByRole('heading', { name: 'Connexion' })).toBeVisible();
+	expect(await editCache(page, 'count')).toBe(0);
+});
 
 test('site de collection : lien calculé, nom custom, masquage', async ({ page }) => {
 	await signUp(page);
@@ -43,7 +139,7 @@ test('site de collection : lien calculé, nom custom, masquage', async ({ page }
 	await expect(page.getByText('Aucun lien.')).toBeVisible();
 });
 
-test('cartes compactes : une seule dépliée, détails à la demande', async ({ page }) => {
+test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la fiche', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
 	await addSite(page, 'anime', 'https://anime.fr/search?k=');
@@ -53,21 +149,38 @@ test('cartes compactes : une seule dépliée, détails à la demande', async ({ 
 	await page.getByRole('link', { name: 'Retour', exact: true }).click();
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	const animeOf = (name: string) => card(name).getByRole('link', { name: 'anime', exact: true });
-	// Copier le nom depuis la liste, sans déplier ni ouvrir la carte.
+	// Copier le nom depuis la liste, sans agrandir ni ouvrir la carte.
 	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
 	await page.getByRole('button', { name: 'Copier le nom de John Doe' }).click();
 	expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('John Doe');
 	await expect(page.getByRole('button', { name: 'Copié' })).toBeVisible();
 
-	// Compactes par défaut : un clic déplie la carte et replie l'autre.
+	// Un clic agrandit la carte, la liste reste dessous ; un autre clic la referme.
+	const zoom = page.getByRole('dialog');
 	await expect(animeOf('John Doe')).toHaveCount(0);
-	await expect(page).toHaveURL(/\/$/);
 	await card('John Doe').getByRole('heading').click();
-	await expect(animeOf('John Doe')).toBeVisible();
+	await expect(zoom.getByRole('heading', { name: 'John Doe' })).toBeVisible();
+	await expect(zoom.getByRole('link', { name: 'anime', exact: true })).toBeVisible();
+	await expect(page).toHaveURL(/\/$/);
+	await zoom.locator('figure').click();
+	await expect(zoom).toHaveCount(0);
+
+	// Clic sur le fond, Échap, flèches du clavier et glissement du doigt.
+	await card('John Doe').locator('figure').click({ force: true });
+	await expect(zoom).toBeVisible();
+	await page.mouse.click(3, 3);
+	await expect(zoom).toHaveCount(0);
+	await card('John Doe').getByRole('heading').click();
+	const nextKey = (await zoom.getByRole('button', { name: 'Fiche suivante' }).isEnabled()) ? 'ArrowRight' : 'ArrowLeft';
+	await page.keyboard.press(nextKey);
+	await expect(zoom.getByRole('heading', { name: 'Jane Roe' })).toBeVisible();
+	await swipeOn(zoom, nextKey === 'ArrowRight' ? 80 : -80);
+	await expect(zoom.getByRole('heading', { name: 'John Doe' })).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(zoom).toHaveCount(0);
+
 	await card('Jane Roe').getByRole('heading').click();
-	await expect(animeOf('Jane Roe')).toBeVisible();
-	await expect(animeOf('John Doe')).toHaveCount(0);
-	await card('Jane Roe').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await zoom.getByRole('link', { name: 'Ouvrir la fiche' }).click();
 	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
 	await page.getByRole('link', { name: 'Retour', exact: true }).click();
 
@@ -76,13 +189,15 @@ test('cartes compactes : une seule dépliée, détails à la demande', async ({ 
 	await expect(animeOf('John Doe')).toBeVisible();
 	await expect(animeOf('Jane Roe')).toBeVisible();
 
-	// Clic = ouvrir la fiche : la barre « Détails » de la carte la déplie.
+	// Clic = ouvrir la fiche : la barre « Détails » de la carte l'agrandit.
 	await goSettings(page);
 	await page.getByRole('radio', { name: 'Ouvrir la fiche' }).check();
 	await goHome(page);
 	await expect(animeOf('John Doe')).toHaveCount(0);
 	await card('John Doe').getByRole('button', { name: 'Détails' }).click();
-	await expect(animeOf('John Doe')).toBeVisible();
+	await expect(zoom.getByRole('link', { name: 'anime', exact: true })).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(zoom).toHaveCount(0);
 	await card('John Doe').getByRole('heading').click();
 	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
 
@@ -525,27 +640,87 @@ test('nouvelle fiche depuis une fiche, nom prêt à saisir', async ({ page }) =>
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
 
+	// Glissement du doigt : la voisine, par ordre de nom ici.
+	await swipeOn(page.locator('article'), 80);
+	await expect(page.getByRole('heading', { name: 'Jane Roe' })).toBeVisible();
+	await swipeOn(page.locator('article'), -80);
+	await expect(page.getByRole('heading', { name: 'John Doe' })).toBeVisible();
+
+	// Création à la suite : formulaire vide, nom prêt à saisir, sans quitter la page.
+	await page.getByRole('link', { name: 'Nouvelle fiche' }).click();
+	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
+	await page.keyboard.type('Alice');
+	await page.getByRole('button', { name: 'Et une autre fiche' }).click();
+	await expect(page.getByText('« Alice » enregistrée.')).toBeVisible();
+	await expect(page.getByLabel('Nom', { exact: true })).toHaveValue('');
+	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
+	await page.keyboard.type('Bob');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Bob' })).toBeVisible();
+
 	// En modification, le focus n'est pas forcé sur le nom.
 	await page.getByRole('link', { name: 'Modifier' }).click();
 	await expect(page.getByLabel('Nom', { exact: true })).not.toBeFocused();
 });
 
-async function createEntryWithImage(page: Page, name: string) {
+async function createEntryWithImage(page: Page, name: string, size = 800) {
 	await goHome(page);
 	await page.locator('a[href="/entry/new"]').first().click();
 	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
-	await page.evaluate(async () => {
-		const canvas = Object.assign(document.createElement('canvas'), { width: 800, height: 800 });
+	await page.evaluate(async (size) => {
+		const canvas = Object.assign(document.createElement('canvas'), { width: size, height: size });
 		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
 		const data = new DataTransfer();
 		data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
 		window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
-	});
+	}, size);
 	await expect(page.getByAltText('Aperçu')).toBeVisible();
 	await page.getByLabel('Nom', { exact: true }).fill(name);
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name })).toBeVisible();
 }
+
+test('fiche agrandie : ouvrir, modifier, ressemblantes', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntryWithImage(page, 'Alpha');
+	await createEntryWithImage(page, 'Bravo');
+	await createEntry(page, 'Zulu');
+	await goHome(page);
+
+	const zoom = page.getByRole('dialog');
+	await page.locator('li.card').filter({ hasText: 'Alpha' }).getByRole('heading').click();
+	// Pas de focus d'entrée sur le bouton de copie : il s'entourerait d'un trait.
+	await expect(zoom.getByRole('button', { name: 'Copier le nom' })).not.toBeFocused();
+
+	await zoom.getByRole('button', { name: 'Similaires' }).click();
+	await expect(zoom.getByRole('button', { name: 'Voir Bravo' })).toBeVisible();
+	await expect(zoom.getByRole('button', { name: 'Voir Zulu' })).toHaveCount(0);
+	await zoom.getByRole('button', { name: 'Voir Bravo' }).click();
+	await expect(zoom.getByRole('heading', { name: 'Bravo' })).toBeVisible();
+	// Les flèches suivent cette liste : la fiche de départ, puis les ressemblantes.
+	await expect(zoom.getByText('2 / 2')).toBeVisible();
+
+	await zoom.getByRole('link', { name: 'Modifier la fiche' }).click();
+	await expect(page).toHaveURL(/\/entry\/[^/]+\/edit$/);
+	await expect(page.getByLabel('Nom', { exact: true })).toHaveValue('Bravo');
+});
+
+test('miniatures : seules celles sous la taille maximale sont refaites, et restent après déverrouillage', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntryWithImage(page, 'Petite', 400);
+	await createEntryWithImage(page, 'Grande');
+	await createEntry(page, 'Sans image');
+	await goSettings(page);
+	await page.getByRole('button', { name: 'Régénérer les miniatures' }).click();
+	await expect(page.getByText('1 miniature refaite.')).toBeVisible();
+
+	await lockAndUnlock(page);
+	await expect(page.getByRole('heading', { level: 2 })).toHaveCount(3);
+	await expect(page.locator('figure img')).toHaveCount(2);
+	await expect.poll(() => page.locator('figure img').first().evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+});
 
 /** Répond aux duels jusqu'à `done` ; `pick` choisit parmi les libellés « Préférer X » triés. */
 async function runDuels(page: Page, done: ReturnType<Page['getByText']>, pick: (sorted: string[]) => string) {
@@ -569,7 +744,7 @@ test('navigation : fiches voisines dans la liste filtrée, retour et place conse
 	await page.getByLabel('Trier par').selectOption('name');
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	await card('Alpha').getByRole('heading').click();
-	await card('Alpha').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
 
 	const previous = page.getByRole('button', { name: 'Fiche précédente' });
 	const next = page.getByRole('button', { name: 'Fiche suivante' });
@@ -594,7 +769,7 @@ test('navigation : fiches voisines dans la liste filtrée, retour et place conse
 	await page.getByRole('link', { name: 'Mes fiches' }).first().click();
 	await page.getByLabel('Rechercher').fill('br');
 	await card('Bravo').getByRole('heading').click();
-	await card('Bravo').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
 	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
 	await expect(next).toHaveCount(0);
 
@@ -714,7 +889,7 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 
 	// Bravo à la corbeille : Charlie remonte, sans réécrire le classement.
 	await card('Bravo').getByRole('heading').click();
-	await card('Bravo').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
 	await page.getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
 	await page.getByLabel('Trier par').selectOption('rank');
@@ -722,7 +897,7 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 
 	// Reclasser Alpha : il perd contre Charlie, puis revient sur sa fiche.
 	await card('Alpha').getByRole('heading').click();
-	await card('Alpha').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
 	await expect(page.getByText('1re sur 2 au classement')).toBeVisible();
 	await page.getByRole('link', { name: 'Reclasser' }).click();
 	await page.getByRole('button', { name: 'Préférer Charlie', exact: true }).click();

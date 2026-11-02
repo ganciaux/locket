@@ -15,7 +15,18 @@
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
-	let { entry, cancelHref }: { entry?: ListItem; cancelHref: string } = $props();
+	let {
+		entry,
+		cancelHref,
+		initialCollectionId = '',
+		onnext
+	}: {
+		entry?: ListItem;
+		cancelHref: string;
+		initialCollectionId?: string;
+		/** Création à la suite : appelé après l'enregistrement, au lieu d'ouvrir la fiche. */
+		onnext?: (saved: { name: string; collectionId: string }) => void;
+	} = $props();
 
 	// Valeurs initiales seulement : le formulaire édite sa propre copie.
 	// svelte-ignore state_referenced_locally
@@ -38,7 +49,7 @@
 	let country = $state(entry?.country);
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
-	let chosenCollectionId = $state(entry?.collectionId ?? '');
+	let chosenCollectionId = $state(entry?.collectionId ?? initialCollectionId);
 	const collectionId = $derived(chosenCollectionId || entries.active?.id || '');
 	const collectionTags = $derived(entries.tagsIn(collectionId));
 	const collectionSites = $derived(entries.sitesIn(collectionId));
@@ -119,6 +130,8 @@
 			});
 	}
 
+	let thenNext = false;
+
 	const form = formAction(async () => {
 		const { user, dek } = session;
 		if (!user || !dek) throw new Error('Session verrouillée.');
@@ -148,7 +161,8 @@
 			entry
 		);
 		upsertEntry(saved);
-		await goto(`/entry/${saved.id}`, { replaceState: true });
+		if (thenNext) onnext?.(saved);
+		else await goto(`/entry/${saved.id}`, { replaceState: true });
 	});
 </script>
 
@@ -347,9 +361,20 @@
 	<ErrorAlert message={loadError} />
 	<ErrorAlert message={form.error} />
 	<div class="flex gap-2">
-		<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy}>
-			{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Enregistrement…{:else}Enregistrer{/if}
+		<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy} onclick={() => (thenNext = false)}>
+			{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Enregistrement…{:else}<Icon name="save" class="size-4" /> Enregistrer{/if}
 		</button>
+		{#if onnext}
+			<button
+				class="btn btn-outline btn-primary"
+				disabled={form.busy}
+				aria-label="Et une autre fiche"
+				title="Enregistrer et créer une autre fiche"
+				onclick={() => (thenNext = true)}
+			>
+				<Icon name="saveMore" class="size-4" /> <span class="hidden sm:inline">Et une autre</span>
+			</button>
+		{/if}
 		<a class="btn btn-ghost" href={cancelHref}>Annuler</a>
 	</div>
 </form>

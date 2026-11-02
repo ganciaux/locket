@@ -16,6 +16,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
   - `src/lib/auth/account.ts` : inscription, connexion, changement de mot de passe, récupération ;
   - `src/lib/backup/` : export et restauration ;
   - `src/lib/entries/repository.ts`, `src/lib/entries/catalog.ts` : écriture dans Firestore ;
+  - `src/lib/entries/cache.ts` : copie locale des chiffrés ;
   - `firestore.rules`, `firebase.json` (en-têtes), `svelte.config.js` (CSP).
 
 ## 2. Ce qu'on protège
@@ -34,7 +35,25 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 - l'email du compte et les uid ;
 - les identifiants de documents (aléatoires) et le nombre de fiches ;
 - la taille des chiffrés, la présence ou non d'une image ;
-- les dates d'écriture tenues par Firestore.
+- les dates d'écriture tenues par Firestore ;
+- `meta/version` : un aléa de 16 octets, sans contenu, changé à chaque écriture de fiche.
+
+**Sur l'appareil**, entre deux déconnexions : IndexedDB `stash-cache` garde les chiffrés `data` et `thumb` des fiches, le
+jeton, l'uid et la date de remplissage. Ni clé, ni trousseau, ni image complète, ni donnée déchiffrée. Conservée au
+verrouillage ; effacée quand la session se termine, à la déconnexion ou si elle est révoquée (constaté à la prochaine
+ouverture si l'app est fermée). Qui lit le disque voit le nombre de fiches, leurs ids, la taille des chiffrés et la présence
+d'une miniature, sans pouvoir les lire.
+
+Limites de cette copie :
+- un chiffré modifié échoue au déchiffrement et déclenche une relecture de Firestore, mais la copie n'est **pas authentifiée
+  dans son ensemble** : une fiche retirée, ou un ancien chiffré valide de la même fiche, passe inaperçu ;
+- les règles n'imposent pas de changer le jeton : une écriture qui ne le change pas (ancienne version de l'app, client
+  modifié) reste invisible des autres appareils jusqu'à la relecture imposée après 7 jours, et le serveur peut rejouer un
+  ancien jeton. Pendant ce temps, modifier une fiche périmée écrase sa version récente, et la purge de la corbeille à 30 jours
+  se fonde sur la copie ;
+- le jeton n'est pas chiffré parce que cela n'empêcherait pas ce rejeu.
+
+Les sauvegardes sont toujours lues sur Firestore, jamais dans la copie.
 
 ## 3. Chaîne de clés (résumé)
 
@@ -87,7 +106,8 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
 - **Fiches cachées** : un simple filtre d'affichage, propre à chaque appareil. Quiconque a la session ouverte clique sur
   « Cachées ». Le drapeau est chiffré avec la fiche.
 - **Fiches illisibles** : la liste les signale et l'export les écarte en le disant. Une altération côté Firebase se voit
-  donc, mais la fiche d'origine n'est récupérable que depuis une sauvegarde saine.
+  donc, à la prochaine relecture de Firestore si l'appareil a une copie valide (l'export, lui, relit toujours), mais la fiche
+  d'origine n'est récupérable que depuis une sauvegarde saine.
 - **Corbeille** : une fiche supprimée reste 30 jours dans Firestore, chiffrée, et sa présence dans la corbeille n'est
   visible qu'après déchiffrement. La purge se fait à l'ouverture de l'app : sans ouverture, rien n'est effacé. Sur un PC
   laissé ouvert, vider la corbeille ne demande pas le mot de passe. Pour effacer tout de suite : « Vider la corbeille ».
