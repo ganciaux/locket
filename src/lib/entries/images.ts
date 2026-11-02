@@ -79,15 +79,18 @@ export async function rebuildThumb(image: Bytes, type: string): Promise<Bytes | 
 	}
 }
 
-/** Couleurs d'une version 8 × 8 de l'image (RVB), pour comparer deux images : voir similar.ts. */
+const FINGERPRINT_SIZE = 16;
+
+/** Couleurs d'une version 16 × 16 de l'image (RVB), pour comparer deux images : voir similar.ts. */
 export async function imageFingerprint(image: Bytes, type: string): Promise<Uint8ClampedArray> {
 	const source = await createImageBitmap(new Blob([image], { type }));
 	try {
-		const canvas = Object.assign(document.createElement('canvas'), { width: 8, height: 8 });
+		const size = FINGERPRINT_SIZE;
+		const canvas = Object.assign(document.createElement('canvas'), { width: size, height: size });
 		const context = canvas.getContext('2d', { willReadFrequently: true });
 		if (!context) throw new Error('Canvas indisponible.');
-		context.drawImage(source, 0, 0, 8, 8);
-		return context.getImageData(0, 0, 8, 8).data.filter((_, i) => i % 4 !== 3);
+		context.drawImage(source, 0, 0, size, size);
+		return context.getImageData(0, 0, size, size).data.filter((_, i) => i % 4 !== 3);
 	} finally {
 		source.close();
 	}

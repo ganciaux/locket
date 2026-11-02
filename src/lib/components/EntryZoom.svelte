@@ -8,12 +8,19 @@
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import { countryFlag, countryName, neighbours } from '$lib/entries/model';
-	import { findSimilar } from '$lib/entries/similar';
+	import { type Criterion, type Similarity, findSimilar } from '$lib/entries/similar';
 	import { type ListItem, entries, rateEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { swipe } from '$lib/swipe';
 
 	const DURATION_MS = 220;
+	const CRITERIA: { key: Criterion; label: string }[] = [
+		{ key: 'image', label: 'image' },
+		{ key: 'tags', label: 'tags' },
+		{ key: 'name', label: 'nom' },
+		{ key: 'country', label: 'pays' }
+	];
+	const percent = (value: number) => `${Math.round(value * 100)} %`;
 
 	let {
 		id,
@@ -30,9 +37,11 @@
 
 	const entry = $derived(entries.find(id));
 	// Ressemblantes affichées : les flèches parcourent la fiche de départ et cette liste, plus les résultats.
-	let similar = $state.raw<{ sourceId: string; items: ListItem[] } | null>(null);
+	let similar = $state.raw<{ sourceId: string; items: (Similarity & { item: ListItem })[] } | null>(null);
 	let searching = $state(false);
-	const navIds = $derived(similar ? [similar.sourceId, ...similar.items.map((item) => item.id)] : ids);
+	const navIds = $derived(similar ? [similar.sourceId, ...similar.items.map(({ item }) => item.id)] : ids);
+	// Scores de la ressemblante affichée ; rien sur la fiche de départ.
+	const shownSimilar = $derived(similar?.items.find(({ item }) => item.id === id));
 	const position = $derived(neighbours(navIds, id));
 
 	async function toggleSimilar() {
@@ -194,13 +203,13 @@
 				{#if similar}
 					{#if similar.items.length}
 						<ul class="flex gap-2 overflow-x-auto pb-1" data-no-swipe>
-							{#each similar.items as item (item.id)}
+							{#each similar.items as { item, score } (item.id)}
 								<li class="shrink-0">
 									<button
-										class="bg-primary/10 rounded-box flex size-16 cursor-pointer items-center justify-center overflow-hidden {item.id === id
+										class="bg-primary/10 rounded-box relative flex size-16 cursor-pointer items-center justify-center overflow-hidden {item.id === id
 											? 'outline-primary outline-2'
 											: ''}"
-										aria-label="Voir {item.name}"
+										aria-label="Voir {item.name}, ressemblance {percent(score)}"
 										title={item.name}
 										onclick={() => onchange(item.id)}
 									>
@@ -209,10 +218,24 @@
 										{:else}
 											<span class="text-primary font-bold" aria-hidden="true">{item.name.charAt(0).toUpperCase()}</span>
 										{/if}
+										<span class="badge badge-xs bg-base-100/80 absolute right-0.5 bottom-0.5 border-0" aria-hidden="true">
+											{percent(score)}
+										</span>
 									</button>
 								</li>
 							{/each}
 						</ul>
+						{#if shownSimilar}
+							<!-- Critères comparables seulement : une donnée absente d'un côté n'est pas comptée. -->
+							<p class="text-base-content/70 text-xs" role="status">
+								Ressemblance {percent(shownSimilar.score)} :
+								{CRITERIA.filter(({ key }) => shownSimilar.details[key] !== undefined)
+									.map(({ key, label }) => `${label} ${percent(shownSimilar.details[key]!)}`)
+									.join(' · ')}
+							</p>
+						{:else}
+							<p class="text-base-content/60 text-xs">Touchez une vignette pour voir le détail des scores.</p>
+						{/if}
 					{:else}
 						<p class="text-base-content/60 text-sm">Aucune fiche assez proche dans cette collection.</p>
 					{/if}

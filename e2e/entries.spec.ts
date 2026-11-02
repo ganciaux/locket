@@ -698,6 +698,8 @@ test('fiche agrandie : ouvrir, modifier, ressemblantes', async ({ page }) => {
 	await expect(zoom.getByRole('button', { name: 'Voir Zulu' })).toHaveCount(0);
 	await zoom.getByRole('button', { name: 'Voir Bravo' }).click();
 	await expect(zoom.getByRole('heading', { name: 'Bravo' })).toBeVisible();
+	// Même image, noms sans mot commun ; ni tags ni pays : non comparables, absents du détail.
+	await expect(zoom.getByText(/^Ressemblance/)).toHaveText('Ressemblance 70 % : image 100 % · nom 0 %');
 	// Les flèches suivent cette liste : la fiche de départ, puis les ressemblantes.
 	await expect(zoom.getByText('2 / 2')).toBeVisible();
 
