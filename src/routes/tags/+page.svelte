@@ -4,7 +4,8 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { MAX_LABEL_LENGTH } from '$lib/entries/model';
-	import { addTag, deleteTag, entries, loadEntries, renameTag, selectCollection } from '$lib/entries/store.svelte';
+	import { addTag, deleteTag, renameTag, selectCollection } from '$lib/entries/collections';
+	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 

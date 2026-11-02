@@ -2,11 +2,11 @@
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { session } from '$lib/auth/session.svelte';
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
+	import BulkToolbar from '$lib/components/BulkToolbar.svelte';
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
-	import CopyButton from '$lib/components/CopyButton.svelte';
+	import EntryCard from '$lib/components/EntryCard.svelte';
 	import EntryZoom from '$lib/components/EntryZoom.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
@@ -16,24 +16,16 @@
 		MAX_LABEL_LENGTH,
 		NO_TAG_FILTER,
 		type SortOrder,
-		TRASH_DAYS,
 		UNRATED,
 		countryFlag,
-		countryName,
-		formatRating,
-		linkTitle
+		countryName
 	} from '$lib/entries/model';
+	import { addCollection } from '$lib/entries/collections';
 	import {
-		addCollection,
-		changeEntriesSites,
-		changeEntriesTags,
-		deleteForever,
 		deleteUnreadableEntries,
 		entries,
 		loadEntries,
-		reshuffle,
-		setEntriesHidden,
-		trashEntries
+		reshuffle
 	} from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -75,7 +67,6 @@
 	const tagFilter = $derived(listView.tags);
 	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
 	let detailed = $state(prefs.detailedCards);
-	const clickZooms = $derived(prefs.cardClick === 'zoom');
 	// Fiche agrandie, avec les résultats du moment : noter une fiche ne doit pas changer la suite si le filtre l'exclut.
 	let zoom = $state<{ id: string; ids: string[] } | null>(null);
 	const openZoom = (id: string) => (zoom = { id, ids: results.map((item) => item.id) });
@@ -131,60 +122,17 @@
 		confirmPurge = false;
 	});
 
-	// Sélection multiple : limitée aux fiches affichées.
+	// Sélection multiple : les actions et leur état vivent dans BulkToolbar, fermée en quittant.
 	let selecting = $state(false);
 	let selected = $state<string[]>([]);
-	let bulkPanel = $state<'tags' | 'sites' | 'trash' | null>(null);
-	let bulkTags = $state<string[]>([]);
-	let bulkSites = $state<string[]>([]);
-	// Sites de la collection, au format attendu par TagPicker.
-	const siteChoices = $derived(
-		entries.active
-			? entries.sitesIn(entries.active.id).map((site) => ({ id: site.id, name: site.label, collectionId: site.id }))
-			: []
-	);
-	let bulkBusy = $state(false);
-	let bulkError = $state('');
-	const selectedItems = $derived(results.filter((entry) => selected.includes(entry.id)));
-	const allHidden = $derived(selectedItems.length > 0 && selectedItems.every((entry) => entry.hidden));
-	const allSelected = $derived(results.length > 0 && selectedItems.length === results.length);
-
-	// « Tout » est une bascule : tout sélectionner, puis tout désélectionner.
-	function toggleAll() {
-		selected = allSelected ? [] : results.map((entry) => entry.id);
-	}
 
 	function stopSelecting() {
 		selecting = false;
 		selected = [];
-		closePanel();
-		bulkError = '';
-	}
-
-	function closePanel() {
-		bulkPanel = null;
-		bulkTags = [];
-		bulkSites = [];
 	}
 
 	function toggleSelected(id: string) {
 		selected = selected.includes(id) ? selected.filter((other) => other !== id) : [...selected, id];
-	}
-
-	async function applyBulk(action: () => Promise<void>) {
-		if (bulkBusy) return;
-		bulkBusy = true;
-		bulkError = '';
-		try {
-			await action();
-			// La sélection reste ouverte pour enchaîner ; seules les fiches encore affichées restent cochées.
-			closePanel();
-			selected = selected.filter((id) => results.some((entry) => entry.id === id));
-		} catch (e) {
-			bulkError = errorMessage(e);
-		} finally {
-			bulkBusy = false;
-		}
 	}
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
@@ -510,131 +458,17 @@
 		<p class="text-base-content/60 py-8 text-center">Toutes les fiches sont cachées.</p>
 	{/if}
 
-	<!--
-		En-tête d'une carte : le bouton (agrandir) ou le lien (ouvrir, cocher) porte le nom, et son ::after couvre toute la
-		zone, image comprise. Le bouton de copie passe au-dessus : deux éléments cliquables ne peuvent pas s'imbriquer.
-	-->
-	{#snippet cardHeader(entry: (typeof results)[number])}
-		{@const zooms = clickZooms && !selecting}
-		<div class="relative">
-			<h2
-				class="flex items-center gap-1 font-semibold {prefs.cardSize === 'small'
-					? 'py-1 pr-1 pl-2 text-xs'
-					: prefs.cardSize === 'large'
-						? 'py-2 pr-3 pl-4 text-base'
-						: 'py-1.5 pr-2 pl-3 text-sm'}"
-			>
-				{#if zooms}
-					<button
-						type="button"
-						class="flex min-w-0 flex-1 cursor-pointer items-center gap-1 text-left after:absolute after:inset-0 after:z-[1]"
-						aria-haspopup="dialog"
-						onclick={() => openZoom(entry.id)}
-					>
-						{@render cardName(entry)}
-					</button>
-				{:else}
-					<a
-						href="/entry/{entry.id}"
-						class="flex min-w-0 flex-1 items-center gap-1 after:absolute after:inset-0 after:z-[1]"
-						onclick={(event) => {
-							if (!selecting) return;
-							event.preventDefault();
-							toggleSelected(entry.id);
-						}}
-					>
-						{@render cardName(entry)}
-					</a>
-				{/if}
-				{#if !selecting}
-					<CopyButton
-						text={entry.name}
-						label="Copier le nom de {entry.name}"
-						class="btn btn-ghost btn-xs btn-square text-base-content/50 relative z-10 shrink-0"
-					/>
-				{/if}
-			</h2>
-			<figure class="bg-primary/10 relative aspect-square">
-				{#if entry.thumbUrl}
-					<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
-				{:else}
-					<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
-						{entry.name.charAt(0).toUpperCase()}
-					</span>
-				{/if}
-				<!-- Note et rang sur l'image pour ne pas ajouter de ligne ; translucides pour laisser voir la photo. -->
-				{#if entry.rating}
-					<span class="badge badge-sm bg-base-100/70 absolute bottom-1 left-1 border-0" role="img" aria-label="Note : {formatRating(entry.rating)} sur 5">
-						★ {formatRating(entry.rating)}
-					</span>
-				{/if}
-				{#if entries.rankOf(entry)}
-					<span class="badge badge-sm bg-neutral/70 text-neutral-content absolute right-1 bottom-1 border-0" title="Rang dans le classement">
-						#{entries.rankOf(entry)}
-					</span>
-				{/if}
-				{#if selecting}
-					<input
-						type="checkbox"
-						class="checkbox checkbox-sm bg-base-100 absolute top-1 left-1 z-10"
-						checked={selected.includes(entry.id)}
-						onchange={() => toggleSelected(entry.id)}
-						aria-label="Sélectionner {entry.name}"
-					/>
-				{/if}
-			</figure>
-		</div>
-	{/snippet}
-
-	{#snippet cardName(entry: (typeof results)[number])}
-		{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
-		<span class="min-w-0 flex-1 truncate">{entry.name}</span>
-	{/snippet}
-
 	<!-- items-start : une carte détaillée s'allonge sans étirer ses voisines. -->
 	<ul class="grid items-start {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
-			{@const links = entries.linksOf(entry)}
-			{@const isSelected = selected.includes(entry.id)}
-			{@const entryTags = entries.tagsOf(entry)}
-			<li
-				id="card-{entry.id}"
-				class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
-					? 'opacity-50 hover:opacity-100'
-					: ''} {isSelected ? 'outline-primary outline-2 -outline-offset-2' : ''}"
-			>
-				<!-- En mode sélection, un clic sur la carte coche la fiche ; sinon il l'agrandit ou l'ouvre (Paramètres). -->
-				{@render cardHeader(entry)}
-				{#if (!clickZooms || selecting) && !detailed && (entryTags.length || links.length)}
-					<button
-						type="button"
-						class="text-base-content/60 hover:bg-base-200 border-base-200 flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
-						aria-haspopup="dialog"
-						onclick={() => openZoom(entry.id)}
-					>
-						<span class="flex-1 text-left">Détails</span>
-						<Icon name="chevronRight" class="size-4" />
-					</button>
-				{/if}
-
-				<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
-				{#if detailed}
-					{#if entryTags.length}
-						<div class="flex flex-wrap gap-1 px-3 pb-2">
-							{#each entryTags as tag (tag.id)}
-								<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
-							{/each}
-						</div>
-					{/if}
-					{#if links.length}
-						<ul class="border-base-200 flex flex-col gap-1 border-t px-3 py-2 text-sm">
-							{#each links as link, i (i)}
-								<li class="truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
-							{/each}
-						</ul>
-					{/if}
-				{/if}
-			</li>
+			<EntryCard
+				{entry}
+				{detailed}
+				{selecting}
+				selected={selected.includes(entry.id)}
+				onzoom={() => openZoom(entry.id)}
+				ontoggle={() => toggleSelected(entry.id)}
+			/>
 		{/each}
 	</ul>
 {/if}
@@ -649,116 +483,7 @@
 {/if}
 
 {#if selecting}
-	<div
-		role="toolbar"
-		aria-label="Actions sur la sélection"
-		class="bg-base-100 fixed inset-x-0 bottom-0 z-20 flex flex-col gap-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgb(0_0_0/0.15)]"
-	>
-		<ErrorAlert message={bulkError} />
-		{#if bulkPanel === 'tags'}
-			<TagPicker tags={entries.tags ?? []} bind:selected={bulkTags} label="Tags à ajouter, retirer ou définir" />
-			<div class="flex flex-wrap gap-2">
-				<button
-					class="btn btn-primary btn-sm"
-					disabled={bulkBusy || !bulkTags.length}
-					onclick={() => applyBulk(() => changeEntriesTags(selectedItems, bulkTags, 'add'))}
-				>
-					Ajouter
-				</button>
-				<button
-					class="btn btn-outline btn-sm"
-					disabled={bulkBusy || !bulkTags.length}
-					onclick={() => applyBulk(() => changeEntriesTags(selectedItems, bulkTags, 'remove'))}
-				>
-					Retirer
-				</button>
-				<button
-					class="btn btn-outline btn-sm"
-					disabled={bulkBusy}
-					title="Les fiches auront exactement ces tags"
-					onclick={() => applyBulk(() => changeEntriesTags(selectedItems, bulkTags, 'set'))}
-				>
-					{bulkTags.length ? 'Définir' : 'Retirer tous'}
-				</button>
-				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
-			</div>
-		{:else if bulkPanel === 'sites'}
-			<p class="text-sm">Sites de la collection à afficher ou masquer sur les fiches sélectionnées ; « Définir » n'affiche que ceux-là :</p>
-			<TagPicker tags={siteChoices} bind:selected={bulkSites} label="Sites à afficher, masquer ou définir" />
-			<div class="flex flex-wrap gap-2">
-				<button
-					class="btn btn-primary btn-sm"
-					disabled={bulkBusy || !bulkSites.length}
-					onclick={() => applyBulk(() => changeEntriesSites(selectedItems, bulkSites, 'show'))}
-				>
-					Afficher
-				</button>
-				<button
-					class="btn btn-outline btn-sm"
-					disabled={bulkBusy || !bulkSites.length}
-					onclick={() => applyBulk(() => changeEntriesSites(selectedItems, bulkSites, 'hide'))}
-				>
-					Masquer
-				</button>
-				<button
-					class="btn btn-outline btn-sm"
-					disabled={bulkBusy}
-					title="Seuls ces sites restent affichés"
-					onclick={() => applyBulk(() => changeEntriesSites(selectedItems, bulkSites, 'set'))}
-				>
-					{bulkSites.length ? 'Définir' : 'Masquer tous'}
-				</button>
-				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
-			</div>
-		{:else if bulkPanel === 'trash'}
-			{@const count = selectedItems.length}
-			<p class="text-sm">
-				Supprimer {count} fiche{count > 1 ? 's' : ''} ? La corbeille les garde {TRASH_DAYS} jours ; la suppression définitive
-				est irréversible.
-			</p>
-			<div class="flex flex-wrap gap-2">
-				<button class="btn btn-error btn-sm" disabled={bulkBusy} onclick={() => applyBulk(() => trashEntries(selectedItems))}>
-					Mettre à la corbeille
-				</button>
-				<button
-					class="btn btn-error btn-outline btn-sm"
-					disabled={bulkBusy}
-					onclick={() => applyBulk(() => deleteForever(selectedItems))}
-				>
-					Supprimer définitivement
-				</button>
-				<button class="btn btn-ghost btn-sm" onclick={closePanel}>Retour</button>
-			</div>
-		{:else}
-			<div class="mx-auto flex w-full max-w-3xl flex-wrap items-center gap-2">
-				<span class="text-sm font-medium" role="status">
-					{selectedItems.length} sélectionnée{selectedItems.length > 1 ? 's' : ''}
-				</span>
-				<button class="btn btn-sm {allSelected ? 'btn-primary' : 'btn-ghost'}" aria-pressed={allSelected} onclick={toggleAll}>
-					Tout
-				</button>
-				<button
-					class="btn btn-sm"
-					disabled={bulkBusy || !selectedItems.length}
-					onclick={() => applyBulk(() => setEntriesHidden(selectedItems, !allHidden))}
-				>
-					{allHidden ? 'Afficher' : 'Cacher'}
-				</button>
-				{#if entries.tags?.length}
-					<button class="btn btn-sm" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'tags')}>Tags</button>
-				{/if}
-				{#if siteChoices.length}
-					<button class="btn btn-sm" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'sites')}>Liens</button>
-				{/if}
-				<button class="btn btn-sm btn-error btn-outline" disabled={!selectedItems.length} onclick={() => (bulkPanel = 'trash')}>
-					Supprimer
-				</button>
-				<button class="btn btn-ghost btn-sm btn-square ml-auto" onclick={stopSelecting} aria-label="Quitter la sélection" title="Quitter">
-					<Icon name="close" class="size-4" />
-				</button>
-			</div>
-		{/if}
-	</div>
+	<BulkToolbar items={results} bind:selected onclose={stopSelecting} />
 {:else if entries.active}
 	<NewEntryButton />
 {/if}

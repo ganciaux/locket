@@ -22,10 +22,7 @@ import {
 	entryLinks,
 	isRankable,
 	rankedIds,
-	withRanked,
 	findSameName,
-	type SiteMode,
-	withSiteMode,
 	withSiteVisibility,
 	restoredName,
 	isTrashExpired,
@@ -36,9 +33,6 @@ import {
 	matchesLinkFilter,
 	matchesRatingFilter,
 	parseRating,
-	moveItem,
-	parseLabel,
-	parseSiteTemplate,
 	sortBy,
 	withRecoveredCollections
 } from './model';
@@ -56,31 +50,37 @@ import {
 
 export type ListItem = EntrySummary & { thumbUrl?: string };
 
-let items = $state.raw<ListItem[] | null>(null);
-let tags = $state.raw<Tag[] | null>(null);
-let collections = $state.raw<Collection[] | null>(null);
+// Écrit aussi par collections.ts et ranking.ts ; ailleurs, lire par `entries`.
+// Champs `$state.raw` : réassignés en entier, jamais modifiés en place.
+class EntriesData {
+	items = $state.raw<ListItem[] | null>(null);
+	tags = $state.raw<Tag[] | null>(null);
+	collections = $state.raw<Collection[] | null>(null);
+}
+export const data = new EntriesData();
+
 let unreadableIds = $state.raw<string[]>([]);
 let catalogDamaged = $state(false);
 // Graine du tri aléatoire : fixée pour la session, l'ordre ne change pas à chaque retour sur la liste.
 let shuffleSeed = $state(Math.random());
 let loading: Promise<void> | null = null;
 
-const tagNames = $derived(new Map((tags ?? []).map((tag) => [tag.id, tag.name])));
+const tagNames = $derived(new Map((data.tags ?? []).map((tag) => [tag.id, tag.name])));
 // Collection choisie sur cet appareil ; si elle n'existe plus (ou jamais choisie), la première.
-const active = $derived(collections && (collections.find((c) => c.id === prefs.collectionId) ?? collections[0] ?? null));
+const active = $derived(data.collections && (data.collections.find((c) => c.id === prefs.collectionId) ?? data.collections[0] ?? null));
 // La corbeille reste chargée, mais hors de tout ce qui s'affiche ou se compte.
-const liveItems = $derived(items && items.filter((item) => !item.deletedAt));
+const liveItems = $derived(data.items && data.items.filter((item) => !item.deletedAt));
 const activeItems = $derived(liveItems && liveItems.filter((item) => item.collectionId === active?.id));
 const inCollection = (collectionId: string) => (liveItems ?? []).filter((item) => item.collectionId === collectionId);
 const rankingOf = (collectionId: string): string[] =>
-	rankedIds(collections?.find((c) => c.id === collectionId)?.ranking, inCollection(collectionId));
+	rankedIds(data.collections?.find((c) => c.id === collectionId)?.ranking, inCollection(collectionId));
 const draftOf = (collectionId: string): string[] | null => {
-	const draft = collections?.find((c) => c.id === collectionId)?.rankingDraft;
+	const draft = data.collections?.find((c) => c.id === collectionId)?.rankingDraft;
 	return draft ? rankedIds(draft, inCollection(collectionId)) : null;
 };
 // Rangs de la collection active (1 = la meilleure), pour les cartes et le tri.
 const activeRanks = $derived(new Map(active ? rankingOf(active.id).map((id, i) => [id, i + 1]) : []));
-const activeTags = $derived(tags && tags.filter((tag) => tag.collectionId === active?.id));
+const activeTags = $derived(data.tags && data.tags.filter((tag) => tag.collectionId === active?.id));
 
 const withThumbUrl = (entry: EntrySummary): ListItem => ({
 	...entry,
@@ -90,10 +90,10 @@ const withThumbUrl = (entry: EntrySummary): ListItem => ({
 const revoke = (item: ListItem | undefined) => item?.thumbUrl && URL.revokeObjectURL(item.thumbUrl);
 
 function clear() {
-	items?.forEach(revoke);
-	items = null;
-	tags = null;
-	collections = null;
+	data.items?.forEach(revoke);
+	data.items = null;
+	data.tags = null;
+	data.collections = null;
 	unreadableIds = [];
 	catalogDamaged = false;
 	loading = null;
@@ -108,7 +108,7 @@ $effect.root(() => {
 export const entries = {
 	/** Toutes les fiches, toutes collections confondues (pour retrouver une fiche par son id). */
 	get items() {
-		return items;
+		return data.items;
 	},
 	/** Fiches de la collection active, triées par nom. */
 	get activeItems() {
@@ -116,7 +116,7 @@ export const entries = {
 	},
 	/** Dans l'ordre choisi par l'utilisateur. */
 	get collections() {
-		return collections;
+		return data.collections;
 	},
 	/** null tant que rien n'est chargé, ou si aucune collection n'existe encore. */
 	get active() {
@@ -127,7 +127,7 @@ export const entries = {
 		return activeTags;
 	},
 	tagsIn(collectionId: string): Tag[] {
-		return (tags ?? []).filter((tag) => tag.collectionId === collectionId);
+		return (data.tags ?? []).filter((tag) => tag.collectionId === collectionId);
 	},
 	/** Fiches qu'aucune clé ne peut déchiffrer : absentes de `items`, leur collection est inconnue. */
 	get unreadableCount() {
@@ -139,7 +139,7 @@ export const entries = {
 	},
 	/** Corbeille, de la suppression la plus récente à la plus ancienne. */
 	get trash(): ListItem[] {
-		return (items ?? []).filter((item) => item.deletedAt).sort((a, b) => b.deletedAt! - a.deletedAt!);
+		return (data.items ?? []).filter((item) => item.deletedAt).sort((a, b) => b.deletedAt! - a.deletedAt!);
 	},
 	/**
 	 * Dans la collection active ; `activeItems` reste trié par nom, un autre ordre est appliqué à la copie filtrée.
@@ -200,7 +200,7 @@ export const entries = {
 		return entries.tagsIn(entry.collectionId).filter((tag) => entry.tagIds?.includes(tag.id));
 	},
 	sitesIn(collectionId: string): Site[] {
-		return collections?.find((c) => c.id === collectionId)?.sites ?? [];
+		return data.collections?.find((c) => c.id === collectionId)?.sites ?? [];
 	},
 	/** Liens à afficher : sites actifs de sa collection, puis liens saisis. */
 	linksOf(entry: { collectionId: string } & Parameters<typeof entryLinks>[0]): Link[] {
@@ -239,11 +239,11 @@ export function loadEntries(): Promise<void> {
 			const expired = list.filter((entry) => isTrashExpired(entry.deletedAt, now));
 			if (expired.length) deleteEntries(user.uid, expired.map((entry) => entry.id)).catch(() => {});
 			const kept = list.filter((entry) => !isTrashExpired(entry.deletedAt, now));
-			items = kept.map(withThumbUrl).sort(byName);
+			data.items = kept.map(withThumbUrl).sort(byName);
 			unreadableIds = unreadable;
 			catalogDamaged = damaged;
-			collections = withRecoveredCollections(collectionList, kept);
-			tags = tagList.sort(byName);
+			data.collections = withRecoveredCollections(collectionList, kept);
+			data.tags = tagList.sort(byName);
 		},
 		(error) => {
 			loading = null; // permet de réessayer
@@ -259,10 +259,10 @@ export function resetEntries(): void {
 }
 
 export function upsertEntries(changed: EntrySummary[]): void {
-	if (!items) return; // la liste sera chargée en entier plus tard
+	if (!data.items) return; // la liste sera chargée en entier plus tard
 	const ids = new Set(changed.map((entry) => entry.id));
-	items.filter((item) => ids.has(item.id)).forEach(revoke);
-	items = [...items.filter((item) => !ids.has(item.id)), ...changed.map(withThumbUrl)].sort(byName);
+	data.items.filter((item) => ids.has(item.id)).forEach(revoke);
+	data.items = [...data.items.filter((item) => !ids.has(item.id)), ...changed.map(withThumbUrl)].sort(byName);
 }
 
 export const upsertEntry = (entry: EntrySummary): void => upsertEntries([entry]);
@@ -282,9 +282,9 @@ export async function deleteAllData(password: string): Promise<number> {
 }
 
 export function removeEntry(id: string): void {
-	if (!items) return;
-	revoke(items.find((item) => item.id === id));
-	items = items.filter((item) => item.id !== id);
+	if (!data.items) return;
+	revoke(data.items.find((item) => item.id === id));
+	data.items = data.items.filter((item) => item.id !== id);
 }
 
 /** Applique une modification à plusieurs fiches. Après un échec partiel, tout est relu depuis Firestore. */
@@ -292,7 +292,7 @@ async function patchEntries(targets: ListItem[], patch: (entry: ListItem) => Par
 	const { uid, dek } = unlocked();
 	try {
 		const updated = new Map((await patchStoredEntries(uid, dek, targets, patch)).map((entry) => [entry.id, entry]));
-		items = (items ?? []).map((item) => updated.get(item.id) ?? item).sort(byName);
+		data.items = (data.items ?? []).map((item) => updated.get(item.id) ?? item).sort(byName);
 	} catch (error) {
 		clear();
 		loadEntries().catch(() => {});
@@ -364,7 +364,7 @@ const THUMBS_PER_WRITE = 25;
 export async function regenerateThumbs(onProgress: (done: number, total: number) => void): Promise<{ updated: number; failed: number }> {
 	const { uid, dek } = unlocked();
 	await loadEntries();
-	const targets = (items ?? []).filter((item) => item.imageType);
+	const targets = (data.items ?? []).filter((item) => item.imageType);
 	let done = 0;
 	let updated = 0;
 	let failed = 0;
@@ -410,16 +410,15 @@ export async function deleteUnreadableEntries(password: string): Promise<void> {
 	unreadableIds = [];
 }
 
-// ---------------------------------------------------------------------------
-// Administration. Chaque catalogue est réécrit en entier : il doit être chargé, sinon on l'écraserait.
-
-function unlocked() {
+/** La session doit être déverrouillée ; utilisé aussi par collections.ts et ranking.ts. */
+export function unlocked() {
 	const { user, dek } = session;
 	if (!user || !dek) throw new Error('Session verrouillée.');
 	return { uid: user.uid, dek };
 }
 
-function loaded<T>(catalog: T[] | null): T[] {
+/** Chaque catalogue est réécrit en entier : il doit être chargé, sinon on l'écraserait. */
+export function loaded<T>(catalog: T[] | null): T[] {
 	if (!catalog) throw new Error('Catalogue pas encore chargé.');
 	return catalog;
 }
@@ -427,145 +426,4 @@ function loaded<T>(catalog: T[] | null): T[] {
 /** Nouvel ordre pour le tri aléatoire. */
 export function reshuffle(): void {
 	shuffleSeed = Math.random();
-}
-
-export function selectCollection(id: string): void {
-	prefs.collectionId = id;
-}
-
-async function replaceCollections(next: Collection[]): Promise<void> {
-	const { uid, dek } = unlocked();
-	await collectionCatalog.save(uid, dek, next);
-	collections = next;
-}
-
-/** Ajoutée en fin de liste ; la toute première devient la collection active. */
-export async function addCollection(input: string): Promise<void> {
-	const current = loaded(collections);
-	const created = { id: crypto.randomUUID(), name: parseLabel(input, current) };
-	await replaceCollections([...current, created]);
-	if (current.length === 0) selectCollection(created.id);
-}
-
-export async function renameCollection(id: string, input: string): Promise<void> {
-	const current = loaded(collections);
-	const name = parseLabel(input, current.filter((c) => c.id !== id));
-	await replaceCollections(current.map((c) => (c.id === id ? { ...c, name } : c)));
-}
-
-export async function moveCollection(id: string, delta: -1 | 1): Promise<void> {
-	const current = loaded(collections);
-	const next = moveItem(current, current.findIndex((c) => c.id === id), delta);
-	if (next !== current) await replaceCollections(next);
-}
-
-/** Uniquement vide : aucune fiche ne peut perdre sa collection. Ses tags disparaissent avec elle. */
-export async function deleteCollection(id: string): Promise<void> {
-	const count = entries.countIn(id);
-	if (count) throw new Error(`Cette collection contient encore ${count} fiche${count > 1 ? 's' : ''}.`);
-	const currentTags = loaded(tags);
-	await replaceCollections(loaded(collections).filter((c) => c.id !== id));
-	// Écrit après les collections : en cas d'échec, des tags orphelins restent, invisibles et sans effet.
-	if (currentTags.some((tag) => tag.collectionId === id))
-		await replaceTags(currentTags.filter((tag) => tag.collectionId !== id));
-}
-
-const updateRankings = (collectionId: string, change: (collection: Collection) => Partial<Collection>): Promise<void> =>
-	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, ...change(c) } : c)));
-
-/**
- * Classe une fiche au rang `index` (à partir de 0) de `ranked`, le classement effectif sans elle, dans celui qui reçoit
- * les duels. Les ids de fiches supprimées pour de bon sont oubliés au passage.
- */
-export function placeInRanking(collectionId: string, id: string, ranked: string[], index: number): Promise<void> {
-	const known = new Set((items ?? []).map((item) => item.id));
-	return updateRankings(collectionId, ({ ranking, rankingDraft }) =>
-		rankingDraft
-			? { rankingDraft: withRanked(rankingDraft, ranked, id, index, known) }
-			: { ranking: withRanked(ranking, ranked, id, index, known) }
-	);
-}
-
-/** La fiche redevient non classée, y compris dans un nouveau classement en cours ; les suivantes remontent d'un rang. */
-export const removeFromRanking = (collectionId: string, id: string): Promise<void> =>
-	updateRankings(collectionId, ({ ranking = [], rankingDraft }) => ({
-		ranking: ranking.filter((other) => other !== id),
-		rankingDraft: rankingDraft?.filter((other) => other !== id)
-	}));
-
-/** Repart de zéro à côté du classement actuel, qui reste affiché jusqu'à `finishNewRanking`. */
-export const startNewRanking = (collectionId: string): Promise<void> =>
-	updateRankings(collectionId, () => ({ rankingDraft: [] }));
-
-/** Le nouveau classement remplace l'actuel, même incomplet : les fiches absentes redeviennent non classées. */
-export const finishNewRanking = (collectionId: string): Promise<void> =>
-	updateRankings(collectionId, ({ ranking, rankingDraft }) => ({ ranking: rankingDraft ?? ranking, rankingDraft: undefined }));
-
-export const abandonNewRanking = (collectionId: string): Promise<void> =>
-	updateRankings(collectionId, () => ({ rankingDraft: undefined }));
-
-/** Toutes les fiches redeviennent non classées, nouveau classement en cours compris. */
-export const deleteRanking = (collectionId: string): Promise<void> =>
-	updateRankings(collectionId, () => ({ ranking: undefined, rankingDraft: undefined }));
-
-const replaceSites = (collectionId: string, sites: Site[]): Promise<void> =>
-	replaceCollections(loaded(collections).map((c) => (c.id === collectionId ? { ...c, sites } : c)));
-
-/** Crée un site (actif) ou modifie celui d'identifiant `id`. */
-export async function saveSite(collectionId: string, input: { label: string; urlTemplate: string }, id?: string): Promise<void> {
-	const sites = entries.sitesIn(collectionId);
-	const others = sites.filter((site) => site.id !== id).map((site) => ({ name: site.label }));
-	const label = parseLabel(input.label, others);
-	const urlTemplate = parseSiteTemplate(input.urlTemplate);
-	await replaceSites(
-		collectionId,
-		id
-			? sites.map((site) => (site.id === id ? { ...site, label, urlTemplate } : site))
-			: [...sites, { id: crypto.randomUUID(), label, urlTemplate, enabled: true }]
-	);
-}
-
-export async function moveSite(collectionId: string, id: string, delta: -1 | 1): Promise<void> {
-	const sites = entries.sitesIn(collectionId);
-	const next = moveItem(sites, sites.findIndex((site) => site.id === id), delta);
-	if (next !== sites) await replaceSites(collectionId, next);
-}
-
-export const setSiteMode = (collectionId: string, id: string, mode: SiteMode): Promise<void> =>
-	replaceSites(
-		collectionId,
-		entries.sitesIn(collectionId).map((site) => (site.id === id ? withSiteMode(site, mode) : site))
-	);
-
-/** Les termes propres des fiches sont oubliés à leur prochaine modification, comme les tags supprimés. */
-export const deleteSite = (collectionId: string, id: string): Promise<void> =>
-	replaceSites(collectionId, entries.sitesIn(collectionId).filter((site) => site.id !== id));
-
-async function replaceTags(next: Tag[]): Promise<void> {
-	const { uid, dek } = unlocked();
-	await tagCatalog.save(uid, dek, next);
-	tags = [...next].sort(byName);
-}
-
-/** Dans la collection active ; un même nom peut exister dans deux collections. */
-export async function addTag(input: string): Promise<void> {
-	const current = loaded(tags);
-	if (!active) throw new Error('Aucune collection.');
-	const collectionId = active.id;
-	const name = parseLabel(input, current.filter((tag) => tag.collectionId === collectionId));
-	await replaceTags([...current, { id: crypto.randomUUID(), name, collectionId }]);
-}
-
-/** Les fiches ne stockent que l'identifiant : renommer ne touche que le catalogue. */
-export async function renameTag(id: string, input: string): Promise<void> {
-	const current = loaded(tags);
-	const tag = current.find((t) => t.id === id);
-	if (!tag) return;
-	const name = parseLabel(input, current.filter((t) => t.collectionId === tag.collectionId && t.id !== id));
-	await replaceTags(current.map((t) => (t.id === id ? { ...t, name } : t)));
-}
-
-/** Retire le tag du catalogue ; les fiches qui le portent l'oublient à leur prochaine modification. */
-export async function deleteTag(id: string): Promise<void> {
-	await replaceTags(loaded(tags).filter((tag) => tag.id !== id));
 }

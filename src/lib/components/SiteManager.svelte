@@ -11,7 +11,7 @@
 		type SiteMode,
 		siteMode
 	} from '$lib/entries/model';
-	import { deleteSite, moveSite, saveSite, setSiteMode } from '$lib/entries/store.svelte';
+	import { deleteSite, moveSite, saveSite, setSiteMode } from '$lib/entries/collections';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 

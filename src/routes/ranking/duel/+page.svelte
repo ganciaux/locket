@@ -14,7 +14,8 @@
 		opponentIndex,
 		startInsertion
 	} from '$lib/entries/model';
-	import { entries, finishNewRanking, loadEntries, placeInRanking } from '$lib/entries/store.svelte';
+	import { finishNewRanking, placeInRanking } from '$lib/entries/ranking';
+	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	// `?id=` : reclasser cette fiche, puis repartir ; sinon, les fiches non classées l'une après l'autre.

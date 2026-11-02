@@ -1,7 +1,8 @@
 <script lang="ts">
 	// Bascule entre collections : le titre de la page ouvre le menu, dans l'ordre choisi par l'utilisateur.
 	import Icon from '$lib/components/Icon.svelte';
-	import { entries, selectCollection } from '$lib/entries/store.svelte';
+	import { selectCollection } from '$lib/entries/collections';
+	import { entries } from '$lib/entries/store.svelte';
 
 	let { onselect }: { onselect?: () => void } = $props();
 

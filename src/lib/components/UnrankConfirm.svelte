@@ -1,7 +1,8 @@
 <script lang="ts">
 	// Confirme le retrait d'une fiche du classement : sa place est perdue, il faudra refaire ses duels.
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
-	import { type ListItem, removeFromRanking } from '$lib/entries/store.svelte';
+	import { removeFromRanking } from '$lib/entries/ranking';
+	import type { ListItem } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
 
 	let { entry, onclose }: { entry: ListItem; onclose: () => void } = $props();

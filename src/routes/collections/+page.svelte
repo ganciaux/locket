@@ -4,14 +4,8 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import SiteManager from '$lib/components/SiteManager.svelte';
 	import { MAX_LABEL_LENGTH } from '$lib/entries/model';
-	import {
-		addCollection,
-		deleteCollection,
-		entries,
-		loadEntries,
-		moveCollection,
-		renameCollection
-	} from '$lib/entries/store.svelte';
+	import { addCollection, deleteCollection, moveCollection, renameCollection } from '$lib/entries/collections';
+	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 

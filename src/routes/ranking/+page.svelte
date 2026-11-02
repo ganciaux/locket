@@ -6,16 +6,9 @@
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
 	import { isRankable } from '$lib/entries/model';
-	import {
-		type ListItem,
-		abandonNewRanking,
-		deleteRanking,
-		entries,
-		finishNewRanking,
-		loadEntries,
-		selectCollection,
-		startNewRanking
-	} from '$lib/entries/store.svelte';
+	import { selectCollection } from '$lib/entries/collections';
+	import { abandonNewRanking, deleteRanking, finishNewRanking, startNewRanking } from '$lib/entries/ranking';
+	import { type ListItem, entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	let error = $state('');
