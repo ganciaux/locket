@@ -4,10 +4,10 @@
 	import { onMount } from 'svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import LinkChips from '$lib/components/LinkChips.svelte';
 	import Rating from '$lib/components/Rating.svelte';
-	import { countryFlag, countryName, linkTitle, neighbours } from '$lib/entries/model';
+	import { countryFlag, countryName, neighbours } from '$lib/entries/model';
 	import { findSimilar } from '$lib/entries/similar';
 	import { type ListItem, entries, rateEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -182,11 +182,7 @@
 					</div>
 				{/if}
 				{#if links.length}
-					<ul class="flex flex-col gap-1 text-sm">
-						{#each links as link, i (i)}
-							<li class="truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
-						{/each}
-					</ul>
+					<LinkChips {links} />
 				{/if}
 				<div class="grid grid-cols-3 gap-2">
 					<a class="btn btn-primary btn-sm" href="/entry/{entry.id}" aria-label="Ouvrir la fiche">Ouvrir</a>

@@ -1,9 +1,9 @@
 <script lang="ts">
 	// Carte de la liste. En mode sélection, un clic coche la fiche ; sinon il l'agrandit ou l'ouvre (Paramètres).
 	import CopyButton from '$lib/components/CopyButton.svelte';
-	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { countryFlag, countryName, formatRating, linkTitle } from '$lib/entries/model';
+	import LinkChips from '$lib/components/LinkChips.svelte';
+	import { countryFlag, countryName, formatRating } from '$lib/entries/model';
 	import { type ListItem, entries } from '$lib/entries/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 
@@ -39,9 +39,12 @@
 	id="card-{entry.id}"
 	class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
 		? 'opacity-50 hover:opacity-100'
-		: ''} {selected ? 'outline-primary outline-2 -outline-offset-2' : ''}"
+		: ''} {selected
+		? 'after:border-primary after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border-2'
+		: ''}"
 >
 	<!--
+		Bordure de sélection en ::after du <li> : un outline passerait sous l'image.
 		En-tête : le bouton (agrandir) ou le lien (ouvrir, cocher) porte le nom, et son ::after couvre toute la zone,
 		image comprise. Le bouton de copie passe au-dessus : deux éléments cliquables ne peuvent pas s'imbriquer.
 	-->
@@ -105,7 +108,7 @@
 			{#if selecting}
 				<input
 					type="checkbox"
-					class="checkbox checkbox-sm bg-base-100 absolute top-1 left-1 z-10"
+					class="checkbox checkbox-sm bg-base-100 text-primary checked:border-primary absolute top-1 left-1 z-10"
 					checked={selected}
 					onchange={ontoggle}
 					aria-label="Sélectionner {entry.name}"
@@ -128,18 +131,16 @@
 	<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
 	{#if detailed}
 		{#if entryTags.length}
-			<div class="flex flex-wrap gap-1 px-3 pb-2">
+			<div class="flex flex-wrap gap-1 px-3 py-2">
 				{#each entryTags as tag (tag.id)}
 					<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
 				{/each}
 			</div>
 		{/if}
 		{#if links.length}
-			<ul class="border-base-200 flex flex-col gap-1 border-t px-3 py-2 text-sm">
-				{#each links as link, i (i)}
-					<li class="truncate"><ExternalLink url={link.url}>{linkTitle(link)}</ExternalLink></li>
-				{/each}
-			</ul>
+			<div class="border-base-200 border-t px-3 py-2">
+				<LinkChips {links} small />
+			</div>
 		{/if}
 	{/if}
 </li>

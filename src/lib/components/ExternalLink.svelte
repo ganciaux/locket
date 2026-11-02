@@ -4,13 +4,14 @@
 	import { parseLinkUrl } from '$lib/entries/model';
 	import { prefs } from '$lib/prefs.svelte';
 
-	let { url, children }: { url: string; children: Snippet } = $props();
+	let { url, class: className = 'link link-primary', children }: { url: string; class?: string; children: Snippet } =
+		$props();
 	const href = $derived(parseLinkUrl(url));
 </script>
 
 {#if href}
 	<a
-		class="link link-primary"
+		class={className}
 		{href}
 		target={prefs.linksInNewTab ? '_blank' : undefined}
 		rel="noopener noreferrer">{@render children()}</a
