@@ -33,6 +33,7 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - `src/lib/crypto/` : **tout** le code crypto (Web Crypto), testé. Aucun autre module n'appelle `crypto.subtle`.
 - `firestore.rules` : accès limité au propriétaire, emplacements et champs fixes, chiffrés `Bytes` uniquement, trousseau non supprimable.
   Tout nouveau champ d'un document Firestore doit y être ajouté.
+- `src/lib/entries/cache.ts` : copie IndexedDB des fiches chiffrées, valide tant que le jeton `meta/version` n'a pas changé.
 - `firebase.json` : Hosting (cache, en-têtes de sécurité dont `frame-ancestors`), émulateurs.
 - `svelte.config.js` : CSP (`kit.csp` en `<meta>`, hash du script de démarrage recalculé à chaque build).
 
@@ -45,6 +46,10 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
   `backup/manifest` pour le manifeste d'une sauvegarde, `keyring/check` pour le sceau de `recoveryDek` :
   un chiffré n'est valable qu'à son emplacement.
 - Firestore : uniquement du type `Bytes`, pas de base64 ; aucune donnée en clair hors uid et ids de documents.
+  Le jeton `meta/version` est un aléa sans contenu, changé dans la transaction de chaque écriture de fiche (`commitEntries`).
+- Cache local (`cache.ts`) : chiffrés uniquement, tels que dans Firestore ; jamais de clé, de donnée déchiffrée
+  ni d'image complète. Effacé à la déconnexion, y compris une session terminée sans `signOut`.
+  Une copie indéchiffrable entraîne une relecture de Firestore, jamais une fiche « illisible » (sa suppression agirait sur le serveur).
 - Sauvegarde : uniquement des documents chiffrés (base64 dans le fichier) ; jamais d'export en clair.
   Tout id lu depuis un fichier est validé avant de servir de chemin Firestore.
   Une sauvegarde est vérifiée en entier (déchiffrement, manifeste) avant la première écriture.
