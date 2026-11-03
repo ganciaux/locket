@@ -339,12 +339,22 @@ async function patchEntries(targets: ListItem[], patch: (entry: ListItem) => Par
 	}
 }
 
-/** Applique un import vérifié (`planImport`) : créations puis mises à jour, par lots. */
+/**
+ * Applique un import vérifié (`planImport`) : créations puis mises à jour, par lots.
+ * Un échec en cours de route peut laisser des lots écrits : la liste est relue, sinon relancer l'import
+ * recréerait en double les fiches déjà créées.
+ */
 export async function importEntries(collectionId: string, plan: ImportPlan): Promise<void> {
 	const { uid, dek } = unlocked();
 	if (plan.added.length) {
 		const drafts = plan.added.map(({ name, fields }) => ({ name, ...fields }));
-		upsertEntries(await createEntries(uid, dek, collectionId, drafts));
+		try {
+			upsertEntries(await createEntries(uid, dek, collectionId, drafts));
+		} catch (error) {
+			clear();
+			loadEntries().catch(() => {});
+			throw error;
+		}
 	}
 	const fields = new Map(plan.updated.map((row) => [row.id, row.fields]));
 	const targets = (liveItems ?? []).filter((item) => fields.has(item.id));

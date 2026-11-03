@@ -31,6 +31,8 @@ export type ImportPlan = {
 };
 
 export const CLEAR = '-';
+/** Au-delà, mieux vaut découper : moins d'écritures perdues en cas de panne, aperçu lisible, quota Spark ménagé. */
+export const MAX_IMPORT_ROWS = 2000;
 export const OTHER_TAGS = 'Autres tags';
 const FIXED = ['Nom', 'Pays', 'Naissance', 'Note'] as const;
 const NONE = '—';
@@ -102,6 +104,11 @@ export function planImport(text: string, items: ImportTarget[], tags: Tag[], gro
 	const scopes = scopesOf(tags, groups);
 	const { columns, errors } = parseHeader(splitLine(header, separator), scopes);
 	if (errors.length) return { ...plan, errors };
+
+	const rowCount = lines.slice(headerIndex + 1).filter((line) => line.trim()).length;
+	if (rowCount > MAX_IMPORT_ROWS) {
+		return { ...plan, errors: [`${rowCount} lignes : ${MAX_IMPORT_ROWS} au plus par import, découpez le tableau.`] };
+	}
 
 	const byKey = new Map(items.map((item) => [searchKey(item.name), item]));
 	const seen = new Map<string, number>();

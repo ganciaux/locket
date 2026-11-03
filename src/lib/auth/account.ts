@@ -70,7 +70,8 @@ async function readKeyring(uid: string): Promise<Keyring> {
 
 /**
  * Quelqu'un qui peut écrire dans Firestore pourrait remplacer `recoveryDek` sans bloquer le mot de passe : le filet de
- * secours serait perdu en silence. Sceau absent (compte plus ancien) : il est posé ici, sur la valeur actuelle.
+ * secours serait perdu en silence. Sceau absent : anomalie aussi, jamais reposé ici (sinon retirer le sceau suffirait
+ * à faire sceller un `recoveryDek` remplacé). Tous les comptes en ont un ; une nouvelle clé de récupération le repose.
  * Une panne réseau ne doit pas gêner le déverrouillage : le contrôle sera refait à la prochaine occasion.
  */
 export async function checkRecoveryKey(): Promise<void> {
@@ -81,12 +82,9 @@ export async function checkRecoveryKey(): Promise<void> {
 		if (!snapshot.exists()) return;
 		const { recoveryDek, keyringCheck } = snapshot.data() as StoredKeyring;
 		const fingerprint = await recoveryFingerprint(fromStored(recoveryDek));
-		if (!keyringCheck) {
-			setRecoveryDamaged(false);
-			await updateDoc(keyringRef(user.uid), { keyringCheck: await sealRecoveryDek(dek, fromStored(recoveryDek)) });
-			return;
-		}
-		const sealed = await decryptJson<string>(dek, fromStored(keyringCheck), KEYRING_CHECK_CONTEXT).catch(() => null);
+		const sealed = keyringCheck
+			? await decryptJson<string>(dek, fromStored(keyringCheck), KEYRING_CHECK_CONTEXT).catch(() => null)
+			: null;
 		setRecoveryDamaged(sealed !== fingerprint);
 	} catch {
 		// réseau indisponible

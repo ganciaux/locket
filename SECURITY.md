@@ -120,8 +120,17 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
 - **Rotation limitée** : remplacer la clé de récupération protège Firestore, pas les sauvegardes ni les copies déjà
   faites, que l'ancienne clé ouvre encore. Changer de mot de passe ne change pas la DEK : un ancien `wrappedDek` copié
   reste ouvrable avec l'ancien mot de passe. Après une compromission grave, seule une recréation du compte suffit.
-- **Sceau de `recoveryDek`** : posé de confiance sur un compte qui n'en avait pas, et repris d'un fichier lors d'une
-  adoption : il détecte un remplacement ultérieur, pas une valeur déjà mauvaise à ce moment-là.
+- **Sceau de `recoveryDek`** : posé à l'inscription, à chaque nouvelle clé de récupération, et repris d'un fichier lors
+  d'une adoption : il détecte un remplacement ultérieur, pas une valeur déjà mauvaise à ce moment-là. Un sceau absent
+  est signalé comme un remplacement, jamais reposé automatiquement (depuis le 2026-11-03), et les règles empêchent de le
+  retirer.
+- **Modèle d'import en clair** : « Partir de mes fiches » (import d'un tableau) met noms, pays, années, notes et tags
+  de la collection en clair dans la zone de texte, puis dans le presse-papiers ou un tableur si on les y copie, où ils
+  peuvent être synchronisés. Seule sortie en clair, voulue et signalée sur la page ; rien n'est envoyé par l'app.
+- **Écrasement entre appareils** : une écriture réécrit tout le `data` d'une fiche depuis la copie en mémoire. Si un
+  autre appareil a modifié la fiche depuis le dernier chargement, ses changements sont perdus, sans message, bien que le
+  jeton `meta/version` le révèle. À corriger (voir [AUDIT.md](AUDIT.md)) ; d'ici là, recharger avant une action groupée
+  ou un import si un autre appareil a servi.
 - **Aperçu iOS** : le sélecteur d'apps peut montrer une capture de l'écran déverrouillé.
 
 ## 6. Plan d'audit
@@ -184,4 +193,7 @@ Résultats attendus et avertissements déjà triés : voir le journal (§ 7). Y 
 | 2026-10-30 | OWASP ZAP baseline (passif, sans connexion) | 0 FAIL, 62 PASS, 6 WARN, aucun exploitable. « Dangerous JS Functions » : faux positif, vérifié dans le bundle, c'est une méthode nommée `eval` d'un moteur de regex embarqué ; aucun vrai `eval`, `new Function` ni `{@html}`, et la CSP interdit `unsafe-eval`. `innerHTML` n'apparaît que dans les gabarits statiques du runtime Svelte. Cache : voulu (`immutable` pour les fichiers versionnés). Timestamp, Modern Web Application : informatifs. COEP : écarté. |
 | 2026-10-30 | Mozilla Observatory, securityheaders.com | **A+** aux deux : Observatory 125/100, 12 tests sur 12, CSP `<meta>` reconnue (`default-src 'self'`, pas de `unsafe`). `Cross-Origin-Opener-Policy: same-origin` ajouté ensuite. COEP et CORP écartés (non nécessaires, COEP pourrait gêner Firestore). SRI sans objet : tous les scripts viennent du site. |
 | 2026-10-30 | Fichier de sauvegarde altéré à la main | Bug trouvé : seule la 1re fiche était vérifiée, le reste écrasait des fiches saines, et l'erreur vide de Web Crypto sous Chrome laissait le loader tourner. Corrigé : tout le fichier est déchiffré avant la première écriture, y compris pour l'adoption du trousseau. Le manifeste chiffré (format v3) couvre aussi les pièces retirées, les métadonnées et le trousseau, et le contrôle a lieu dès le choix du fichier. |
+| 2026-11-03 | OWASP ZAP baseline (passif, sans connexion, après déploiement) | Identique au 2026-10-30 : 0 FAIL, 62 PASS, 6 WARN déjà triés, aucun exploitable. « Dangerous JS Functions » : revérifié dans le chunk en ligne, toujours la méthode `eval` du moteur de regex embarqué (aucun vrai `eval` ni `new Function`). Cache (`immutable` voulu), Timestamp, Modern Web Application : informatifs. COEP : écarté. |
+| 2026-11-03 | Mozilla Observatory, securityheaders.com (après déploiement) | **A+** aux deux : Observatory 135/100, 12 tests sur 12 (+10 depuis le 2026-10-30, grâce à `Cross-Origin-Opener-Policy: same-origin`). securityheaders : CSP d'en-tête (`frame-ancestors`, `object-src`, `base-uri`), Permissions-Policy, Referrer-Policy, HSTS preload, nosniff, COOP. Restent suggérés et écartés comme avant : SRI (scripts du même site), COEP et CORP. |
+| 2026-11-03 | `npm audit`, bundle de prod, agent `security-reviewer` (revue statique, non indépendante) sur l'état de HEAD | `npm audit --omit=dev` : les 4 « high » gRPC déjà triées, rien de nouveau ; 29 autres dans les outils de dev seulement. Bundle : aucun code d'émulateur, CSP inchangée, pas de vrai `eval`. Revue : aucun accès au clair ni fuite de clé ; règles, cache IndexedDB, clés, sauvegarde, AAD/IV, nouveaux champs, import et CSP vérifiés. Corrigés : sceau de `recoveryDek` reposé quand il était absent (un accès en écriture pouvait faire sceller un `recoveryDek` remplacé ; désormais signalé, et les règles interdisent de le retirer), import interrompu qui recréait des doublons à la relance (liste relue, 2 000 lignes au plus), modèle d'import en clair non signalé (avertissement, § 5). Reste ouvert : écrasement entre appareils (§ 5, AUDIT.md). Scans en ligne à refaire après le prochain déploiement. |
 | 2026-10-29 | Bundle de prod | Aucun code d'émulateur (`demo-locket`, `127.0.0.1`) ; CSP en `<meta>` avec le hash du script de démarrage vérifié. |

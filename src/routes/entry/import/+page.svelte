@@ -135,6 +135,11 @@
 					wrap="off"
 					bind:value={text}
 				></textarea>
+				<!-- Seule sortie en clair de l'app (SECURITY.md § 5) : voulue, mais à signaler. -->
+				<p class="text-base-content/60 text-xs">
+					Ce tableau est en clair : le presse-papiers et un tableur (surtout en ligne) peuvent en garder une copie.
+					Supprimez-la une fois l'import fait.
+				</p>
 			</div>
 
 			<label class="flex flex-col gap-1">

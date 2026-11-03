@@ -132,13 +132,23 @@ describe('sauvegarde (émulateurs)', () => {
 		await expect(unwrapDek(recoveryDek, await deriveRecoveryKek(oldKey))).rejects.toThrow();
 	}, 60_000);
 
-	it('pose le sceau sur un compte plus ancien qui n’en a pas', async () => {
+	it('le sceau ne se retire pas, et un sceau absent est signalé sans être reposé', async () => {
 		await signUp(`s${Date.now()}@example.com`, PASSWORD);
 		const { uid } = current();
 		const ref = doc(db, 'users', uid);
-		await updateDoc(ref, { keyringCheck: deleteField() });
+		await expect(updateDoc(ref, { keyringCheck: deleteField() })).rejects.toMatchObject({ code: 'permission-denied' });
+
+		// Retiré hors des règles (console, accès admin) : l'app ne doit pas sceller la valeur en place.
+		const { projectId } = db.app.options;
+		const url = `http://127.0.0.1:8080/v1/projects/${projectId}/databases/(default)/documents/users/${uid}?updateMask.fieldPaths=keyringCheck`;
+		const removed = await fetch(url, { method: 'PATCH', headers: { Authorization: 'Bearer owner' }, body: '{"fields":{}}' });
+		expect(removed.ok).toBe(true);
 		await checkRecoveryKey();
-		expect((await getDoc(ref)).data()!.keyringCheck).toBeDefined();
+		expect(session.recoveryDamaged).toBe(true);
+		expect((await getDoc(ref)).data()!.keyringCheck).toBeUndefined();
+
+		await rotateRecoveryKey(PASSWORD);
+		await checkRecoveryKey();
 		expect(session.recoveryDamaged).toBe(false);
 	}, 60_000);
 

@@ -90,6 +90,11 @@ describe('planImport', () => {
 		expect(result.added).toEqual([]);
 	});
 
+	it('refuse un tableau trop long', () => {
+		const text = ['Nom', ...Array.from({ length: 2001 }, (_, i) => `Fiche ${i}`)].join('\n');
+		expect(plan(text).errors).toEqual(['2001 lignes : 2000 au plus par import, découpez le tableau.']);
+	});
+
 	it('un tag d’une autre catégorie est refusé', () => {
 		expect(plan('Nom;Genre\nX;Terminé').errors).toEqual(['Ligne 2 : tag « Terminé » inconnu dans Genre.']);
 	});

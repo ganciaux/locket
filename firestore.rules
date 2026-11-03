@@ -26,9 +26,12 @@ service cloud.firestore {
     }
 
     // Trousseau : sans lui, plus aucune connexion. L'app ne le supprime jamais.
+    // Son sceau (`keyringCheck`) se remplace mais ne se retire pas : un `recoveryDek` remplacé resterait inaperçu.
     match /users/{uid} {
       allow read: if isOwner(uid);
-      allow create, update: if isOwner(uid) && isKeyring(request.resource.data);
+      allow create: if isOwner(uid) && isKeyring(request.resource.data);
+      allow update: if isOwner(uid) && isKeyring(request.resource.data)
+        && (!('keyringCheck' in resource.data) || 'keyringCheck' in request.resource.data);
       allow delete: if false;
     }
 
