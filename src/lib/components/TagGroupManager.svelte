@@ -64,7 +64,7 @@
 			catégorie est proposée d'emblée (recherche simple), avec le bouton « Recherche avancée », ou jamais.
 		</p>
 		<p class="text-base-content/60 text-xs">
-			Pour créer ses tags en même temps : <code>Genre = Action, Drame, Comédie</code>. Un tag qui existe déjà y est rangé.
+			Pour créer ses tags en même temps : <code>Genre = Action, Drame, Comédie</code>. Un tag sans catégorie du même nom y est rangé.
 		</p>
 		<form class="join w-full" onsubmit={addForm.submit}>
 			<input

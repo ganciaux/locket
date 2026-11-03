@@ -6,7 +6,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagGroupManager from '$lib/components/TagGroupManager.svelte';
-	import { MAX_LABEL_LENGTH, groupTags } from '$lib/entries/model';
+	import { MAX_LABEL_LENGTH, effectiveGroupId, groupTags } from '$lib/entries/model';
 	import { addTag, deleteTag, renameTag, selectCollection, setTagGroup } from '$lib/entries/collections';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -33,11 +33,13 @@
 
 	const sections = $derived(groupTags(entries.tags ?? [], entries.tagGroups));
 
-	async function changeGroup(id: string, value: string) {
+	// Refusé (nom déjà pris dans la catégorie) : le menu revient sur la catégorie actuelle.
+	async function changeGroup(id: string, select: HTMLSelectElement, current: string) {
 		error = '';
 		try {
-			await setTagGroup(id, value || undefined);
+			await setTagGroup(id, select.value || undefined);
 		} catch (e) {
+			select.value = current;
 			error = errorMessage(e);
 		}
 	}
@@ -159,8 +161,8 @@
 											<select
 												class="select select-xs order-last w-full sm:order-none sm:w-36"
 												aria-label="Catégorie du tag {tag.name}"
-												value={tag.groupId && entries.tagGroups.some((g) => g.id === tag.groupId) ? tag.groupId : ''}
-												onchange={(e) => changeGroup(tag.id, e.currentTarget.value)}
+												value={effectiveGroupId(tag, entries.tagGroups) ?? ''}
+												onchange={(e) => changeGroup(tag.id, e.currentTarget, effectiveGroupId(tag, entries.tagGroups) ?? '')}
 											>
 												<option value="">Sans catégorie</option>
 												{#each entries.tagGroups as group (group.id)}

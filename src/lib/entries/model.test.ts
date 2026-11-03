@@ -9,6 +9,7 @@ import {
 	buildSiteUrl,
 	byName,
 	compareNames,
+	effectiveGroupId,
 	searchKey,
 	facetShown,
 	filterLevel,
@@ -638,5 +639,14 @@ describe('comparer une liste de noms', () => {
 		const { missing, found } = compareNames(text, find, true);
 		expect(missing).toEqual(['Alpha Beta', 'zorro']);
 		expect(found.map((item) => item.name)).toEqual(['eric dupont', 'naruto']);
+	});
+});
+
+describe('catégorie effective d’un tag', () => {
+	it('la sienne si elle existe encore, sinon aucune', () => {
+		const groups = [{ id: 'g', name: 'Genre' }];
+		expect(effectiveGroupId({ id: 't', name: 'Action', collectionId: 'c', groupId: 'g' }, groups)).toBe('g');
+		expect(effectiveGroupId({ id: 't', name: 'Action', collectionId: 'c', groupId: 'gone' }, groups)).toBeUndefined();
+		expect(effectiveGroupId({ id: 't', name: 'Action', collectionId: 'c' }, groups)).toBeUndefined();
 	});
 });

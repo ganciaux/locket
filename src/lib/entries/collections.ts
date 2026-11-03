@@ -12,6 +12,7 @@ import {
 	type Tag,
 	type TagGroup,
 	byName,
+	effectiveGroupId,
 	moveItem,
 	parseGroupInput,
 	parseLabel,
@@ -106,17 +107,15 @@ const replaceTagGroups = (collectionId: string, tagGroups: TagGroup[]): Promise<
 	replaceCollections(loaded(data.collections).map((c) => (c.id === collectionId ? { ...c, tagGroups } : c)));
 
 /**
- * Ajoutée en fin de liste. « Genre = Action, Drame » crée aussi ses tags ; un tag du même nom déjà dans la collection
- * y est rangé. Tout est validé avant d'écrire ; la catégorie d'abord, ses tags ensuite.
+ * Ajoutée en fin de liste. « Genre = Action, Drame » crée aussi ses tags ; un tag sans catégorie du même nom y est
+ * rangé (ceux d'autres catégories restent où ils sont). Tout est validé avant d'écrire ; la catégorie d'abord.
  */
 export async function addTagGroup(collectionId: string, input: string): Promise<void> {
 	const groups = entries.tagGroupsIn(collectionId);
 	const parsed = parseGroupInput(input);
 	const group = { id: crypto.randomUUID(), name: parseLabel(parsed.name, groups) };
 	const current = loaded(data.tags);
-	const existing = new Map(
-		current.filter((tag) => tag.collectionId === collectionId).map((tag) => [searchKey(tag.name), tag.id])
-	);
+	const existing = new Map(sameGroup(collectionId, undefined).map((tag) => [searchKey(tag.name), tag.id]));
 	const moved = new Set<string>();
 	const created: Tag[] = [];
 	for (const name of parsed.tags) {
@@ -166,22 +165,34 @@ async function replaceTags(next: Tag[]): Promise<void> {
 	data.tags = [...next].sort(byName);
 }
 
-/** Dans la collection active ; un même nom peut exister dans deux collections. */
+/** Tags de la même catégorie effective (`undefined` : sans catégorie), parmi lesquels un nom doit être unique. */
+function sameGroup(collectionId: string, groupId: string | undefined, exceptId?: string): Tag[] {
+	const groups = entries.tagGroupsIn(collectionId);
+	return loaded(data.tags).filter(
+		(tag) => tag.collectionId === collectionId && tag.id !== exceptId && effectiveGroupId(tag, groups) === groupId
+	);
+}
+
+/** Dans la collection active ; un même nom peut exister dans deux collections, ou dans deux catégories. */
 export async function addTag(input: string, groupId?: string): Promise<void> {
 	const current = loaded(data.tags);
 	const active = entries.active;
 	if (!active) throw new Error('Aucune collection.');
 	const collectionId = active.id;
-	const name = parseLabel(input, current.filter((tag) => tag.collectionId === collectionId));
+	const name = parseLabel(input, sameGroup(collectionId, groupId));
 	await replaceTags([...current, { id: crypto.randomUUID(), name, collectionId, ...(groupId && { groupId }) }]);
 }
 
-/** `undefined` : sans catégorie. */
+/** `undefined` : sans catégorie. Refusé si la catégorie a déjà un tag de ce nom. */
 export async function setTagGroup(id: string, groupId: string | undefined): Promise<void> {
+	const current = loaded(data.tags);
+	const tag = current.find((t) => t.id === id);
+	if (!tag) return;
+	parseLabel(tag.name, sameGroup(tag.collectionId, groupId, id));
 	await replaceTags(
-		loaded(data.tags).map((tag) => {
-			if (tag.id !== id) return tag;
-			const { groupId: _, ...rest } = tag;
+		current.map((t) => {
+			if (t.id !== id) return t;
+			const { groupId: _, ...rest } = t;
 			return groupId ? { ...rest, groupId } : rest;
 		})
 	);
@@ -192,7 +203,8 @@ export async function renameTag(id: string, input: string): Promise<void> {
 	const current = loaded(data.tags);
 	const tag = current.find((t) => t.id === id);
 	if (!tag) return;
-	const name = parseLabel(input, current.filter((t) => t.collectionId === tag.collectionId && t.id !== id));
+	const groupId = effectiveGroupId(tag, entries.tagGroupsIn(tag.collectionId));
+	const name = parseLabel(input, sameGroup(tag.collectionId, groupId, id));
 	await replaceTags(current.map((t) => (t.id === id ? { ...t, name } : t)));
 }
 

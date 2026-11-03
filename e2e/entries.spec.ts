@@ -1245,3 +1245,35 @@ test('index : comparer une liste de noms à la collection', async ({ page }) => 
 	await found.getByRole('link', { name: 'Naruto' }).click();
 	await expect(page.getByRole('heading', { name: 'Naruto' })).toBeVisible();
 });
+
+test('tags : même nom dans deux catégories, unique dans une catégorie', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	for (const input of ['Genre = Action', 'Thème = Action']) {
+		await page.getByLabel('Nouvelle catégorie').fill(input);
+		await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	}
+	await expect(page.getByText('Catégories (2)')).toBeVisible();
+	await expect(page.getByText('Action', { exact: true })).toHaveCount(2);
+
+	// Dans une même catégorie, le nom reste unique (sans casse ni accents).
+	const addTag = async (name: string, group: string) => {
+		await page.getByLabel('Catégorie du nouveau tag').selectOption({ label: group });
+		await page.getByLabel('Nouveau tag', { exact: true }).fill(name);
+		await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+	};
+	await addTag('action', 'Genre');
+	await expect(page.getByText('« action » existe déjà.')).toBeVisible();
+	await addTag('Action', 'Sans catégorie');
+	await expect(page.getByText('Action', { exact: true })).toHaveCount(3);
+
+	// Changer de catégorie vers une catégorie qui a déjà ce nom : refusé, le menu revient à la catégorie actuelle.
+	const select = page.getByLabel('Catégorie du tag Action').last();
+	await select.selectOption({ label: 'Genre' });
+	await expect(page.getByText('« Action » existe déjà.')).toBeVisible();
+	await expect(select).toHaveValue('');
+	await expect(page.getByText('Action', { exact: true })).toHaveCount(3);
+});

@@ -118,6 +118,13 @@ export function withRecoveredCollections(collections: Collection[], entries: { c
 /** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
 export type Tag = { id: string; name: string; collectionId: string; groupId?: string };
 
+/**
+ * Catégorie effective d'un tag : la sienne si elle existe encore, sinon aucune (catégorie supprimée).
+ * Un nom de tag est unique dans sa catégorie : « Action » peut exister dans Genre et dans Thème.
+ */
+export const effectiveGroupId = (tag: Tag, groups: TagGroup[]): string | undefined =>
+	tag.groupId && groups.some((group) => group.id === tag.groupId) ? tag.groupId : undefined;
+
 /** Catégorie de tags (Genre, Statut…) : simple rangement, une fiche peut porter 0 ou n tags d'une catégorie. */
 export type TagGroup = {
 	id: string;
