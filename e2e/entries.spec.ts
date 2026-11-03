@@ -1185,3 +1185,23 @@ test('import d’un tableau : modèle, aperçu, erreurs bloquantes, ajouts et mi
 	await expect(page.getByText('Japon')).toBeVisible();
 	await expect(page.getByText('Aventure', { exact: true })).toBeVisible();
 });
+
+test('catégorie créée avec ses tags : « Genre = Action, Drame »', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	// Un tag existant, sans catégorie : il sera rangé dans la nouvelle.
+	await page.getByLabel('Nouveau tag', { exact: true }).fill('Action');
+	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+	await expect(page.getByText('Action', { exact: true })).toBeVisible();
+
+	await page.getByText('Catégories (0)').click();
+	await page.getByLabel('Nouvelle catégorie').fill('Genre = action, Drame, , Comédie, drame');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Catégories (1)')).toBeVisible();
+	await expect(page.getByText('3 tags')).toBeVisible();
+	const tagHeadings = page.getByRole('heading', { level: 2 }).filter({ hasNotText: 'Catégories' });
+	await expect(tagHeadings).toHaveText(['Genre']);
+	for (const name of ['Action', 'Drame', 'Comédie']) await expect(page.getByText(name, { exact: true })).toHaveCount(1);
+});

@@ -63,12 +63,14 @@
 			Rangent les tags (Genre, Statut…) dans le choix des tags, le filtre et les fiches. Dans le filtre de la liste, une
 			catégorie est proposée d'emblée (recherche simple), avec le bouton « Recherche avancée », ou jamais.
 		</p>
+		<p class="text-base-content/60 text-xs">
+			Pour créer ses tags en même temps : <code>Genre = Action, Drame, Comédie</code>. Un tag qui existe déjà y est rangé.
+		</p>
 		<form class="join w-full" onsubmit={addForm.submit}>
 			<input
 				class="input input-sm join-item w-full"
 				placeholder="Nouvelle catégorie"
 				aria-label="Nouvelle catégorie"
-				maxlength={MAX_LABEL_LENGTH}
 				bind:value={name}
 				required
 			/>

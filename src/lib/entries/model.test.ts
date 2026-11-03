@@ -10,6 +10,7 @@ import {
 	byName,
 	facetShown,
 	filterLevel,
+	parseGroupInput,
 	chooseInsertion,
 	duelsLeft,
 	groupByInitial,
@@ -600,5 +601,17 @@ describe('catégories dans le filtre', () => {
 		expect(facetShown('off', true, false)).toBe(false);
 		expect(facetShown('advanced', false, true)).toBe(true);
 		expect(facetShown('off', false, true)).toBe(true);
+	});
+});
+
+describe('saisie d’une catégorie', () => {
+	it('seule, ou avec ses tags après « = », sans vides ni doublons', () => {
+		expect(parseGroupInput('Genre')).toEqual({ name: 'Genre', tags: [] });
+		expect(parseGroupInput(' Genre = Action, Drame ,, action , Comédie ')).toEqual({
+			name: ' Genre ',
+			tags: ['Action', 'Drame', 'Comédie']
+		});
+		expect(parseGroupInput('Genre=')).toEqual({ name: 'Genre', tags: [] });
+		expect(parseGroupInput('Note = 5/5, A=B')).toEqual({ name: 'Note ', tags: ['5/5', 'A=B'] });
 	});
 });

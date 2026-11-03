@@ -13,8 +13,10 @@ import {
 	type TagGroup,
 	byName,
 	moveItem,
+	parseGroupInput,
 	parseLabel,
 	parseSiteTemplate,
+	searchKey,
 	withSiteMode
 } from './model';
 import { data, entries, loaded, unlocked } from './store.svelte';
@@ -103,10 +105,31 @@ export const deleteSite = (collectionId: string, id: string): Promise<void> =>
 const replaceTagGroups = (collectionId: string, tagGroups: TagGroup[]): Promise<void> =>
 	replaceCollections(loaded(data.collections).map((c) => (c.id === collectionId ? { ...c, tagGroups } : c)));
 
-/** Ajoutée en fin de liste. */
+/**
+ * Ajoutée en fin de liste. « Genre = Action, Drame » crée aussi ses tags ; un tag du même nom déjà dans la collection
+ * y est rangé. Tout est validé avant d'écrire ; la catégorie d'abord, ses tags ensuite.
+ */
 export async function addTagGroup(collectionId: string, input: string): Promise<void> {
 	const groups = entries.tagGroupsIn(collectionId);
-	await replaceTagGroups(collectionId, [...groups, { id: crypto.randomUUID(), name: parseLabel(input, groups) }]);
+	const parsed = parseGroupInput(input);
+	const group = { id: crypto.randomUUID(), name: parseLabel(parsed.name, groups) };
+	const current = loaded(data.tags);
+	const existing = new Map(
+		current.filter((tag) => tag.collectionId === collectionId).map((tag) => [searchKey(tag.name), tag.id])
+	);
+	const moved = new Set<string>();
+	const created: Tag[] = [];
+	for (const name of parsed.tags) {
+		const id = existing.get(searchKey(name));
+		if (id) moved.add(id);
+		else created.push({ id: crypto.randomUUID(), name: parseLabel(name, []), collectionId, groupId: group.id });
+	}
+	await replaceTagGroups(collectionId, [...groups, group]);
+	if (moved.size || created.length)
+		await replaceTags([
+			...current.map((tag) => (moved.has(tag.id) ? { ...tag, groupId: group.id } : tag)),
+			...created
+		]);
 }
 
 export async function renameTagGroup(collectionId: string, id: string, input: string): Promise<void> {

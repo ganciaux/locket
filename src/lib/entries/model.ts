@@ -330,6 +330,22 @@ export function parseLabel(input: string, existing: { name: string }[]): string 
 	return name;
 }
 
+/**
+ * Saisie d'une catégorie : « Genre » seule, ou « Genre = Action, Drame » avec ses tags (vides et doublons retirés,
+ * sans casse ni accents). Les libellés sont validés ensuite par `parseLabel`.
+ */
+export function parseGroupInput(input: string): { name: string; tags: string[] } {
+	const at = input.indexOf('=');
+	if (at < 0) return { name: input, tags: [] };
+	const tags = input
+		.slice(at + 1)
+		.split(',')
+		.map((tag) => tag.trim())
+		.filter(Boolean);
+	const keys = tags.map(searchKey);
+	return { name: input.slice(0, at), tags: tags.filter((_, i) => keys.indexOf(keys[i]) === i) };
+}
+
 /** Déplace l'élément `index` d'un cran (`-1` vers le haut, `1` vers le bas) ; inchangé aux extrémités. */
 export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
 	const target = index + delta;
