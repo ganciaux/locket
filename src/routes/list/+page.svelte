@@ -13,6 +13,7 @@
 	import { prefs } from '$lib/prefs.svelte';
 
 	const OPTIONS = [
+		{ key: 'indexInitials', label: 'A…Z', title: 'Lettres de séparation' },
 		{ key: 'indexCountry', label: 'Pays' },
 		{ key: 'indexAge', label: 'Âge' },
 		{ key: 'indexTags', label: 'Tags' },
@@ -28,7 +29,8 @@
 	// Cachées selon la préférence, comme sur la liste ; corbeille exclue par `activeItems`, déjà trié par nom.
 	const visible = $derived((entries.activeItems ?? []).filter((item) => prefs.showHidden || !item.hidden));
 	const results = $derived(query.trim() ? visible.filter((item) => matchesSearch(item.name, query)) : visible);
-	const groups = $derived(groupByInitial(results));
+	// Sans les lettres de séparation : une seule section, sans titre.
+	const groups = $derived(prefs.indexInitials ? groupByInitial(results) : [{ initial: '', items: results }]);
 
 	// La fiche ouverte navigue dans l'index affiché, recherche comprise.
 	beforeNavigate(({ to }) => {
@@ -87,6 +89,7 @@
 				type="button"
 				class="badge badge-lg cursor-pointer badge-primary {prefs[option.key] ? '' : 'badge-outline border-dashed'}"
 				aria-pressed={prefs[option.key]}
+				title={'title' in option ? option.title : undefined}
 				onclick={() => (prefs[option.key] = !prefs[option.key])}
 			>
 				{option.label}
@@ -102,8 +105,10 @@
 	{/if}
 
 	{#each groups as group (group.initial)}
-		<section class="mb-4" aria-labelledby="initial-{group.initial}">
-			<h2 id="initial-{group.initial}" class="text-primary border-base-300 mb-1 border-b pb-1 text-lg font-bold">{group.initial}</h2>
+		<section class="mb-4" aria-labelledby={group.initial ? `initial-${group.initial}` : undefined}>
+			{#if group.initial}
+				<h2 id="initial-{group.initial}" class="text-primary border-base-300 mb-1 border-b pb-1 text-lg font-bold">{group.initial}</h2>
+			{/if}
 			<ul class="divide-base-200 divide-y">
 				{#each group.items as item (item.id)}
 					{@const tags = prefs.indexTags ? entries.tagsOf(item) : []}

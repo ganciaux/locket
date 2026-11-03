@@ -19,7 +19,8 @@ type Prefs = {
 	/** Cartes détaillées : tags et liens affichés partout ; sinon compactes. */
 	detailedCards: boolean;
 	cardClick: CardClick;
-	/** Index de la collection (`/list`) : informations affichées sous chaque nom. */
+	/** Index de la collection (`/list`) : lettres de séparation, puis informations affichées sous chaque nom. */
+	indexInitials: boolean;
 	indexCountry: boolean;
 	indexAge: boolean;
 	indexTags: boolean;
@@ -36,6 +37,7 @@ const DEFAULTS: Prefs = {
 	showHidden: false,
 	detailedCards: false,
 	cardClick: 'zoom',
+	indexInitials: true,
 	indexCountry: true,
 	indexAge: false,
 	indexTags: false,

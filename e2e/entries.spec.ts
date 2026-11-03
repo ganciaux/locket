@@ -959,6 +959,16 @@ test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche
 	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['E']);
 	await expect(page.getByRole('status').filter({ hasText: 'fiche' })).toHaveText('1 fiche sur 3');
 
+	// Lettres de séparation affichées par défaut ; sans elles, une liste continue, toujours par nom.
+	await page.getByLabel('Rechercher un nom').fill('');
+	const initials = page.getByRole('button', { name: 'A…Z' });
+	await expect(initials).toHaveAttribute('aria-pressed', 'true');
+	await initials.click();
+	await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
+	await expect(page.getByRole('listitem')).toHaveText([/2046/, /Alpha/, /Écho/]);
+	await initials.click();
+	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['#', 'A', 'E']);
+
 	// Les options sont mémorisées sur l'appareil.
 	await page.getByRole('button', { name: 'Tags' }).click();
 	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
