@@ -1277,3 +1277,57 @@ test('tags : même nom dans deux catégories, unique dans une catégorie', async
 	await expect(select).toHaveValue('');
 	await expect(page.getByText('Action', { exact: true })).toHaveCount(3);
 });
+
+test('catégories sur plusieurs lignes, puis tout supprimer : catégories, puis tags', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Naruto');
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+
+	const input = page.getByLabel('Nouvelle catégorie');
+	await input.fill('Genre = Action, Drame\nStatut = Fini, En cours\n\nThème = Action');
+	await input.press('Control+Enter');
+	await expect(page.getByText('Catégories (3)')).toBeVisible();
+	await expect(input).toHaveValue('');
+	const tagHeadings = page.getByRole('heading', { level: 2 }).filter({ hasNotText: 'Catégories' });
+	await expect(tagHeadings).toHaveText(['Genre', 'Statut', 'Thème']);
+	// Une catégorie existante est complétée ; une ligne fautive bloque tout, avec son numéro.
+	await input.fill('Genre = Comédie, drame\nStatut');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Ligne 2 : « Statut » existe déjà.')).toBeVisible();
+	await expect(page.getByText('Comédie', { exact: true })).toHaveCount(0);
+	await input.fill('Genre = Comédie, drame');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Comédie', { exact: true })).toBeVisible();
+	await expect(page.getByText('Drame', { exact: true })).toHaveCount(1);
+
+	// Le tag sur une fiche, pour le message de suppression.
+	await goHome(page);
+	await page.locator('li.card').filter({ hasText: 'Naruto' }).getByRole('heading').click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByRole('group', { name: 'Tags de la fiche' }).getByRole('button', { name: 'Fini' }).click();
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Naruto' })).toBeVisible();
+
+	// Toutes les catégories : les tags restent, sans catégorie.
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (3)').click();
+	await page.getByRole('button', { name: 'Supprimer toutes les catégories' }).click();
+	await page.getByRole('button', { name: 'Annuler' }).click();
+	await expect(page.getByText('Catégories (3)')).toBeVisible();
+	await page.getByRole('button', { name: 'Supprimer toutes les catégories' }).click();
+	await expect(page.getByText('Supprimer les 3 catégories ? Leurs tags resteront, sans catégorie.')).toBeVisible();
+	await page.getByRole('button', { name: 'Tout supprimer' }).click();
+	await expect(page.getByText('Catégories (0)')).toBeVisible();
+	await expect(page.getByText('Fini', { exact: true })).toBeVisible();
+
+	// Tous les tags de la collection.
+	await page.getByRole('button', { name: 'Supprimer tous les tags' }).click();
+	await expect(page.getByText('Supprimer les 6 tags de « Manga » et les retirer de 1 fiche ? Les catégories restent.')).toBeVisible();
+	await page.getByRole('button', { name: 'Tout supprimer' }).click();
+	await expect(page.getByText("Aucun tag dans « Manga » pour l'instant.")).toBeVisible();
+});

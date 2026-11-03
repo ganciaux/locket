@@ -10,6 +10,7 @@ import {
 	byName,
 	compareNames,
 	effectiveGroupId,
+	planTagGroups,
 	searchKey,
 	facetShown,
 	filterLevel,
@@ -648,5 +649,39 @@ describe('catégorie effective d’un tag', () => {
 		expect(effectiveGroupId({ id: 't', name: 'Action', collectionId: 'c', groupId: 'g' }, groups)).toBe('g');
 		expect(effectiveGroupId({ id: 't', name: 'Action', collectionId: 'c', groupId: 'gone' }, groups)).toBeUndefined();
 		expect(effectiveGroupId({ id: 't', name: 'Action', collectionId: 'c' }, groups)).toBeUndefined();
+	});
+});
+
+describe('saisie de catégories sur plusieurs lignes', () => {
+	const ids = () => {
+		let n = 0;
+		return () => `id${++n}`;
+	};
+	const genre = { id: 'g', name: 'Genre' };
+	const loose = { id: 'l', name: 'Action', collectionId: 'c' };
+	const drame = { id: 'd', name: 'Drame', collectionId: 'c', groupId: 'g' };
+
+	it('crée les catégories et leurs tags, range un tag sans catégorie, accepte le même nom ailleurs', () => {
+		const plan = planTagGroups('Thème = Action, Amour\n\nStatut = Fini, Action', [genre], [loose, drame], 'c', ids());
+		expect(plan.groups).toEqual([genre, { id: 'id1', name: 'Thème' }, { id: 'id3', name: 'Statut' }]);
+		expect(plan.tags).toEqual([
+			{ ...loose, groupId: 'id1' },
+			drame,
+			{ id: 'id2', name: 'Amour', collectionId: 'c', groupId: 'id1' },
+			{ id: 'id4', name: 'Fini', collectionId: 'c', groupId: 'id3' },
+			{ id: 'id5', name: 'Action', collectionId: 'c', groupId: 'id3' }
+		]);
+	});
+
+	it('complète une catégorie existante, sans doublon', () => {
+		const plan = planTagGroups('genre = drame, Comédie', [genre], [drame], 'c', ids());
+		expect(plan.groups).toEqual([genre]);
+		expect(plan.tags.map((tag) => tag.name)).toEqual(['Drame', 'Comédie']);
+	});
+
+	it('refuse une catégorie existante sans tags, ou en double, avec le numéro de ligne', () => {
+		expect(() => planTagGroups('Genre', [genre], [], 'c', ids())).toThrow('« Genre » existe déjà.');
+		expect(() => planTagGroups('A = x\nB\nb', [], [], 'c', ids())).toThrow('Ligne 3 : « b » existe déjà.');
+		expect(() => planTagGroups(' \n ', [], [], 'c', ids())).toThrow('vide');
 	});
 });

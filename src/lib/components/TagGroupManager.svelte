@@ -3,7 +3,14 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { type FilterLevel, MAX_LABEL_LENGTH, filterLevel } from '$lib/entries/model';
-	import { addTagGroup, deleteTagGroup, moveTagGroup, renameTagGroup, setTagGroupFilter } from '$lib/entries/collections';
+	import {
+		addTagGroups,
+		deleteAllTagGroups,
+		deleteTagGroup,
+		moveTagGroup,
+		renameTagGroup,
+		setTagGroupFilter
+	} from '$lib/entries/collections';
 	import { entries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -23,10 +30,11 @@
 	let editId = $state<string | null>(null);
 	let editName = $state('');
 	let confirmId = $state<string | null>(null);
+	let confirmAll = $state(false);
 	let error = $state('');
 
 	const addForm = formAction(async () => {
-		await addTagGroup(collectionId, name);
+		await addTagGroups(collectionId, name);
 		name = '';
 	});
 
@@ -64,17 +72,23 @@
 			catégorie est proposée d'emblée (recherche simple), avec le bouton « Recherche avancée », ou jamais.
 		</p>
 		<p class="text-base-content/60 text-xs">
-			Pour créer ses tags en même temps : <code>Genre = Action, Drame, Comédie</code>. Un tag sans catégorie du même nom y est rangé.
+			Une catégorie par ligne, avec ses tags si besoin : <code>Genre = Action, Drame</code>. Une catégorie existante
+			suivie de tags est complétée ; un tag sans catégorie du même nom y est rangé. Ctrl + Entrée pour ajouter.
 		</p>
-		<form class="join w-full" onsubmit={addForm.submit}>
-			<input
-				class="input input-sm join-item w-full"
+		<!-- Zone de texte : plusieurs lignes collées d'un coup ; Entrée passe à la ligne, Ctrl/⌘ + Entrée ajoute. -->
+		<form class="flex flex-col gap-2" onsubmit={addForm.submit}>
+			<textarea
+				class="textarea textarea-sm w-full"
+				rows="2"
 				placeholder="Nouvelle catégorie"
 				aria-label="Nouvelle catégorie"
 				bind:value={name}
 				required
-			/>
-			<button class="btn btn-primary btn-sm join-item" disabled={addForm.busy} aria-label="Ajouter la catégorie">
+				onkeydown={(e) => {
+					if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) e.currentTarget.form?.requestSubmit();
+				}}
+			></textarea>
+			<button class="btn btn-primary btn-sm self-end" disabled={addForm.busy} aria-label="Ajouter la catégorie">
 				<Icon name="plus" class="size-4" /> Ajouter
 			</button>
 		</form>
@@ -168,5 +182,24 @@
 				{/if}
 			</div>
 		{/each}
+
+		{#if groups.length > 1}
+			{#if confirmAll}
+				<div class="alert alert-error alert-soft flex flex-wrap items-center gap-2">
+					<span class="flex-1 text-sm">Supprimer les {groups.length} catégories ? Leurs tags resteront, sans catégorie.</span>
+					<button
+						class="btn btn-error btn-sm"
+						onclick={() => run(() => deleteAllTagGroups(collectionId)).then(() => (confirmAll = false))}
+					>
+						Tout supprimer
+					</button>
+					<button class="btn btn-ghost btn-sm" onclick={() => (confirmAll = false)}>Annuler</button>
+				</div>
+			{:else}
+				<button class="btn btn-ghost btn-sm text-error self-start" onclick={() => (confirmAll = true)}>
+					<Icon name="trash" class="size-4" /> Supprimer toutes les catégories
+				</button>
+			{/if}
+		{/if}
 	</div>
 </details>

@@ -7,7 +7,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import TagGroupManager from '$lib/components/TagGroupManager.svelte';
 	import { MAX_LABEL_LENGTH, effectiveGroupId, groupTags } from '$lib/entries/model';
-	import { addTag, deleteTag, renameTag, selectCollection, setTagGroup } from '$lib/entries/collections';
+	import { addTag, deleteAllTags, deleteTag, renameTag, selectCollection, setTagGroup } from '$lib/entries/collections';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -32,6 +32,13 @@
 	});
 
 	const sections = $derived(groupTags(entries.tags ?? [], entries.tagGroups));
+
+	// Tous les tags de la collection : les fiches les perdent, comme pour une suppression un par un.
+	let confirmAll = $state(false);
+	const removeAll = formAction(async () => {
+		if (entries.active) await deleteAllTags(entries.active.id);
+		confirmAll = false;
+	});
 
 	// Refusé (nom déjà pris dans la catégorie) : le menu revient sur la catégorie actuelle.
 	async function changeGroup(id: string, select: HTMLSelectElement, current: string) {
@@ -65,7 +72,7 @@
 	<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
 	<h1 class="mb-2 text-2xl font-bold">Tags</h1>
 {:else}
-	<CollectionHeader onselect={() => (editId = confirmId = null)} />
+	<CollectionHeader onselect={() => ((editId = confirmId = null), (confirmAll = false))} />
 	<h2 class="mb-2 text-xl font-bold">Tags</h2>
 {/if}
 
@@ -84,7 +91,7 @@
 			<select
 				class="select select-sm w-auto"
 				value={entries.active.id}
-				onchange={(e) => ((editId = confirmId = null), selectCollection(e.currentTarget.value))}
+				onchange={(e) => ((editId = confirmId = null), (confirmAll = false), selectCollection(e.currentTarget.value))}
 			>
 				{#each entries.shownCollections ?? [] as collection (collection.id)}
 					<option value={collection.id}>{collection.name}</option>
@@ -206,6 +213,26 @@
 					</ul>
 				</section>
 			{/each}
+
+			{#if entries.tags.length > 1}
+				{#if confirmAll}
+					{@const tagged = (entries.activeItems ?? []).filter((item) => entries.tagsOf(item).length).length}
+					<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removeAll.submit}>
+						<span class="flex-1 text-sm">
+							Supprimer les {entries.tags.length} tags de « {entries.active.name} »{tagged
+								? ` et les retirer de ${tagged} fiche${tagged > 1 ? 's' : ''}`
+								: ''} ? Les catégories restent.
+						</span>
+						<button class="btn btn-error btn-sm" disabled={removeAll.busy}>Tout supprimer</button>
+						<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmAll = false)}>Annuler</button>
+						<ErrorAlert message={removeAll.error} />
+					</form>
+				{:else}
+					<button class="btn btn-ghost btn-sm text-error self-start" onclick={() => (confirmAll = true)}>
+						<Icon name="trash" class="size-4" /> Supprimer tous les tags
+					</button>
+				{/if}
+			{/if}
 		{/if}
 	</div>
 {/if}

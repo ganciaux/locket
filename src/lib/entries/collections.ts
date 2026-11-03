@@ -14,10 +14,9 @@ import {
 	byName,
 	effectiveGroupId,
 	moveItem,
-	parseGroupInput,
 	parseLabel,
 	parseSiteTemplate,
-	searchKey,
+	planTagGroups,
 	withSiteMode
 } from './model';
 import { data, entries, loaded, unlocked } from './store.svelte';
@@ -106,29 +105,14 @@ export const deleteSite = (collectionId: string, id: string): Promise<void> =>
 const replaceTagGroups = (collectionId: string, tagGroups: TagGroup[]): Promise<void> =>
 	replaceCollections(loaded(data.collections).map((c) => (c.id === collectionId ? { ...c, tagGroups } : c)));
 
-/**
- * Ajoutée en fin de liste. « Genre = Action, Drame » crée aussi ses tags ; un tag sans catégorie du même nom y est
- * rangé (ceux d'autres catégories restent où ils sont). Tout est validé avant d'écrire ; la catégorie d'abord.
- */
-export async function addTagGroup(collectionId: string, input: string): Promise<void> {
-	const groups = entries.tagGroupsIn(collectionId);
-	const parsed = parseGroupInput(input);
-	const group = { id: crypto.randomUUID(), name: parseLabel(parsed.name, groups) };
-	const current = loaded(data.tags);
-	const existing = new Map(sameGroup(collectionId, undefined).map((tag) => [searchKey(tag.name), tag.id]));
-	const moved = new Set<string>();
-	const created: Tag[] = [];
-	for (const name of parsed.tags) {
-		const id = existing.get(searchKey(name));
-		if (id) moved.add(id);
-		else created.push({ id: crypto.randomUUID(), name: parseLabel(name, []), collectionId, groupId: group.id });
-	}
-	await replaceTagGroups(collectionId, [...groups, group]);
-	if (moved.size || created.length)
-		await replaceTags([
-			...current.map((tag) => (moved.has(tag.id) ? { ...tag, groupId: group.id } : tag)),
-			...created
-		]);
+/** Une catégorie par ligne, avec ses tags éventuels (voir `planTagGroups`) : les catégories d'abord, les tags ensuite. */
+export async function addTagGroups(collectionId: string, text: string): Promise<void> {
+	const all = loaded(data.tags);
+	const own = all.filter((tag) => tag.collectionId === collectionId);
+	const plan = planTagGroups(text, entries.tagGroupsIn(collectionId), own, collectionId, () => crypto.randomUUID());
+	await replaceTagGroups(collectionId, plan.groups);
+	if (plan.tags.length !== own.length || plan.tags.some((tag, i) => tag !== own[i]))
+		await replaceTags([...all.filter((tag) => tag.collectionId !== collectionId), ...plan.tags]);
 }
 
 export async function renameTagGroup(collectionId: string, id: string, input: string): Promise<void> {
@@ -158,6 +142,9 @@ export async function setTagGroupFilter(collectionId: string, id: string, level:
 /** Ses tags restent, sans catégorie : leur `groupId` devenu inconnu est ignoré (voir `groupTags`). */
 export const deleteTagGroup = (collectionId: string, id: string): Promise<void> =>
 	replaceTagGroups(collectionId, entries.tagGroupsIn(collectionId).filter((group) => group.id !== id));
+
+/** Toutes les catégories de la collection ; leurs tags restent, sans catégorie. */
+export const deleteAllTagGroups = (collectionId: string): Promise<void> => replaceTagGroups(collectionId, []);
 
 async function replaceTags(next: Tag[]): Promise<void> {
 	const { uid, dek } = unlocked();
@@ -211,4 +198,9 @@ export async function renameTag(id: string, input: string): Promise<void> {
 /** Retire le tag du catalogue ; les fiches qui le portent l'oublient à leur prochaine modification. */
 export async function deleteTag(id: string): Promise<void> {
 	await replaceTags(loaded(data.tags).filter((tag) => tag.id !== id));
+}
+
+/** Tous les tags de la collection, comme `deleteTag` pour chacun. */
+export async function deleteAllTags(collectionId: string): Promise<void> {
+	await replaceTags(loaded(data.tags).filter((tag) => tag.collectionId !== collectionId));
 }

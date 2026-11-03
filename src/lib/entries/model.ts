@@ -386,6 +386,51 @@ export function parseGroupInput(input: string): { name: string; tags: string[] }
 	return { name: input.slice(0, at), tags: tags.filter((_, i) => keys.indexOf(keys[i]) === i) };
 }
 
+/**
+ * Saisie de catégories, une par ligne (« Genre = Action, Drame ») : une catégorie inconnue est ajoutée en fin de liste,
+ * une catégorie existante suivie de tags est complétée (on peut recoller une liste mise à jour). Un tag sans catégorie
+ * du même nom y est rangé, un tag déjà dans la catégorie est ignoré, les autres sont créés. `tags` : ceux de la
+ * collection. Lève une erreur affichable (avec le numéro de ligne s'il y en a plusieurs), avant toute écriture.
+ */
+export function planTagGroups(
+	text: string,
+	groups: TagGroup[],
+	tags: Tag[],
+	collectionId: string,
+	newId: () => string
+): { groups: TagGroup[]; tags: Tag[] } {
+	const nextGroups = [...groups];
+	let nextTags = [...tags];
+	const lines = text.split(/\r?\n/);
+	const filled = lines.filter((line) => line.trim()).length;
+	if (!filled) throw new Error('Le nom ne peut pas être vide.');
+	lines.forEach((line, i) => {
+		if (!line.trim()) return;
+		try {
+			const parsed = parseGroupInput(line);
+			const key = searchKey(parsed.name.trim());
+			let group = parsed.tags.length ? nextGroups.find((g) => searchKey(g.name) === key) : undefined;
+			if (!group) {
+				group = { id: newId(), name: parseLabel(parsed.name, nextGroups) };
+				nextGroups.push(group);
+			}
+			const groupId = group.id;
+			for (const name of parsed.tags) {
+				const tagKey = searchKey(name);
+				const same = (tag: Tag, id: string | undefined) =>
+					effectiveGroupId(tag, nextGroups) === id && searchKey(tag.name) === tagKey;
+				if (nextTags.some((tag) => same(tag, groupId))) continue;
+				const loose = nextTags.find((tag) => same(tag, undefined));
+				if (loose) nextTags = nextTags.map((tag) => (tag === loose ? { ...tag, groupId } : tag));
+				else nextTags.push({ id: newId(), name: parseLabel(name, []), collectionId, groupId });
+			}
+		} catch (error) {
+			throw filled > 1 ? new Error(`Ligne ${i + 1} : ${(error as Error).message}`) : error;
+		}
+	});
+	return { groups: nextGroups, tags: nextTags };
+}
+
 /** Déplace l'élément `index` d'un cran (`-1` vers le haut, `1` vers le bas) ; inchangé aux extrémités. */
 export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
 	const target = index + delta;
