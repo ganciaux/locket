@@ -150,7 +150,7 @@ export function planImport(text: string, items: ImportTarget[], tags: Tag[], gro
 			const clear = cell === CLEAR;
 			if (column.kind === 'Pays') {
 				after.country = clear ? undefined : resolveCountry(cell);
-				if (!clear && !after.country) rowErrors.push(`pays « ${cell} » inconnu (code comme FR, ou nom en français).`);
+				if (!clear && !after.country) rowErrors.push(`pays « ${cell} » inconnu (code comme FR, ou nom en français ou en anglais).`);
 			} else if (column.kind === 'Naissance') {
 				after.birthYear = clear ? undefined : parseBirthYear(/^\d+$/.test(cell) ? Number(cell) : NaN);
 				if (!clear && !after.birthYear) rowErrors.push(`année de naissance « ${cell} » invalide.`);

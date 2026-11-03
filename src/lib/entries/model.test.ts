@@ -378,6 +378,15 @@ describe('pays', () => {
 		expect(resolveCountry('Bresil')).toBe('BR');
 		expect(resolveCountry('royaume-uni')).toBe('GB');
 		expect(resolveCountry('🇨🇴 Colombie (CO)')).toBe('CO');
+		// Noms usuels, anglais, ponctuation libre.
+		expect(resolveCountry('République Tchèque')).toBe('CZ');
+		expect(resolveCountry('Tchéquie')).toBe('CZ');
+		expect(resolveCountry('Angleterre')).toBe('GB');
+		expect(resolveCountry('Royaume Uni')).toBe('GB');
+		expect(resolveCountry('USA')).toBe('US');
+		expect(resolveCountry("Cote d'Ivoire")).toBe('CI');
+		expect(resolveCountry('Germany')).toBe('DE');
+		expect(resolveCountry('South Korea')).toBe('KR');
 		expect(resolveCountry('Atlantide')).toBeUndefined();
 		expect(resolveCountry('XX')).toBeUndefined();
 		expect(resolveCountry('')).toBeUndefined();

@@ -583,13 +583,55 @@ export const countryName = (code: string): string => regionNames.of(code) ?? cod
 /** Libellé d'une suggestion de saisie : « 🇫🇷 France (FR) ». */
 export const countryLabel = (code: string): string => `${countryFlag(code)} ${countryName(code)} (${code})`;
 
-/** Saisie libre → code : « fr », « France », « france » (sans casse ni accents) ou une suggestion choisie. */
+/** Noms usuels que `Intl.DisplayNames` ne donne pas (il dit « Tchéquie », « Myanmar (Birmanie) »…). */
+const COUNTRY_ALIASES: Record<string, string[]> = {
+	CZ: ['République tchèque'],
+	GB: ['Angleterre', 'Écosse', 'Pays de Galles', 'Irlande du Nord', 'Grande-Bretagne', 'UK'],
+	US: ['USA', "États-Unis d'Amérique", 'Amérique'],
+	NL: ['Hollande'],
+	MM: ['Birmanie', 'Myanmar'],
+	MK: ['Macédoine'],
+	KR: ['Corée'],
+	CD: ['République démocratique du Congo', 'RDC'],
+	CG: ['Congo', 'République du Congo'],
+	VA: ['Vatican'],
+	PS: ['Palestine'],
+	HK: ['Hong Kong'],
+	SZ: ['Swaziland'],
+	TL: ['Timor-Leste'],
+	VN: ['Vietnam'],
+	BY: ['Bélarus']
+};
+
+const regionNamesEn = new Intl.DisplayNames(['en'], { type: 'region' });
+/** Sans casse, accents ni ponctuation : « Royaume Uni » = « Royaume-Uni », « Cote d'Ivoire » = « Côte d’Ivoire ». */
+const countryKey = (text: string): string =>
+	searchKey(text)
+		.replace(/[^\p{L}\p{N}]+/gu, ' ')
+		.trim();
+let countryKeys: Map<string, string> | undefined;
+
+/** Nom → code : nom français, nom anglais, puis noms usuels ; construit à la première saisie. */
+function countryByKey(key: string): string | undefined {
+	if (!countryKeys) {
+		countryKeys = new Map();
+		for (const code of COUNTRY_CODES)
+			for (const name of [countryName(code), regionNamesEn.of(code) ?? '', ...(COUNTRY_ALIASES[code] ?? [])])
+				if (name && !countryKeys.has(countryKey(name))) countryKeys.set(countryKey(name), code);
+	}
+	return countryKeys.get(key);
+}
+
+/**
+ * Saisie libre → code : « fr », « France », « france » (sans casse, accents ni ponctuation), un nom anglais
+ * (« Germany ») ou usuel (« République tchèque »), ou une suggestion choisie.
+ */
 export function resolveCountry(input: string): string | undefined {
 	const text = input.trim();
 	const code = /\(([A-Za-z]{2})\)$/.exec(text)?.[1] ?? (/^[A-Za-z]{2}$/.test(text) ? text : null);
 	if (code) return parseCountry(code.toUpperCase());
-	const key = searchKey(text);
-	return key ? COUNTRY_CODES.find((c) => searchKey(countryName(c)) === key) : undefined;
+	const key = countryKey(text);
+	return key ? countryByKey(key) : undefined;
 }
 
 export const MIN_BIRTH_YEAR = 1000;

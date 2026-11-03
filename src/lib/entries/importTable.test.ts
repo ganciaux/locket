@@ -77,7 +77,7 @@ describe('planImport', () => {
 	it('signale chaque valeur invalide avec sa ligne, sans retenir la ligne', () => {
 		const result = plan('Nom;Pays;Naissance;Note;Genre;Statut\nA;Atlantide;3000;6;Acion;\nB;;19x;4,25;;\n;FR\nA;;;;;\nC;JP;;;;;;');
 		expect(result.errors).toEqual([
-			'Ligne 2 : pays « Atlantide » inconnu (code comme FR, ou nom en français).',
+			'Ligne 2 : pays « Atlantide » inconnu (code comme FR, ou nom en français ou en anglais).',
 			'Ligne 2 : année de naissance « 3000 » invalide.',
 			'Ligne 2 : note « 6 » invalide (de 0,5 à 5, par demi-étoile).',
 			'Ligne 2 : tag « Acion » inconnu dans Genre.',

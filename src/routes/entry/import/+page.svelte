@@ -153,7 +153,7 @@
 					<dt class="font-medium">Nom</dt>
 					<dd>Obligatoire. Comparé sans casse ni accents aux fiches de la collection.</dd>
 					<dt class="font-medium">Pays</dt>
-					<dd>Code (<code>FR</code>) ou nom en français (<code>France</code>).</dd>
+					<dd>Code (<code>FR</code>), nom en français (<code>France</code>) ou en anglais (<code>Germany</code>).</dd>
 					<dt class="font-medium">Naissance</dt>
 					<dd>Année seule (<code>1990</code>).</dd>
 					<dt class="font-medium">Note</dt>
