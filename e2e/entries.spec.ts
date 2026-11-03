@@ -956,12 +956,12 @@ test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Gérer les tags' }).click();
 	await page.getByText('Catégories (0)').click();
-	for (const name of ['Genre', 'Statut']) {
+	for (const [i, name] of ['Genre', 'Statut'].entries()) {
 		await page.getByLabel('Nouvelle catégorie').fill(name);
 		await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+		await expect(page.getByText(`Catégories (${i + 1})`)).toBeVisible();
 	}
 	await page.getByRole('button', { name: 'Monter Statut' }).click();
-	await expect(page.getByText('Catégories (2)')).toBeVisible();
 
 	const addTag = async (name: string, group: string) => {
 		await page.getByLabel('Catégorie du nouveau tag').selectOption({ label: group });
@@ -1010,6 +1010,15 @@ test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans
 	await expect(facet('Genre')).toContainText('+1');
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('checkbox', { name: 'Action' })).toBeHidden();
+
+	// « Non renseigné » : en OU avec les tags de la catégorie.
+	await facet('Statut').click();
+	await page.getByRole('checkbox', { name: 'Non renseigné' }).check();
+	await expect(naruto).toHaveCount(1);
+	await page.getByRole('checkbox', { name: 'Fini' }).uncheck();
+	await expect(naruto).toHaveCount(0);
+	await expect(facet('Statut')).toHaveText(/Statut\s*: Non renseigné/);
+	await page.keyboard.press('Escape');
 
 	// Supprimer une catégorie garde ses tags, sans catégorie.
 	await goSettings(page);

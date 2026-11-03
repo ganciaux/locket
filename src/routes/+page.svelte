@@ -136,7 +136,7 @@
 		selected = selected.includes(id) ? selected.filter((other) => other !== id) : [...selected, id];
 	}
 
-	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0);
+	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0 || tagFilter.missing.length > 0);
 	const filterActive = $derived(
 		tagFiltering || (listView.withLinks && anyLinks) || listView.rating !== 0 || !!listView.country
 	);
@@ -164,7 +164,10 @@
 	// « Sans tag » et les tags sélectionnés s'excluent : cocher l'un décoche l'autre.
 	function toggleUntagged() {
 		listView.tags.untagged = !listView.tags.untagged;
-		if (listView.tags.untagged) listView.tags.tagIds = [];
+		if (listView.tags.untagged) {
+			listView.tags.tagIds = [];
+			listView.tags.missing = [];
+		}
 	}
 </script>
 
@@ -353,7 +356,8 @@
 					tags={entries.tags}
 					groups={entries.tagGroups}
 					bind:selected={listView.tags.tagIds}
-					onchange={(selected) => selected.length && (listView.tags.untagged = false)}
+					bind:missing={listView.tags.missing}
+					onchange={() => (listView.tags.tagIds.length || listView.tags.missing.length) && (listView.tags.untagged = false)}
 					before={untaggedChip}
 				/>
 			{:else if entries.tags?.length}

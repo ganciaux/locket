@@ -249,6 +249,17 @@ describe('tags', () => {
 		expect(matchesFilter(drame, '', genresFinis, tags)).toBe(false);
 	});
 
+	it('« non renseigné » : aucun tag de la catégorie, en OU avec ses tags et en ET avec les autres', () => {
+		const actionFini = { name: 'One Piece', tagIds: ['action', 'fini'] };
+		const drame = { name: 'Monster', tagIds: ['drame'] };
+		const statutManquant = filter({ missing: ['statut'] });
+		expect(matchesFilter(drame, '', statutManquant, tags)).toBe(true);
+		expect(matchesFilter(actionFini, '', statutManquant, tags)).toBe(false);
+		expect(matchesFilter(actionFini, '', filter({ tagIds: ['fini'], missing: ['statut'] }), tags)).toBe(true);
+		expect(matchesFilter(drame, '', filter({ tagIds: ['action'], missing: ['statut'] }), tags)).toBe(false);
+		expect(matchesFilter(drame, '', filter({ tagIds: ['drame'], missing: ['statut'] }), tags)).toBe(true);
+	});
+
 	it('un tag sélectionné puis supprimé est ignoré', () => {
 		expect(matchesFilter(banque, '', filter({ tagIds: ['t1', 'supprimé'] }), tags)).toBe(true);
 	});

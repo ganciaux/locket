@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Filtre par tags en facettes : une pastille par catégorie (« Autres » pour les tags sans catégorie),
-	// qui ouvre la liste de ses tags à cocher et résume la sélection (« Genre : Combat +1 »).
+	// qui ouvre la liste de ses tags à cocher, plus « Non renseigné » (aucun tag de la catégorie),
+	// et résume la sélection (« Genre : Combat +1 »).
 	// Le sens du filtre (OU dans une catégorie, ET entre catégories) est celui de `matchesFilter`.
 	import type { Snippet } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -10,13 +11,16 @@
 		tags,
 		groups,
 		selected = $bindable([]),
+		missing = $bindable([]),
 		onchange,
 		before
 	}: {
 		tags: Tag[];
 		groups: TagGroup[];
 		selected?: string[];
-		onchange?: (selected: string[]) => void;
+		/** Catégories dont « Non renseigné » est coché. */
+		missing?: string[];
+		onchange?: () => void;
 		/** Pastilles supplémentaires affichées en tête (ex. « Sans tag »). */
 		before?: Snippet;
 	} = $props();
@@ -25,7 +29,9 @@
 		groupTags(tags, groups).map((section) => ({
 			key: section.group?.id ?? '',
 			name: section.group?.name ?? 'Autres',
-			tags: section.tags
+			tags: section.tags,
+			// « Non renseigné » n'a de sens que pour une vraie catégorie.
+			canMiss: !!section.group
 		}))
 	);
 
@@ -38,13 +44,23 @@
 		if (facet?.dataset.facet !== openKey) openKey = null;
 	}
 
-	function update(next: string[]) {
-		selected = next;
-		onchange?.(next);
+	const without = (list: string[], value: string) => list.filter((item) => item !== value);
+
+	function toggle(id: string) {
+		selected = selected.includes(id) ? without(selected, id) : [...selected, id];
+		onchange?.();
 	}
 
-	const toggle = (id: string) => update(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
-	const clear = (facetTags: Tag[]) => update(selected.filter((id) => !facetTags.some((tag) => tag.id === id)));
+	function toggleMissing(key: string) {
+		missing = missing.includes(key) ? without(missing, key) : [...missing, key];
+		onchange?.();
+	}
+
+	function clear(key: string, facetTags: Tag[]) {
+		selected = selected.filter((id) => !facetTags.some((tag) => tag.id === id));
+		missing = without(missing, key);
+		onchange?.();
+	}
 </script>
 
 <svelte:window onclick={closeOutside} onkeydown={(e) => e.key === 'Escape' && (openKey = null)} />
@@ -52,7 +68,10 @@
 <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrer par tags">
 	{@render before?.()}
 	{#each facets as facet (facet.key)}
-		{@const chosen = facet.tags.filter((tag) => selected.includes(tag.id))}
+		{@const chosen = [
+			...facet.tags.filter((tag) => selected.includes(tag.id)).map((tag) => tag.name),
+			...(missing.includes(facet.key) ? ['Non renseigné'] : [])
+		]}
 		<details
 			class="dropdown"
 			data-facet={facet.key}
@@ -66,10 +85,10 @@
 				class="badge badge-lg max-w-64 cursor-pointer list-none gap-1 [&::-webkit-details-marker]:hidden {chosen.length
 					? 'badge-primary'
 					: 'badge-outline'}"
-				aria-label="{facet.name}{chosen.length ? ` : ${chosen.map((tag) => tag.name).join(', ')}` : ''}"
+				aria-label="{facet.name}{chosen.length ? ` : ${chosen.join(', ')}` : ''}"
 			>
 				<span class="truncate">
-					{facet.name}{#if chosen.length}&nbsp;: {chosen[0].name}{/if}
+					{facet.name}{#if chosen.length}&nbsp;: {chosen[0]}{/if}
 				</span>
 				{#if chosen.length > 1}<span class="shrink-0">+{chosen.length - 1}</span>{/if}
 				<Icon name="chevronDown" class="size-3 shrink-0" />
@@ -89,9 +108,22 @@
 							</label>
 						</li>
 					{/each}
+					{#if facet.canMiss}
+						<li class="border-base-200 mt-1 border-t pt-1">
+							<label class="hover:bg-base-200 rounded-field flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm italic">
+								<input
+									type="checkbox"
+									class="checkbox checkbox-sm checkbox-primary"
+									checked={missing.includes(facet.key)}
+									onchange={() => toggleMissing(facet.key)}
+								/>
+								<span class="flex-1">Non renseigné</span>
+							</label>
+						</li>
+					{/if}
 				</ul>
 				<div class="border-base-200 mt-1 flex justify-between border-t pt-2">
-					<button type="button" class="btn btn-ghost btn-xs" disabled={!chosen.length} onclick={() => clear(facet.tags)}>Effacer</button>
+					<button type="button" class="btn btn-ghost btn-xs" disabled={!chosen.length} onclick={() => clear(facet.key, facet.tags)}>Effacer</button>
 					<button type="button" class="btn btn-primary btn-xs" onclick={() => (openKey = null)}>Fermer</button>
 				</div>
 			</div>

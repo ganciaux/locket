@@ -239,11 +239,13 @@ export function groupByInitial<T extends { name: string }>(items: T[]): { initia
  *  - aucun tag sélectionné : pas de filtre ;
  *  - au moins un tag sélectionné de chaque catégorie concernée (OU dans une catégorie, ET entre catégories) ;
  *    les tags sans catégorie forment une catégorie à eux seuls ;
- *  - `untagged` : uniquement les fiches sans tag (exclusif des tags sélectionnés).
+ *  - `missing` : catégories où « Non renseigné » est coché, comme un tag de plus de la catégorie
+ *    (vrai pour une fiche qui n'a aucun tag de cette catégorie) ;
+ *  - `untagged` : uniquement les fiches sans tag (exclusif des autres choix).
  */
-export type TagFilter = { tagIds: string[]; untagged: boolean };
+export type TagFilter = { tagIds: string[]; missing: string[]; untagged: boolean };
 
-export const NO_TAG_FILTER: TagFilter = { tagIds: [], untagged: false };
+export const NO_TAG_FILTER: TagFilter = { tagIds: [], missing: [], untagged: false };
 
 /** Nom et catégorie (connue, '' sinon) d'un tag, pour la recherche et le filtre. */
 export type TagIndex = Map<string, { name: string; group: string }>;
@@ -263,7 +265,12 @@ export function matchesFilter(
 			filter.tagIds.filter((id) => tags.has(id)),
 			(id) => tags.get(id)!.group
 		);
-		if (![...wanted.values()].every((ids) => ids.some((id) => known.includes(id)))) return false;
+		for (const group of filter.missing) if (!wanted.has(group)) wanted.set(group, []);
+		const filled = new Set(known.map((id) => tags.get(id)!.group));
+		for (const [group, ids] of wanted) {
+			const missingOk = filter.missing.includes(group) && !filled.has(group);
+			if (!missingOk && !ids.some((id) => known.includes(id))) return false;
+		}
 	}
 	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tags.get(id)!.name, query));
 }
