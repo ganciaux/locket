@@ -1,5 +1,5 @@
 /**
- * Collections, leurs sites et leurs tags : catalogues chiffrés, réécrits en entier à chaque modification.
+ * Collections, leurs sites, leurs tags et leurs catégories de tags : catalogues chiffrés, réécrits en entier à chaque modification.
  * L'état en mémoire est celui du store (`data`), vidé avec lui au verrouillage.
  */
 import { prefs } from '$lib/prefs.svelte';
@@ -9,6 +9,7 @@ import {
 	type Site,
 	type SiteMode,
 	type Tag,
+	type TagGroup,
 	byName,
 	moveItem,
 	parseLabel,
@@ -91,6 +92,31 @@ export const setSiteMode = (collectionId: string, id: string, mode: SiteMode): P
 export const deleteSite = (collectionId: string, id: string): Promise<void> =>
 	replaceSites(collectionId, entries.sitesIn(collectionId).filter((site) => site.id !== id));
 
+const replaceTagGroups = (collectionId: string, tagGroups: TagGroup[]): Promise<void> =>
+	replaceCollections(loaded(data.collections).map((c) => (c.id === collectionId ? { ...c, tagGroups } : c)));
+
+/** Ajoutée en fin de liste. */
+export async function addTagGroup(collectionId: string, input: string): Promise<void> {
+	const groups = entries.tagGroupsIn(collectionId);
+	await replaceTagGroups(collectionId, [...groups, { id: crypto.randomUUID(), name: parseLabel(input, groups) }]);
+}
+
+export async function renameTagGroup(collectionId: string, id: string, input: string): Promise<void> {
+	const groups = entries.tagGroupsIn(collectionId);
+	const name = parseLabel(input, groups.filter((group) => group.id !== id));
+	await replaceTagGroups(collectionId, groups.map((group) => (group.id === id ? { ...group, name } : group)));
+}
+
+export async function moveTagGroup(collectionId: string, id: string, delta: -1 | 1): Promise<void> {
+	const groups = entries.tagGroupsIn(collectionId);
+	const next = moveItem(groups, groups.findIndex((group) => group.id === id), delta);
+	if (next !== groups) await replaceTagGroups(collectionId, next);
+}
+
+/** Ses tags restent, sans catégorie : leur `groupId` devenu inconnu est ignoré (voir `groupTags`). */
+export const deleteTagGroup = (collectionId: string, id: string): Promise<void> =>
+	replaceTagGroups(collectionId, entries.tagGroupsIn(collectionId).filter((group) => group.id !== id));
+
 async function replaceTags(next: Tag[]): Promise<void> {
 	const { uid, dek } = unlocked();
 	await tagCatalog.save(uid, dek, next);
@@ -98,13 +124,24 @@ async function replaceTags(next: Tag[]): Promise<void> {
 }
 
 /** Dans la collection active ; un même nom peut exister dans deux collections. */
-export async function addTag(input: string): Promise<void> {
+export async function addTag(input: string, groupId?: string): Promise<void> {
 	const current = loaded(data.tags);
 	const active = entries.active;
 	if (!active) throw new Error('Aucune collection.');
 	const collectionId = active.id;
 	const name = parseLabel(input, current.filter((tag) => tag.collectionId === collectionId));
-	await replaceTags([...current, { id: crypto.randomUUID(), name, collectionId }]);
+	await replaceTags([...current, { id: crypto.randomUUID(), name, collectionId, ...(groupId && { groupId }) }]);
+}
+
+/** `undefined` : sans catégorie. */
+export async function setTagGroup(id: string, groupId: string | undefined): Promise<void> {
+	await replaceTags(
+		loaded(data.tags).map((tag) => {
+			if (tag.id !== id) return tag;
+			const { groupId: _, ...rest } = tag;
+			return groupId ? { ...rest, groupId } : rest;
+		})
+	);
 }
 
 /** Les fiches ne stockent que l'identifiant : renommer ne touche que le catalogue. */

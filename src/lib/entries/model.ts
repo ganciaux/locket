@@ -52,6 +52,8 @@ export type Collection = {
 	ranking?: string[];
 	/** Nouveau classement en cours : reçoit les duels, puis remplace `ranking` une fois terminé. */
 	rankingDraft?: string[];
+	/** Catégories de tags, dans l'ordre d'affichage choisi. */
+	tagGroups?: TagGroup[];
 };
 
 /** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
@@ -110,7 +112,24 @@ export function withRecoveredCollections(collections: Collection[], entries: { c
 }
 
 /** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
-export type Tag = { id: string; name: string; collectionId: string };
+export type Tag = { id: string; name: string; collectionId: string; groupId?: string };
+
+/** Catégorie de tags (Genre, Statut…) : simple rangement, une fiche peut porter 0 ou n tags d'une catégorie. */
+export type TagGroup = { id: string; name: string };
+
+/**
+ * Tags par catégorie, dans l'ordre des catégories, sans les catégories vides ; ceux sans catégorie
+ * (ou d'une catégorie supprimée) viennent en dernier, sous `group: null`. L'ordre des tags est conservé.
+ */
+export function groupTags(tags: Tag[], groups: TagGroup[]): { group: TagGroup | null; tags: Tag[] }[] {
+	const known = new Set(groups.map((group) => group.id));
+	const sections: { group: TagGroup | null; tags: Tag[] }[] = groups.map((group) => ({
+		group,
+		tags: tags.filter((tag) => tag.groupId === group.id)
+	}));
+	sections.push({ group: null, tags: tags.filter((tag) => !tag.groupId || !known.has(tag.groupId)) });
+	return sections.filter((section) => section.tags.length);
+}
 
 /**
  * Normalise une URL saisie et refuse tout ce qui n'est pas http(s).
@@ -218,28 +237,35 @@ export function groupByInitial<T extends { name: string }>(items: T[]): { initia
 /**
  * Filtre par tags de la liste :
  *  - aucun tag sélectionné : pas de filtre ;
- *  - `or` : au moins un des tags sélectionnés ; `and` : tous ;
+ *  - au moins un tag sélectionné de chaque catégorie concernée (OU dans une catégorie, ET entre catégories) ;
+ *    les tags sans catégorie forment une catégorie à eux seuls ;
  *  - `untagged` : uniquement les fiches sans tag (exclusif des tags sélectionnés).
  */
-export type TagFilter = { tagIds: string[]; mode: 'or' | 'and'; untagged: boolean };
+export type TagFilter = { tagIds: string[]; untagged: boolean };
 
-export const NO_TAG_FILTER: TagFilter = { tagIds: [], mode: 'or', untagged: false };
+export const NO_TAG_FILTER: TagFilter = { tagIds: [], untagged: false };
+
+/** Nom et catégorie (connue, '' sinon) d'un tag, pour la recherche et le filtre. */
+export type TagIndex = Map<string, { name: string; group: string }>;
 
 /** Le texte doit apparaître dans le nom ou dans l'un des tags ; les tags supprimés (inconnus) sont ignorés. */
 export function matchesFilter(
 	entry: { name: string; tagIds?: string[] },
 	query: string,
 	filter: TagFilter,
-	tagNames: Map<string, string>
+	tags: TagIndex
 ): boolean {
-	const known = (entry.tagIds ?? []).filter((id) => tagNames.has(id));
+	const known = (entry.tagIds ?? []).filter((id) => tags.has(id));
 	if (filter.untagged) {
 		if (known.length) return false;
-	} else if (filter.tagIds.length) {
-		const has = (id: string) => known.includes(id);
-		if (filter.mode === 'and' ? !filter.tagIds.every(has) : !filter.tagIds.some(has)) return false;
+	} else {
+		const wanted = Map.groupBy(
+			filter.tagIds.filter((id) => tags.has(id)),
+			(id) => tags.get(id)!.group
+		);
+		if (![...wanted.values()].every((ids) => ids.some((id) => known.includes(id)))) return false;
 	}
-	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tagNames.get(id)!, query));
+	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tags.get(id)!.name, query));
 }
 
 /**

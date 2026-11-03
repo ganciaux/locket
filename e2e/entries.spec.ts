@@ -947,3 +947,77 @@ test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche
 	await expect(page).toHaveURL(/\/list$/);
 	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans perte', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Naruto');
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	for (const name of ['Genre', 'Statut']) {
+		await page.getByLabel('Nouvelle catégorie').fill(name);
+		await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	}
+	await page.getByRole('button', { name: 'Monter Statut' }).click();
+	await expect(page.getByText('Catégories (2)')).toBeVisible();
+
+	const addTag = async (name: string, group: string) => {
+		await page.getByLabel('Catégorie du nouveau tag').selectOption({ label: group });
+		await page.getByLabel('Nouveau tag', { exact: true }).fill(name);
+		await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+		await expect(page.getByText(name, { exact: true })).toBeVisible();
+	};
+	await addTag('Action', 'Genre');
+	await addTag('Fini', 'Statut');
+	await addTag('Libre', 'Sans catégorie');
+	const tagHeadings = page.getByRole('heading', { level: 2 }).filter({ hasNotText: 'Catégories' });
+	await expect(tagHeadings).toHaveText(['Statut', 'Genre', 'Sans catégorie']);
+
+	// Changer de catégorie déplace le tag ; la catégorie vide disparaît de la liste.
+	await page.getByLabel('Catégorie du tag Libre').selectOption({ label: 'Genre' });
+	await expect(tagHeadings).toHaveText(['Statut', 'Genre']);
+
+	// Formulaire : une ligne par catégorie, dans l'ordre choisi.
+	await goHome(page);
+	await page.locator('li.card').filter({ hasText: 'Naruto' }).getByRole('heading').click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	const picker = page.getByRole('group', { name: 'Tags de la fiche' });
+	await expect(picker.getByRole('group')).toHaveText([/^Statut\s*Fini$/, /^Genre\s*Action\s*Libre$/]);
+	await picker.getByRole('button', { name: 'Action' }).click();
+	await picker.getByRole('button', { name: 'Fini' }).click();
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Naruto' })).toBeVisible();
+	await expect(page.getByText('Statut', { exact: true })).toBeVisible();
+	await expect(page.getByText('Genre', { exact: true })).toBeVisible();
+
+	// Filtre en facettes : une pastille par catégorie ; ET entre catégories, OU dans une catégorie.
+	await goHome(page);
+	const facet = (name: string) => page.getByRole('group', { name: 'Filtrer par tags' }).locator('summary').filter({ hasText: name });
+	const naruto = page.locator('li.card').filter({ hasText: 'Naruto' });
+	await facet('Statut').click();
+	await page.getByRole('checkbox', { name: 'Fini' }).check();
+	await expect(naruto).toHaveCount(1);
+	await expect(facet('Statut')).toHaveText(/Statut\s*: Fini/);
+	await facet('Genre').click(); // ferme la liste de Statut
+	await expect(page.getByRole('checkbox', { name: 'Fini' })).toBeHidden();
+	await page.getByRole('checkbox', { name: 'Libre' }).check();
+	await expect(naruto).toHaveCount(0);
+	await page.getByRole('checkbox', { name: 'Action' }).check();
+	await expect(naruto).toHaveCount(1);
+	await expect(facet('Genre')).toContainText('+1');
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('checkbox', { name: 'Action' })).toBeHidden();
+
+	// Supprimer une catégorie garde ses tags, sans catégorie.
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (2)').click();
+	await page.getByRole('button', { name: 'Supprimer la catégorie Genre' }).click();
+	await expect(page.getByText('Ses 2 tags resteront, sans catégorie.')).toBeVisible();
+	await page.getByRole('button', { name: 'Supprimer', exact: true }).click();
+	await expect(tagHeadings).toHaveText(['Statut', 'Sans catégorie']);
+	await expect(page.getByText('Action', { exact: true })).toBeVisible();
+});

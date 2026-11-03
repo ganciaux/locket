@@ -5,11 +5,13 @@ import {
 	MAX_NAME_LENGTH,
 	NO_TAG_FILTER,
 	type TagFilter,
+	type TagIndex,
 	buildSiteUrl,
 	byName,
 	chooseInsertion,
 	duelsLeft,
 	groupByInitial,
+	groupTags,
 	insertionDone,
 	opponentIndex,
 	rankedIds,
@@ -213,9 +215,12 @@ describe('parseNameList', () => {
 });
 
 describe('tags', () => {
-	const tags = new Map([
-		['t1', 'Administratif'],
-		['t2', 'Santé']
+	const tags: TagIndex = new Map([
+		['t1', { name: 'Administratif', group: '' }],
+		['t2', { name: 'Santé', group: '' }],
+		['action', { name: 'Action', group: 'genre' }],
+		['drame', { name: 'Drame', group: 'genre' }],
+		['fini', { name: 'Fini', group: 'statut' }]
 	]);
 	const entry = { name: 'Mutuelle', tagIds: ['t1', 't2', 'supprimé'] };
 
@@ -228,14 +233,24 @@ describe('tags', () => {
 		expect(matchesFilter({ name: 'Notes' }, '', NO_TAG_FILTER, tags)).toBe(true);
 	});
 
-	it('mode OU (par défaut) : au moins un des tags sélectionnés', () => {
+	it('OU dans une catégorie (les tags sans catégorie en forment une)', () => {
 		expect(matchesFilter(banque, '', filter({ tagIds: ['t1', 't2'] }), tags)).toBe(true);
 		expect(matchesFilter(banque, '', filter({ tagIds: ['t2'] }), tags)).toBe(false);
 	});
 
-	it('mode ET : tous les tags sélectionnés', () => {
-		expect(matchesFilter(entry, '', filter({ tagIds: ['t1', 't2'], mode: 'and' }), tags)).toBe(true);
-		expect(matchesFilter(banque, '', filter({ tagIds: ['t1', 't2'], mode: 'and' }), tags)).toBe(false);
+	it('ET entre catégories', () => {
+		const actionFini = { name: 'One Piece', tagIds: ['action', 'fini'] };
+		const drame = { name: 'Monster', tagIds: ['drame'] };
+		const genres = filter({ tagIds: ['action', 'drame'] });
+		expect(matchesFilter(actionFini, '', genres, tags)).toBe(true);
+		expect(matchesFilter(drame, '', genres, tags)).toBe(true);
+		const genresFinis = filter({ tagIds: ['action', 'drame', 'fini'] });
+		expect(matchesFilter(actionFini, '', genresFinis, tags)).toBe(true);
+		expect(matchesFilter(drame, '', genresFinis, tags)).toBe(false);
+	});
+
+	it('un tag sélectionné puis supprimé est ignoré', () => {
+		expect(matchesFilter(banque, '', filter({ tagIds: ['t1', 'supprimé'] }), tags)).toBe(true);
 	});
 
 	it('« sans tag » : uniquement les fiches sans tag connu', () => {
@@ -541,5 +556,27 @@ describe('groupByInitial', () => {
 			['E', ['Écho', 'echo', 'Émile']],
 			['Б', ['Борис']]
 		]);
+	});
+});
+
+describe('groupTags', () => {
+	const tag = (id: string, groupId?: string) => ({ id, name: id, collectionId: 'c', ...(groupId && { groupId }) });
+	const groups = [
+		{ id: 'g2', name: 'Statut' },
+		{ id: 'g1', name: 'Genre' },
+		{ id: 'vide', name: 'Vide' }
+	];
+
+	it("suit l'ordre des catégories, sans les vides, et range à la fin les tags sans catégorie connue", () => {
+		const sections = groupTags([tag('action', 'g1'), tag('libre'), tag('fini', 'g2'), tag('orphelin', 'supprimée')], groups);
+		expect(sections.map((s) => [s.group?.name ?? null, s.tags.map((t) => t.id)])).toEqual([
+			['Statut', ['fini']],
+			['Genre', ['action']],
+			[null, ['libre', 'orphelin']]
+		]);
+	});
+
+	it('sans catégorie, une seule section', () => {
+		expect(groupTags([tag('a')], [])).toEqual([{ group: null, tags: [tag('a')] }]);
 	});
 });

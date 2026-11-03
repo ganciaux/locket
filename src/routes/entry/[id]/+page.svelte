@@ -10,7 +10,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { entryNav } from '$lib/entries/entryNav.svelte';
-	import { TRASH_DAYS, countryFlag, countryName, formatRating, neighbours } from '$lib/entries/model';
+	import { TRASH_DAYS, countryFlag, countryName, formatRating, groupTags, neighbours } from '$lib/entries/model';
 	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -24,6 +24,8 @@
 
 	const id = $derived(page.params.id ?? '');
 	const entry = $derived(entries.find(id));
+	const groupedTags = $derived(!!entry && entries.tagGroupsIn(entry.collectionId).length > 0);
+	const tagSections = $derived(entry ? groupTags(entries.tagsOf(entry), entries.tagGroupsIn(entry.collectionId)) : []);
 
 	// Liste d'origine si la fiche y figure (voir entryNav) ; sinon sa collection, par nom.
 	const origin = $derived(entryNav.current?.ids.includes(id) ? entryNav.current : null);
@@ -169,10 +171,18 @@
 				{/if}
 			{/if}
 
-			{#if entries.tagsOf(entry).length}
-				<div class="-mt-2 flex flex-wrap gap-2">
-					{#each entries.tagsOf(entry) as tag (tag.id)}
-						<span class="badge badge-soft badge-primary">{tag.name}</span>
+			<!-- Avec des catégories : une ligne par catégorie, son nom devant ses tags. -->
+			{#if tagSections.length}
+				<div class="-mt-2 flex flex-col gap-1.5">
+					{#each tagSections as section (section.group?.id ?? '')}
+						<div class="flex flex-wrap items-center gap-2">
+							{#if groupedTags}
+								<span class="text-base-content/60 text-xs">{section.group?.name ?? 'Autres'}</span>
+							{/if}
+							{#each section.tags as tag (tag.id)}
+								<span class="badge badge-soft badge-primary">{tag.name}</span>
+							{/each}
+						</div>
 					{/each}
 				</div>
 			{/if}

@@ -9,6 +9,7 @@
 	import EntryZoom from '$lib/components/EntryZoom.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
+	import TagFacets from '$lib/components/TagFacets.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
 	import { listView } from '$lib/entries/listView.svelte';
@@ -143,7 +144,7 @@
 
 	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
 	function resetTagFilter() {
-		listView.tags = { ...NO_TAG_FILTER, mode: listView.tags.mode };
+		listView.tags = { ...NO_TAG_FILTER };
 	}
 
 	/** « Effacer » : tout afficher (les valeurs par défaut reviennent au prochain déverrouillage). */
@@ -294,35 +295,13 @@
 	</label>
 
 	<!--
-		Filtres : liens, note et pays sur une ligne, puis les tags ; OU / ET n'a de sens qu'à partir de deux tags
-		sélectionnés. Valeurs par défaut à chaque déverrouillage : avec liens, toutes les notes, tous les pays, aucun tag.
+		Filtres : liens, note et pays sur une ligne, puis les tags (OU dans une catégorie, ET entre catégories).
+		Valeurs par défaut à chaque déverrouillage : avec liens, toutes les notes, tous les pays, aucun tag.
 	-->
 	{#if entries.tags?.length || anyLinks || anyRated || countries.length}
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
 				<span class="text-base-content/60 text-xs">Filtrer</span>
-				{#if tagFilter.tagIds.length > 1}
-					<div class="join" role="radiogroup" aria-label="Mode de filtre des tags">
-						<input
-							class="join-item btn btn-xs"
-							type="radio"
-							name="tag-mode"
-							value="or"
-							aria-label="OU"
-							title="Au moins un des tags sélectionnés"
-							bind:group={listView.tags.mode}
-						/>
-						<input
-							class="join-item btn btn-xs"
-							type="radio"
-							name="tag-mode"
-							value="and"
-							aria-label="ET"
-							title="Tous les tags sélectionnés"
-							bind:group={listView.tags.mode}
-						/>
-					</div>
-				{/if}
 				{#if filterActive}
 					<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
 				{/if}
@@ -358,24 +337,33 @@
 					{/if}
 				</div>
 			{/if}
-			{#if entries.tags?.length}
+			<!-- Avec des catégories : une pastille par catégorie (facettes) ; sinon tous les tags à plat. -->
+			{#snippet untaggedChip()}
+				<button
+					type="button"
+					class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-primary' : 'badge-outline border-dashed'}"
+					aria-pressed={tagFilter.untagged}
+					onclick={toggleUntagged}
+				>
+					Sans tag
+				</button>
+			{/snippet}
+			{#if entries.tags?.length && entries.tagGroups.length}
+				<TagFacets
+					tags={entries.tags}
+					groups={entries.tagGroups}
+					bind:selected={listView.tags.tagIds}
+					onchange={(selected) => selected.length && (listView.tags.untagged = false)}
+					before={untaggedChip}
+				/>
+			{:else if entries.tags?.length}
 				<TagPicker
 					tags={entries.tags}
 					bind:selected={listView.tags.tagIds}
 					label="Filtrer par tags"
 					onchange={(selected) => selected.length && (listView.tags.untagged = false)}
-				>
-					{#snippet before()}
-						<button
-							type="button"
-							class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-primary' : 'badge-outline border-dashed'}"
-							aria-pressed={tagFilter.untagged}
-							onclick={toggleUntagged}
-						>
-							Sans tag
-						</button>
-					{/snippet}
-				</TagPicker>
+					before={untaggedChip}
+				/>
 			{/if}
 		</div>
 	{/if}

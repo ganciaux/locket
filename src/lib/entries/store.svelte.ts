@@ -18,6 +18,8 @@ import {
 	type SortOrder,
 	type Tag,
 	type TagFilter,
+	type TagGroup,
+	type TagIndex,
 	byName,
 	entryLinks,
 	isRankable,
@@ -29,6 +31,7 @@ import {
 	type CountryFilter,
 	type RatingFilter,
 	matchesCountryFilter,
+	groupTags,
 	matchesFilter,
 	matchesLinkFilter,
 	matchesRatingFilter,
@@ -65,7 +68,17 @@ let catalogDamaged = $state(false);
 let shuffleSeed = $state(Math.random());
 let loading: Promise<void> | null = null;
 
-const tagNames = $derived(new Map((data.tags ?? []).map((tag) => [tag.id, tag.name])));
+// Catégorie connue de chaque tag (une catégorie supprimée vaut « sans catégorie »), comme à l'affichage.
+const tagIndex: TagIndex = $derived(
+	new Map(
+		(data.collections ?? []).flatMap((collection) =>
+			groupTags(
+				(data.tags ?? []).filter((tag) => tag.collectionId === collection.id),
+				collection.tagGroups ?? []
+			).flatMap((section) => section.tags.map((tag) => [tag.id, { name: tag.name, group: section.group?.id ?? '' }] as const))
+		)
+	)
+);
 // Collection choisie sur cet appareil ; si elle n'existe plus (ou jamais choisie), la première.
 const active = $derived(data.collections && (data.collections.find((c) => c.id === prefs.collectionId) ?? data.collections[0] ?? null));
 // La corbeille reste chargée, mais hors de tout ce qui s'affiche ou se compte.
@@ -126,6 +139,10 @@ export const entries = {
 	get tags() {
 		return activeTags;
 	},
+	/** Catégories de tags de la collection active, dans l'ordre choisi. */
+	get tagGroups(): TagGroup[] {
+		return active?.tagGroups ?? [];
+	},
 	tagsIn(collectionId: string): Tag[] {
 		return (data.tags ?? []).filter((tag) => tag.collectionId === collectionId);
 	},
@@ -158,7 +175,7 @@ export const entries = {
 		const found = (activeItems ?? []).filter(
 			(item) =>
 				(prefs.showHidden || !item.hidden) &&
-				matchesFilter(item, query, tags, tagNames) &&
+				matchesFilter(item, query, tags, tagIndex) &&
 				matchesLinkFilter(entries.linksOf(item).length, withLinks) &&
 				matchesRatingFilter(item.rating, rating) &&
 				matchesCountryFilter(item.country, country)
@@ -195,12 +212,20 @@ export const entries = {
 	siblings(entry: ListItem): ListItem[] {
 		return inCollection(entry.collectionId).filter((item) => prefs.showHidden || !item.hidden || item.id === entry.id);
 	},
-	/** Tags connus d'une fiche : ceux de sa collection (les identifiants de tags supprimés sont ignorés). */
+	/**
+	 * Tags connus d'une fiche : ceux de sa collection (les identifiants de tags supprimés sont ignorés),
+	 * dans l'ordre des catégories puis par nom.
+	 */
 	tagsOf(entry: { collectionId: string; tagIds?: string[] }): Tag[] {
-		return entries.tagsIn(entry.collectionId).filter((tag) => entry.tagIds?.includes(tag.id));
+		const own = entries.tagsIn(entry.collectionId).filter((tag) => entry.tagIds?.includes(tag.id));
+		return groupTags(own, entries.tagGroupsIn(entry.collectionId)).flatMap((section) => section.tags);
 	},
 	sitesIn(collectionId: string): Site[] {
 		return data.collections?.find((c) => c.id === collectionId)?.sites ?? [];
+	},
+	/** Catégories de tags d'une collection, dans l'ordre choisi. */
+	tagGroupsIn(collectionId: string): TagGroup[] {
+		return data.collections?.find((c) => c.id === collectionId)?.tagGroups ?? [];
 	},
 	/** Liens à afficher : sites actifs de sa collection, puis liens saisis. */
 	linksOf(entry: { collectionId: string } & Parameters<typeof entryLinks>[0]): Link[] {

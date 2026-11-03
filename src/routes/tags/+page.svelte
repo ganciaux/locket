@@ -1,15 +1,17 @@
 <script lang="ts">
-	// Administration des tags de la collection active : ajout, renommage et suppression.
-	// Le catalogue est chiffré comme les fiches.
+	// Administration des tags de la collection active : catégories, ajout, renommage, catégorie et suppression.
+	// Le catalogue est chiffré comme les fiches ; les catégories vivent dans la collection.
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { MAX_LABEL_LENGTH } from '$lib/entries/model';
-	import { addTag, deleteTag, renameTag, selectCollection } from '$lib/entries/collections';
+	import TagGroupManager from '$lib/components/TagGroupManager.svelte';
+	import { MAX_LABEL_LENGTH, groupTags } from '$lib/entries/model';
+	import { addTag, deleteTag, renameTag, selectCollection, setTagGroup } from '$lib/entries/collections';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 
 	let name = $state('');
+	let groupId = $state('');
 	let error = $state('');
 	let confirmId = $state<string | null>(null);
 	let editId = $state<string | null>(null);
@@ -18,9 +20,20 @@
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
 	const addForm = formAction(async () => {
-		await addTag(name);
+		await addTag(name, groupId || undefined);
 		name = '';
 	});
+
+	const sections = $derived(groupTags(entries.tags ?? [], entries.tagGroups));
+
+	async function changeGroup(id: string, value: string) {
+		error = '';
+		try {
+			await setTagGroup(id, value || undefined);
+		} catch (e) {
+			error = errorMessage(e);
+		}
+	}
 
 	function startEdit(id: string, name: string) {
 		confirmId = null;
@@ -64,8 +77,18 @@
 		</select>
 	</label>
 	<div class="flex flex-col gap-4">
+		<TagGroupManager collectionId={entries.active.id} />
+
 		<form class="card bg-base-100 shadow-sm" onsubmit={addForm.submit}>
 			<div class="card-body gap-3">
+				{#if entries.tagGroups.length}
+					<select class="select select-sm w-full" aria-label="Catégorie du nouveau tag" bind:value={groupId}>
+						<option value="">Sans catégorie</option>
+						{#each entries.tagGroups as group (group.id)}
+							<option value={group.id}>{group.name}</option>
+						{/each}
+					</select>
+				{/if}
 				<div class="join w-full">
 					<input
 						class="input join-item w-full"
@@ -87,65 +110,86 @@
 		{#if entries.tags.length === 0}
 			<p class="text-base-content/60 py-8 text-center">Aucun tag dans « {entries.active.name} » pour l'instant.</p>
 		{:else}
-			<ul class="card bg-base-100 divide-base-200 divide-y shadow-sm">
-				{#each entries.tags as tag (tag.id)}
-					{@const count = entries.countWithTag(tag.id)}
-					<li class="flex flex-col gap-2 p-4">
-						{#if editId === tag.id}
-							<form class="flex flex-col gap-2" onsubmit={rename.submit}>
-								<div class="join w-full">
-									<!-- svelte-ignore a11y_autofocus -->
-									<input
-										class="input input-sm join-item w-full"
-										aria-label="Nouveau nom du tag"
-										maxlength={MAX_LABEL_LENGTH}
-										bind:value={editName}
-										required
-										autofocus
-									/>
-									<button class="btn btn-primary btn-sm join-item" disabled={rename.busy}>Renommer</button>
-									<button type="button" class="btn btn-ghost btn-sm join-item" onclick={() => (editId = null)}>Annuler</button>
-								</div>
-								<ErrorAlert message={rename.error} />
-							</form>
-						{:else}
-							<div class="flex items-center gap-3">
-								<Icon name="tag" class="text-primary size-4" />
-								<span class="flex-1 font-medium break-all">{tag.name}</span>
-								<span class="text-base-content/60 text-xs">{count} fiche{count > 1 ? 's' : ''}</span>
-								{#if confirmId !== tag.id}
-									<button
-										class="btn btn-ghost btn-sm btn-square"
-										onclick={() => startEdit(tag.id, tag.name)}
-										aria-label="Renommer le tag {tag.name}"
-										title="Renommer"
-									>
-										<Icon name="edit" class="size-4" />
-									</button>
-									<button
-										class="btn btn-ghost btn-sm btn-square text-error"
-										onclick={() => ((confirmId = tag.id), (editId = null))}
-										aria-label="Supprimer le tag {tag.name}"
-										title="Supprimer"
-									>
-										<Icon name="trash" class="size-4" />
-									</button>
+			{#each sections as section (section.group?.id ?? '')}
+				<section class="flex flex-col gap-2">
+					{#if entries.tagGroups.length}
+						<h2 class="text-base-content/70 px-1 text-sm font-semibold">{section.group?.name ?? 'Sans catégorie'}</h2>
+					{/if}
+					<ul class="card bg-base-100 divide-base-200 divide-y shadow-sm">
+						{#each section.tags as tag (tag.id)}
+							{@const count = entries.countWithTag(tag.id)}
+							<li class="flex flex-col gap-2 p-4">
+								{#if editId === tag.id}
+									<form class="flex flex-col gap-2" onsubmit={rename.submit}>
+										<div class="join w-full">
+											<!-- svelte-ignore a11y_autofocus -->
+											<input
+												class="input input-sm join-item w-full"
+												aria-label="Nouveau nom du tag"
+												maxlength={MAX_LABEL_LENGTH}
+												bind:value={editName}
+												required
+												autofocus
+											/>
+											<button class="btn btn-primary btn-sm join-item" disabled={rename.busy}>Renommer</button>
+											<button type="button" class="btn btn-ghost btn-sm join-item" onclick={() => (editId = null)}>Annuler</button>
+										</div>
+										<ErrorAlert message={rename.error} />
+									</form>
+								{:else}
+									<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+										<Icon name="tag" class="text-primary size-4" />
+										<span class="flex-1 font-medium break-all">{tag.name}</span>
+										{#if entries.tagGroups.length}
+											<!-- Sous le nom sur mobile, à côté dès que la place le permet. -->
+											<select
+												class="select select-xs order-last w-full sm:order-none sm:w-36"
+												aria-label="Catégorie du tag {tag.name}"
+												value={tag.groupId && entries.tagGroups.some((g) => g.id === tag.groupId) ? tag.groupId : ''}
+												onchange={(e) => changeGroup(tag.id, e.currentTarget.value)}
+											>
+												<option value="">Sans catégorie</option>
+												{#each entries.tagGroups as group (group.id)}
+													<option value={group.id}>{group.name}</option>
+												{/each}
+											</select>
+										{/if}
+										<span class="text-base-content/60 text-xs">{count} fiche{count > 1 ? 's' : ''}</span>
+										{#if confirmId !== tag.id}
+											<button
+												class="btn btn-ghost btn-sm btn-square"
+												onclick={() => startEdit(tag.id, tag.name)}
+												aria-label="Renommer le tag {tag.name}"
+												title="Renommer"
+											>
+												<Icon name="edit" class="size-4" />
+											</button>
+											<button
+												class="btn btn-ghost btn-sm btn-square text-error"
+												onclick={() => ((confirmId = tag.id), (editId = null))}
+												aria-label="Supprimer le tag {tag.name}"
+												title="Supprimer"
+											>
+												<Icon name="trash" class="size-4" />
+											</button>
+										{/if}
+									</div>
+									{#if confirmId === tag.id}
+										<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removal.submit}>
+											<span class="flex-1 text-sm">
+												Supprimer « {tag.name} »{count ? ` et le retirer de ${count} fiche${count > 1 ? 's' : ''}` : ''} ?
+											</span>
+											<button class="btn btn-error btn-sm" disabled={removal.busy}>Supprimer</button>
+											<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
+											<ErrorAlert message={removal.error} />
+										</form>
+									{/if}
 								{/if}
-							</div>
-							{#if confirmId === tag.id}
-								<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removal.submit}>
-									<span class="flex-1 text-sm">
-										Supprimer « {tag.name} »{count ? ` et le retirer de ${count} fiche${count > 1 ? 's' : ''}` : ''} ?
-									</span>
-									<button class="btn btn-error btn-sm" disabled={removal.busy}>Supprimer</button>
-									<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
-									<ErrorAlert message={removal.error} />
-								</form>
-							{/if}
-						{/if}
-					</li>
-				{/each}
-			</ul>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/each}
 		{/if}
 	</div>
 {/if}

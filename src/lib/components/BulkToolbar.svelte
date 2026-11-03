@@ -71,7 +71,12 @@
 >
 	<ErrorAlert message={error} />
 	{#if panel === 'tags'}
-		<TagPicker tags={entries.tags ?? []} bind:selected={tagIds} label="Tags à ajouter, retirer ou définir" />
+		<TagPicker
+			tags={entries.tags ?? []}
+			groups={entries.tagGroups}
+			bind:selected={tagIds}
+			label="Tags à ajouter, retirer ou définir"
+		/>
 		<div class="flex flex-wrap gap-2">
 			<button
 				class="btn btn-primary btn-sm"
