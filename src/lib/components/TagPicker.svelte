@@ -34,7 +34,7 @@
 		{@const active = selected.includes(tag.id)}
 		<button
 			type="button"
-			class="badge badge-lg cursor-pointer {active ? 'badge-primary' : 'badge-outline'}"
+			class="badge badge-lg cursor-pointer badge-primary {active ? '' : 'badge-outline'}"
 			aria-pressed={active}
 			onclick={() => toggle(tag.id)}
 		>

@@ -82,9 +82,7 @@
 			}}
 		>
 			<summary
-				class="badge badge-lg max-w-64 cursor-pointer list-none gap-1 [&::-webkit-details-marker]:hidden {chosen.length
-					? 'badge-primary'
-					: 'badge-outline'}"
+				class="badge badge-lg max-w-64 cursor-pointer list-none gap-1 [&::-webkit-details-marker]:hidden badge-primary {chosen.length ? '' : 'badge-outline'}"
 				aria-label="{facet.name}{chosen.length ? ` : ${chosen.join(', ')}` : ''}"
 			>
 				<span class="truncate">

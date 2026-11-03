@@ -127,7 +127,7 @@
 				<div class="flex flex-wrap gap-2">
 					<a class="btn btn-primary btn-sm" href="/ranking/duel"><Icon name="podium" class="size-4" /> Continuer</a>
 					{#if draft.length}
-						<button class="btn btn-sm" disabled={busy} onclick={() => run(() => finishNewRanking(collection.id))}>
+						<button class="btn btn-outline btn-primary btn-sm" disabled={busy} onclick={() => run(() => finishNewRanking(collection.id))}>
 							Terminer maintenant
 						</button>
 					{/if}
@@ -153,13 +153,13 @@
 			{:else}
 				<div class="mb-4 flex flex-wrap gap-2">
 					<button
-						class="btn btn-outline btn-sm"
+						class="btn btn-outline btn-primary btn-sm"
 						disabled={busy}
 						onclick={() => run(async () => (await startNewRanking(collection.id), await goto('/ranking/duel')))}
 					>
 						Relancer le classement
 					</button>
-					<button class="btn btn-ghost btn-sm text-error" onclick={() => (confirmAction = 'delete')}>Supprimer le classement</button>
+					<button class="btn btn-outline btn-error btn-sm" onclick={() => (confirmAction = 'delete')}>Supprimer le classement</button>
 				</div>
 			{/if}
 		{/if}

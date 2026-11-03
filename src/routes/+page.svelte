@@ -221,7 +221,7 @@
 			<button class="btn btn-error btn-sm" disabled={purge.busy}>Supprimer définitivement</button>
 			<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmPurge = false)}>Annuler</button>
 		{:else}
-			<a class="btn btn-sm" href="/backup">Restaurer</a>
+			<a class="btn btn-outline btn-primary btn-sm" href="/backup">Restaurer</a>
 			<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmPurge = true)}>Supprimer</button>
 		{/if}
 		<ErrorAlert message={purge.error} />
@@ -269,7 +269,7 @@
 			</span>
 			<div class="ml-auto flex gap-2">
 				<button class="btn btn-ghost btn-sm" onclick={remindLater}>Plus tard</button>
-				<a class="btn btn-sm" href="/backup">Sauvegarder</a>
+				<a class="btn btn-outline btn-primary btn-sm" href="/backup">Sauvegarder</a>
 			</div>
 		</div>
 	{/if}
@@ -314,7 +314,7 @@
 					{#if anyLinks}
 						<button
 							type="button"
-							class="badge badge-lg cursor-pointer gap-1 {listView.withLinks ? 'badge-primary' : 'badge-outline border-dashed'}"
+							class="badge badge-lg cursor-pointer gap-1 badge-primary {listView.withLinks ? '' : 'badge-outline border-dashed'}"
 							aria-pressed={listView.withLinks}
 							title={listView.withLinks ? 'Afficher aussi les fiches sans lien' : 'Seulement les fiches avec liens'}
 							onclick={() => (listView.withLinks = !listView.withLinks)}
@@ -344,7 +344,7 @@
 			{#snippet untaggedChip()}
 				<button
 					type="button"
-					class="badge badge-lg cursor-pointer italic {tagFilter.untagged ? 'badge-primary' : 'badge-outline border-dashed'}"
+					class="badge badge-lg cursor-pointer italic badge-primary {tagFilter.untagged ? '' : 'badge-outline border-dashed'}"
 					aria-pressed={tagFilter.untagged}
 					onclick={toggleUntagged}
 				>

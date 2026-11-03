@@ -281,7 +281,7 @@
 					{newRecoveryKey}
 				</p>
 				<div class="flex gap-2">
-					<button class="btn btn-outline btn-sm" onclick={copyRecoveryKey}>
+					<button class="btn btn-outline btn-primary btn-sm" onclick={copyRecoveryKey}>
 						<Icon name={copied ? 'check' : 'copy'} class="size-4" />
 						{copied ? 'Copiée' : 'Copier'}
 					</button>

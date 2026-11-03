@@ -91,9 +91,9 @@
 		</button>
 	</form>
 	{#if linkForm.error}
-		<a class="btn btn-outline" href="/forgot-password">Demander un nouveau lien</a>
+		<a class="btn btn-outline btn-primary" href="/forgot-password">Demander un nouveau lien</a>
 	{/if}
 {:else}
 	<p role="alert" class="alert alert-warning alert-soft text-sm">Ce lien est invalide ou a déjà été utilisé.</p>
-	<a class="btn btn-outline" href="/forgot-password">Demander un nouveau lien</a>
+	<a class="btn btn-outline btn-primary" href="/forgot-password">Demander un nouveau lien</a>
 {/if}

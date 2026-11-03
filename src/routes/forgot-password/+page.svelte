@@ -32,7 +32,7 @@
 		Sur iPhone, le lien s'ouvre dans Safari : terminez-y la récupération, puis revenez dans l'app.
 	</p>
 	{#if devLink}
-		<a class="btn btn-outline btn-sm" href={devLink}>Émulateur : ouvrir le lien de connexion</a>
+		<a class="btn btn-outline btn-primary btn-sm" href={devLink}>Émulateur : ouvrir le lien de connexion</a>
 	{/if}
 {:else}
 	<p class="text-base-content/70 text-sm">

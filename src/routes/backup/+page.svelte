@@ -172,7 +172,7 @@
 					<p class="text-base-content/70 text-sm">Fichier chiffré avec une autre clé : il sera vérifié à la restauration.</p>
 				{/if}
 				<label class="flex cursor-pointer items-start gap-3 text-sm">
-					<input type="checkbox" class="checkbox checkbox-error checkbox-sm" bind:checked={replaceConfirmed} />
+					<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" bind:checked={replaceConfirmed} />
 					<span>Je comprends que le contenu actuel du compte sera remplacé par cette sauvegarde.</span>
 				</label>
 				<input type="email" autocomplete="username" value={session.user?.email} hidden readonly />

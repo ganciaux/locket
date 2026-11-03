@@ -77,7 +77,7 @@
 		{#each OPTIONS as option (option.key)}
 			<button
 				type="button"
-				class="badge badge-lg cursor-pointer {prefs[option.key] ? 'badge-primary' : 'badge-outline border-dashed'}"
+				class="badge badge-lg cursor-pointer badge-primary {prefs[option.key] ? '' : 'badge-outline border-dashed'}"
 				aria-pressed={prefs[option.key]}
 				onclick={() => (prefs[option.key] = !prefs[option.key])}
 			>

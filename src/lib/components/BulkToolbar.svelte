@@ -86,14 +86,14 @@
 				Ajouter
 			</button>
 			<button
-				class="btn btn-outline btn-sm"
+				class="btn btn-outline btn-primary btn-sm"
 				disabled={busy || !tagIds.length}
 				onclick={() => apply(() => changeEntriesTags(selectedItems, tagIds, 'remove'))}
 			>
 				Retirer
 			</button>
 			<button
-				class="btn btn-outline btn-sm"
+				class="btn btn-outline btn-primary btn-sm"
 				disabled={busy}
 				title="Les fiches auront exactement ces tags"
 				onclick={() => apply(() => changeEntriesTags(selectedItems, tagIds, 'set'))}
@@ -114,14 +114,14 @@
 				Afficher
 			</button>
 			<button
-				class="btn btn-outline btn-sm"
+				class="btn btn-outline btn-primary btn-sm"
 				disabled={busy || !siteIds.length}
 				onclick={() => apply(() => changeEntriesSites(selectedItems, siteIds, 'hide'))}
 			>
 				Masquer
 			</button>
 			<button
-				class="btn btn-outline btn-sm"
+				class="btn btn-outline btn-primary btn-sm"
 				disabled={busy}
 				title="Seuls ces sites restent affichés"
 				onclick={() => apply(() => changeEntriesSites(selectedItems, siteIds, 'set'))}
@@ -154,17 +154,17 @@
 				Tout
 			</button>
 			<button
-				class="btn btn-sm"
+				class="btn btn-outline btn-primary btn-sm"
 				disabled={busy || !selectedItems.length}
 				onclick={() => apply(() => setEntriesHidden(selectedItems, !allHidden))}
 			>
 				{allHidden ? 'Afficher' : 'Cacher'}
 			</button>
 			{#if entries.tags?.length}
-				<button class="btn btn-sm" disabled={!selectedItems.length} onclick={() => (panel = 'tags')}>Tags</button>
+				<button class="btn btn-outline btn-primary btn-sm" disabled={!selectedItems.length} onclick={() => (panel = 'tags')}>Tags</button>
 			{/if}
 			{#if siteChoices.length}
-				<button class="btn btn-sm" disabled={!selectedItems.length} onclick={() => (panel = 'sites')}>Liens</button>
+				<button class="btn btn-outline btn-primary btn-sm" disabled={!selectedItems.length} onclick={() => (panel = 'sites')}>Liens</button>
 			{/if}
 			<button class="btn btn-sm btn-error btn-outline" disabled={!selectedItems.length} onclick={() => (panel = 'trash')}>
 				Supprimer

@@ -172,7 +172,7 @@
 		Encore {duelsLeft(insertion)} duel{duelsLeft(insertion) > 1 ? 's' : ''} au plus pour « {candidate.name} ».
 	</p>
 	<div class="mt-4 flex flex-wrap gap-2">
-		<button class="btn btn-sm" disabled={!history.length || saving} onclick={undo}>Annuler le dernier choix</button>
+		<button class="btn btn-outline btn-primary btn-sm" disabled={!history.length || saving} onclick={undo}>Annuler le dernier choix</button>
 		{#if !rerankId}
 			<button class="btn btn-ghost btn-sm" disabled={saving} onclick={skip}>Passer cette fiche</button>
 		{/if}
@@ -200,18 +200,18 @@
 	<div class="mt-4 flex flex-wrap gap-2">
 		{#if skipped.length}
 			<button
-				class="btn btn-sm"
+				class="btn btn-outline btn-primary btn-sm"
 				onclick={() => {
 					skipped = [];
 					next();
 				}}>Reprendre les fiches passées</button
 			>
 			{#if inDraft}
-				<button class="btn btn-sm" disabled={saving} onclick={finishDraft}>Terminer sans elles</button>
+				<button class="btn btn-outline btn-primary btn-sm" disabled={saving} onclick={finishDraft}>Terminer sans elles</button>
 			{/if}
 		{/if}
 		{#if error && inDraft && !skipped.length}
-			<button class="btn btn-sm" disabled={saving} onclick={finishDraft}>Réessayer</button>
+			<button class="btn btn-outline btn-primary btn-sm" disabled={saving} onclick={finishDraft}>Réessayer</button>
 		{/if}
 		<a class="btn btn-primary btn-sm" href="/ranking">Voir le classement</a>
 	</div>
