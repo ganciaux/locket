@@ -2,8 +2,10 @@
 	// Import d'une liste de noms : une fiche (sans lien ni image) par ligne.
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/auth/session.svelte';
+	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { parseNameList } from '$lib/entries/model';
 	import { createEntries } from '$lib/entries/repository';
 	import { entries, loadEntries, upsertEntries } from '$lib/entries/store.svelte';
@@ -29,11 +31,21 @@
 		if (!entries.activeItems) throw new Error('Fiches existantes pas encore chargées.');
 		if (!entries.active) throw new Error('Créez d’abord une collection.');
 		upsertEntries(await createEntries(user.uid, dek, entries.active.id, parsed.names));
-		await goto('/', { replaceState: true });
+		await goto('/list', { replaceState: true });
 	});
 </script>
 
-<h1 class="mb-4 text-2xl font-bold">Importer des fiches</h1>
+<!-- Import dans la collection active : son menu en en-tête permet d'en changer. -->
+{#if entries.active}
+	<CollectionHeader>
+		{#snippet actions()}
+			<a class="btn btn-ghost btn-sm shrink-0" href="/list"><Icon name="back" class="size-4" /> Index</a>
+		{/snippet}
+	</CollectionHeader>
+	<h2 class="mb-4 text-xl font-bold">Importer des fiches</h2>
+{:else}
+	<h1 class="mb-4 text-2xl font-bold">Importer des fiches</h1>
+{/if}
 
 <ErrorAlert message={error} />
 
@@ -82,7 +94,7 @@
 			<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy || !entries.active || !parsed.names.length}>
 				{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Import…{:else}Importer{/if}
 			</button>
-			<a class="btn btn-ghost" href="/">Annuler</a>
+			<a class="btn btn-ghost" href="/list">Annuler</a>
 		</div>
 	</div>
 </form>

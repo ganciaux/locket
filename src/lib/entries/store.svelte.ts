@@ -80,7 +80,12 @@ const tagIndex: TagIndex = $derived(
 	)
 );
 // Collection choisie sur cet appareil ; si elle n'existe plus (ou jamais choisie), la première.
-const active = $derived(data.collections && (data.collections.find((c) => c.id === prefs.collectionId) ?? data.collections[0] ?? null));
+// Collections proposées (menu, sélecteurs) ; une cachée ne peut pas être active, sauf si toutes le sont.
+const shownCollections = $derived(data.collections && data.collections.filter((c) => prefs.showHidden || !c.hidden));
+const active = $derived(
+	data.collections &&
+		(shownCollections!.find((c) => c.id === prefs.collectionId) ?? shownCollections![0] ?? data.collections[0] ?? null)
+);
 // La corbeille reste chargée, mais hors de tout ce qui s'affiche ou se compte.
 const liveItems = $derived(data.items && data.items.filter((item) => !item.deletedAt));
 const activeItems = $derived(liveItems && liveItems.filter((item) => item.collectionId === active?.id));
@@ -127,9 +132,16 @@ export const entries = {
 	get activeItems() {
 		return activeItems;
 	},
-	/** Dans l'ordre choisi par l'utilisateur. */
+	/** Dans l'ordre choisi par l'utilisateur, cachées comprises (page Collections, recherche par id). */
 	get collections() {
 		return data.collections;
+	},
+	/** Celles à proposer : sans les cachées, sauf avec la préférence `showHidden`. */
+	get shownCollections() {
+		return shownCollections;
+	},
+	get hiddenCollectionCount() {
+		return data.collections?.filter((c) => c.hidden).length ?? 0;
 	},
 	/** null tant que rien n'est chargé, ou si aucune collection n'existe encore. */
 	get active() {

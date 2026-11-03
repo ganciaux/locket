@@ -3,8 +3,17 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import { selectCollection } from '$lib/entries/collections';
 	import { entries } from '$lib/entries/store.svelte';
+	import { prefs } from '$lib/prefs.svelte';
 
 	let { onselect }: { onselect?: () => void } = $props();
+
+	const PAGES = [
+		{ href: '/', icon: 'search', label: 'Chercher des fiches' },
+		{ href: '/list', icon: 'list', label: 'Index de la collection' },
+		{ href: '/sites', icon: 'link', label: 'Gérer les liens' },
+		{ href: '/tags', icon: 'tag', label: 'Gérer les tags' },
+		{ href: '/ranking', icon: 'podium', label: 'Gérer le classement' }
+	] as const;
 
 	let open = $state(false);
 	let menu: HTMLDetailsElement | undefined = $state();
@@ -27,30 +36,37 @@
 {#if entries.active && entries.collections}
 	<!-- flex-1 : le titre prend la place disponible et ne se tronque que s'il est vraiment trop long. -->
 	<details class="dropdown min-w-0 flex-1" bind:open bind:this={menu}>
-		<summary class="btn btn-ghost -ml-2 h-auto max-w-full list-none justify-start gap-2 px-2 py-1 [&::-webkit-details-marker]:hidden">
+		<summary class="btn btn-ghost -ml-2 h-auto max-w-full list-none items-center justify-start gap-2 px-2 py-1 [&::-webkit-details-marker]:hidden">
 			<h1 class="min-w-0 truncate text-2xl font-bold">{entries.active.name}</h1>
-			{#if entries.activeItems?.length}<span class="badge badge-primary badge-sm shrink-0">{entries.activeItems.length}</span>{/if}
+			<!-- Chiffres sans jambage : pas de décalage vers le haut (app.css) ; descendu de 1,5 px pour se centrer
+			     sur les majuscules du titre plutôt que sur sa ligne (mesuré avec Segoe UI). -->
+			{#if entries.activeItems?.length}<span class="badge badge-primary badge-sm shrink-0 translate-y-[1.5px] pb-0">{entries.activeItems.length}</span>{/if}
 			<Icon name="chevronDown" class="size-5 shrink-0 transition {open ? 'rotate-180' : ''}" />
 		</summary>
 		<ul class="dropdown-content menu bg-base-100 rounded-box z-20 mt-1 w-64 p-2 shadow-lg">
-			{#each entries.collections as collection (collection.id)}
+			{#each entries.shownCollections ?? [] as collection (collection.id)}
 				{@const current = collection.id === entries.active.id}
 				<li>
 					<button class={current ? 'menu-active' : ''} aria-current={current} onclick={() => choose(collection.id)}>
 						<span class="flex-1 truncate">{collection.name}</span>
-						<span class="badge badge-ghost badge-sm">{entries.countIn(collection.id)}</span>
+						<span class="badge badge-ghost badge-sm pb-0">{entries.countIn(collection.id)}</span>
 					</button>
 				</li>
 			{/each}
-			<li class="border-base-200 mt-1 border-t pt-1">
-				<a href="/list" onclick={() => (open = false)}><Icon name="list" class="size-4" /> Index de la collection</a>
-			</li>
-			<li>
-				<a href="/collections" onclick={() => (open = false)}><Icon name="settings" class="size-4" /> Gérer les collections</a>
-			</li>
-			<li>
-				<a href="/ranking" onclick={() => (open = false)}><Icon name="podium" class="size-4" /> Gérer le classement</a>
-			</li>
+			<!-- Même préférence que pour les fiches cachées : une seule notion de discrétion. -->
+			{#if entries.hiddenCollectionCount}
+				<li>
+					<button class="text-base-content/60 text-xs" aria-pressed={prefs.showHidden} onclick={() => (prefs.showHidden = !prefs.showHidden)}>
+						{prefs.showHidden ? 'Masquer' : 'Afficher'} les cachées ({entries.hiddenCollectionCount})
+					</button>
+				</li>
+			{/if}
+			<!-- Pages de la collection active ; « Gérer les collections » reste dans les paramètres. -->
+			{#each PAGES as item, i (item.href)}
+				<li class={i === 0 ? 'border-base-200 mt-1 border-t pt-1' : ''}>
+					<a href={item.href} onclick={() => (open = false)}><Icon name={item.icon} class="size-4" /> {item.label}</a>
+				</li>
+			{/each}
 		</ul>
 	</details>
 {/if}

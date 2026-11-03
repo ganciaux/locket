@@ -21,6 +21,7 @@ type Prefs = {
 	cardClick: CardClick;
 	/** Index de la collection (`/list`) : informations affichées sous chaque nom. */
 	indexCountry: boolean;
+	indexAge: boolean;
 	indexTags: boolean;
 	indexLinks: boolean;
 };
@@ -36,6 +37,7 @@ const DEFAULTS: Prefs = {
 	detailedCards: false,
 	cardClick: 'zoom',
 	indexCountry: true,
+	indexAge: false,
 	indexTags: false,
 	indexLinks: false
 };

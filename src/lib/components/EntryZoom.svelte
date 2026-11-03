@@ -7,7 +7,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import Rating from '$lib/components/Rating.svelte';
-	import { countryFlag, countryName, neighbours } from '$lib/entries/model';
+	import { countryFlag, countryName, formatAge, neighbours } from '$lib/entries/model';
 	import { type Criterion, type Similarity, findSimilar } from '$lib/entries/similar';
 	import { type ListItem, entries, rateEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -158,6 +158,7 @@
 			<header class="flex items-center gap-2 px-4 py-2">
 				{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
 				<h2 class="min-w-0 flex-1 text-lg font-bold break-words">{entry.name}</h2>
+				{#if entry.birthYear}<span class="text-base-content/60 shrink-0 text-sm" title="Année de naissance : {entry.birthYear}">{formatAge(entry.birthYear)}</span>{/if}
 				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
 				<button class="btn btn-ghost btn-sm btn-square shrink-0" aria-label="Fermer" onclick={close}>
 					<Icon name="close" class="size-4" />

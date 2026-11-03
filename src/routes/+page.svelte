@@ -171,11 +171,9 @@
 	}
 </script>
 
-<!-- items-baseline : le compteur s'aligne sur le texte du titre, pas sur sa boîte (jambages compris). -->
 <div class="mb-4 flex items-center gap-2">
 	{#if entries.active}
 		<CollectionSwitcher onselect={resetTagFilter} />
-		<a class="btn btn-ghost btn-sm shrink-0" href="/entry/import"><Icon name="import" class="size-4" /> Importer</a>
 	{:else}
 		<h1 class="text-2xl font-bold">Mes fiches</h1>
 	{/if}

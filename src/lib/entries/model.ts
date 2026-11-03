@@ -27,6 +27,8 @@ export type EntryData = {
 	rating?: number;
 	/** Pays : code ISO 3166-1 alpha-2 (`FR`, `GB`…), un seul par fiche. */
 	country?: string;
+	/** Année de naissance seulement (une date précise serait pénible à trouver) : sert à afficher l'âge. */
+	birthYear?: number;
 	/** Dans la corbeille depuis cette date ; supprimée pour de bon après `TRASH_DAYS` jours. */
 	deletedAt?: number;
 };
@@ -54,6 +56,8 @@ export type Collection = {
 	rankingDraft?: string[];
 	/** Catégories de tags, dans l'ordre d'affichage choisi. */
 	tagGroups?: TagGroup[];
+	/** Cachée : absente des menus et sélecteurs, sauf avec la préférence `showHidden` (comme les fiches cachées). */
+	hidden?: true;
 };
 
 /** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
@@ -470,6 +474,18 @@ export function resolveCountry(input: string): string | undefined {
 	if (code) return parseCountry(code.toUpperCase());
 	const key = searchKey(text);
 	return key ? COUNTRY_CODES.find((c) => searchKey(countryName(c)) === key) : undefined;
+}
+
+export const MIN_BIRTH_YEAR = 1000;
+
+/** Entière, de `MIN_BIRTH_YEAR` à l'année en cours : un âge négatif n'a pas de sens. */
+export const parseBirthYear = (value: unknown, thisYear = new Date().getFullYear()): number | undefined =>
+	Number.isInteger(value) && (value as number) >= MIN_BIRTH_YEAR && (value as number) <= thisYear ? (value as number) : undefined;
+
+/** Âge atteint dans l'année (sans la date, l'anniversaire peut être encore à venir) : 1991 → « 35 ans » en 2026. */
+export function formatAge(birthYear: number, thisYear = new Date().getFullYear()): string {
+	const age = thisYear - birthYear;
+	return `${age} an${age > 1 ? 's' : ''}`;
 }
 
 /** '' : tous les pays ; 'none' : sans pays ; sinon un code. */

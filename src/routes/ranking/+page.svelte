@@ -1,6 +1,8 @@
 <script lang="ts">
 	// Gestion du classement de la collection active : fiches dans l'ordre, lancement des duels (voir duel/+page.svelte).
 	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
@@ -13,6 +15,11 @@
 
 	let error = $state('');
 	let busy = $state(false);
+
+	// Depuis les paramètres : sélecteur de collection et retour aux paramètres ;
+	// sinon en-tête des pages de la collection (son menu, retour aux fiches).
+	const fromSettings = $derived(page.url.searchParams.get('from') === 'settings');
+
 	let confirmId = $state<string | null>(null);
 	// Action en attente de confirmation : supprimer le classement, ou abandonner le nouveau.
 	let confirmAction = $state<'delete' | 'abandon' | null>(null);
@@ -82,9 +89,13 @@
 	</li>
 {/snippet}
 
-<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
-
-<h1 class="mb-3 text-2xl font-bold">Classement</h1>
+{#if fromSettings}
+	<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
+	<h1 class="mb-3 text-2xl font-bold">Classement</h1>
+{:else}
+	<CollectionHeader />
+	<h2 class="mb-3 text-xl font-bold">Classement</h2>
+{/if}
 
 <ErrorAlert message={error} />
 
@@ -93,14 +104,14 @@
 {:else if !collection}
 	<p class="alert alert-info alert-soft">Aucune collection.</p>
 {:else}
-	{#if (entries.collections?.length ?? 0) > 1}
+	{#if fromSettings && (entries.shownCollections?.length ?? 0) > 1}
 		<select
 			class="select select-sm mb-3 w-full"
 			aria-label="Collection"
 			value={collection.id}
 			onchange={(event) => selectCollection(event.currentTarget.value)}
 		>
-			{#each entries.collections ?? [] as option (option.id)}
+			{#each entries.shownCollections ?? [] as option (option.id)}
 				<option value={option.id}>{option.name}</option>
 			{/each}
 		</select>

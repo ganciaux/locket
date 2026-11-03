@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Sites d'une collection : un modèle d'URL devient un lien sur chacune de ses fiches.
+	// Sites d'une collection (page Liens) : un modèle d'URL devient un lien sur chacune de ses fiches.
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import {
@@ -59,14 +59,11 @@
 	}
 </script>
 
-<details class="group">
-	<summary class="text-base-content/60 flex cursor-pointer list-none items-center gap-1 text-xs [&::-webkit-details-marker]:hidden">
-		<Icon name="link" class="size-3" />
-		<span class="flex-1">Sites ({activeCount} actif{activeCount > 1 ? 's' : ''} sur {sites.length})</span>
-		<Icon name="chevronDown" class="size-4 transition group-open:rotate-180" />
-	</summary>
-
-	<div class="mt-3 flex flex-col gap-3">
+<div class="flex flex-col gap-3">
+	<p class="text-base-content/60 flex items-center gap-1 text-xs" role="status">
+		<Icon name="link" class="size-3" /> Sites ({activeCount} actif{activeCount > 1 ? 's' : ''} sur {sites.length})
+	</p>
+	<div class="flex flex-col gap-3">
 		<ErrorAlert message={error} />
 		{#each sites as site, i (site.id)}
 			<div class="bg-base-200 rounded-box flex items-center gap-2 p-2">
@@ -157,4 +154,4 @@
 			</div>
 		</form>
 	</div>
-</details>
+</div>

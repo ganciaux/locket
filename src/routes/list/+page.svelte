@@ -1,19 +1,20 @@
 <script lang="ts">
 	// Index de la collection active : toutes les fiches par ordre alphabétique, en texte, groupées par initiale.
-	// Pays, tags et liens affichés à la demande (préférences de l'appareil) ; recherche sur le nom seulement.
+	// Pays, âge, tags et liens affichés à la demande (préférences de l'appareil) ; recherche sur le nom seulement.
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
-	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
+	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
-	import { countryFlag, countryName, groupByInitial, matchesSearch } from '$lib/entries/model';
+	import { countryFlag, countryName, formatAge, groupByInitial, matchesSearch } from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { prefs } from '$lib/prefs.svelte';
 
 	const OPTIONS = [
 		{ key: 'indexCountry', label: 'Pays' },
+		{ key: 'indexAge', label: 'Âge' },
 		{ key: 'indexTags', label: 'Tags' },
 		{ key: 'indexLinks', label: 'Liens' }
 	] as const;
@@ -38,14 +39,15 @@
 	});
 </script>
 
-<div class="mb-4 flex items-center gap-2">
-	{#if entries.active}
-		<CollectionSwitcher />
-		<a class="btn btn-ghost btn-sm shrink-0" href="/"><Icon name="image" class="size-4" /> Cartes</a>
-	{:else}
-		<h1 class="text-2xl font-bold">Index</h1>
-	{/if}
-</div>
+{#if entries.active}
+	<CollectionHeader>
+		{#snippet actions()}
+			<a class="btn btn-ghost btn-sm shrink-0" href="/entry/import"><Icon name="import" class="size-4" /> Importer</a>
+		{/snippet}
+	</CollectionHeader>
+{:else}
+	<h1 class="mb-4 text-2xl font-bold">Index</h1>
+{/if}
 
 <ErrorAlert message={error} />
 
@@ -108,6 +110,9 @@
 							<a class="link-hover min-w-0 flex-1 truncate font-medium" href="/entry/{item.id}">{item.name}</a>
 							{#if prefs.indexCountry && item.country}
 								<span class="text-base-content/50 hidden shrink-0 text-xs sm:inline">{countryName(item.country)}</span>
+							{/if}
+							{#if prefs.indexAge && item.birthYear}
+								<span class="text-base-content/60 shrink-0 text-xs" title="Année de naissance : {item.birthYear}">{formatAge(item.birthYear)}</span>
 							{/if}
 						</div>
 						{#if tags.length}

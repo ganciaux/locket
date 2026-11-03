@@ -48,6 +48,13 @@ export async function moveCollection(id: string, delta: -1 | 1): Promise<void> {
 	if (next !== current) await replaceCollections(next);
 }
 
+/** Au moins une collection reste visible : la liste a toujours une collection active à montrer. */
+export async function setCollectionHidden(id: string, hidden: boolean): Promise<void> {
+	const current = loaded(data.collections);
+	if (hidden && !current.some((c) => c.id !== id && !c.hidden)) throw new Error('Au moins une collection doit rester visible.');
+	await replaceCollections(current.map((c) => (c.id === id ? { ...c, hidden: hidden || undefined } : c)));
+}
+
 /** Uniquement vide : aucune fiche ne peut perdre sa collection. Ses tags disparaissent avec elle. */
 export async function deleteCollection(id: string): Promise<void> {
 	const count = entries.countIn(id);

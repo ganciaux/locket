@@ -10,7 +10,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { entryNav } from '$lib/entries/entryNav.svelte';
-	import { TRASH_DAYS, countryFlag, countryName, formatRating, groupTags, neighbours } from '$lib/entries/model';
+	import { TRASH_DAYS, countryFlag, countryName, formatAge, formatRating, groupTags, neighbours } from '$lib/entries/model';
 	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -129,6 +129,7 @@
 				<p class="text-base-content/60 flex items-center gap-1 text-xs">
 					<Icon name="folder" class="size-3" />{collection.name}
 					{#if entry.country}<span aria-hidden="true">·</span><span class="mr-0.5">{countryFlag(entry.country)}</span><span>{countryName(entry.country)}</span>{/if}
+					{#if entry.birthYear}<span aria-hidden="true">·</span><span>{formatAge(entry.birthYear)} ({entry.birthYear})</span>{/if}
 				</p>
 			{/if}
 		</header>

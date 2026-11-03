@@ -9,7 +9,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
-	import { type Link, MAX_NAME_LENGTH, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
+	import { type Link, MAX_NAME_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -47,10 +47,16 @@
 	let rating = $state(entry?.rating);
 	// svelte-ignore state_referenced_locally
 	let country = $state(entry?.country);
+	// svelte-ignore state_referenced_locally
+	let birthYear = $state<number | null | undefined>(entry?.birthYear);
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
 	let chosenCollectionId = $state(entry?.collectionId ?? initialCollectionId);
 	const collectionId = $derived(chosenCollectionId || entries.active?.id || '');
+	// Les cachées ne sont pas proposées, sauf celle déjà choisie (fiche ouverte par son lien).
+	const collectionChoices = $derived(
+		(entries.collections ?? []).filter((c) => c.id === collectionId || entries.shownCollections?.includes(c))
+	);
 	const collectionTags = $derived(entries.tagsIn(collectionId));
 	const collectionSites = $derived(entries.sitesIn(collectionId));
 	const activeSites = $derived(collectionSites.filter((site) => site.enabled));
@@ -156,6 +162,7 @@
 				hidden,
 				rating,
 				country,
+				birthYear: birthYear ?? undefined,
 				image
 			},
 			entry
@@ -197,10 +204,10 @@
 					{/if}
 				</p>
 			{/if}
-			{#if entries.collections && entries.collections.length > 1}
+			{#if collectionChoices.length > 1}
 				<Field label="Collection">
 					<select class="select w-full" value={collectionId} onchange={changeCollection}>
-						{#each entries.collections as collection (collection.id)}
+						{#each collectionChoices as collection (collection.id)}
 							<option value={collection.id}>{collection.name}</option>
 						{/each}
 					</select>
@@ -210,6 +217,17 @@
 				<span class="text-sm font-medium">Pays</span>
 				<CountryPicker bind:value={country} frequent={entries.usedCountries} />
 			</div>
+			<Field label="Année de naissance" hint="Facultative, pour afficher l'âge.">
+				<input
+					class="input w-32"
+					type="number"
+					inputmode="numeric"
+					min={MIN_BIRTH_YEAR}
+					max={new Date().getFullYear()}
+					placeholder="1990"
+					bind:value={birthYear}
+				/>
+			</Field>
 			<div class="flex flex-col gap-1">
 				<span class="text-sm font-medium">Note</span>
 				<div class="flex items-center gap-2">

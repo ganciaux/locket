@@ -23,7 +23,7 @@ import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson, randomBytes
 import type { Bytes } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import { type CacheChanges, type CachedEntry, applyToCache, cachedToken, clearCache, fillCache, readCache } from './cache';
-import { type Entry, type EntryData, type Link, fitsInDoc, parseCountry, parseRating } from './model';
+import { type Entry, type EntryData, type Link, fitsInDoc, parseBirthYear, parseCountry, parseRating } from './model';
 
 type StoredEntry = { data: StoredEncrypted; thumb?: StoredEncrypted };
 type StoredImage = { image: StoredEncrypted };
@@ -146,6 +146,7 @@ export type EntryInput = {
 	hidden?: boolean;
 	rating?: number;
 	country?: string;
+	birthYear?: number;
 	/** undefined : image inchangée ; null : supprimée ; sinon : remplacée. */
 	image?: PreparedImage | null;
 };
@@ -177,6 +178,7 @@ export async function saveEntry(
 		...(input.shownSites?.length && { shownSites: input.shownSites }),
 		...(parseRating(input.rating) && { rating: input.rating }),
 		...(parseCountry(input.country) && { country: input.country }),
+		...(parseBirthYear(input.birthYear) && { birthYear: input.birthYear }),
 		...(input.hidden && { hidden: true })
 	};
 

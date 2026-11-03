@@ -16,8 +16,7 @@ const swipeOn = (target: Locator, dx: number) =>
 
 async function addSite(page: Page, label: string, urlTemplate: string) {
 	await goSettings(page);
-	await page.getByRole('link', { name: 'Gérer les collections' }).click();
-	await page.getByText(/^Sites \(/).click();
+	await page.getByRole('link', { name: 'Gérer les liens' }).click();
 	await page.getByLabel('Libellé du site').fill(label);
 	await page.getByLabel("Modèle d'URL").fill(urlTemplate);
 	await page.getByRole('button', { name: 'Ajouter un site' }).click();
@@ -927,7 +926,30 @@ test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche
 	await goHome(page);
 
 	await page.getByRole('heading', { name: 'Manga' }).click();
+	// Menu du titre : pages propres à la collection active.
+	await expect(page.locator('details.dropdown ul a')).toHaveText([
+		'Chercher des fiches',
+		'Index de la collection',
+		'Gérer les liens',
+		'Gérer les tags',
+		'Gérer le classement'
+	]);
+	// Depuis le menu, la collection est déjà choisie : son menu en en-tête, pas de sélecteur, retour vers les fiches.
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Manga' })).toBeVisible();
+	await expect(page.getByRole('combobox', { name: 'Collection' })).toHaveCount(0);
+	await page.getByRole('link', { name: 'Mes fiches' }).click();
+	await expect(page).toHaveURL(/\/$/);
+	await page.getByRole('heading', { name: 'Manga' }).click();
 	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	// L'import garde l'en-tête de la collection, avec un retour à l'index.
+	await page.getByRole('link', { name: 'Importer' }).click();
+	await expect(page.getByRole('heading', { name: 'Importer des fiches' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Manga' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Mes fiches' })).toBeVisible();
+	await page.getByRole('link', { name: 'Index', exact: true }).click();
 	await expect(page).toHaveURL(/\/list$/);
 	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['#', 'A', 'E']);
 	await expect(page.getByRole('status').filter({ hasText: 'fiches' })).toHaveText('3 fiches');
@@ -1029,4 +1051,61 @@ test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans
 	await page.getByRole('button', { name: 'Supprimer', exact: true }).click();
 	await expect(tagHeadings).toHaveText(['Statut', 'Sans catégorie']);
 	await expect(page.getByText('Action', { exact: true })).toBeVisible();
+});
+
+test('collection cachée : absente du menu et des choix, réaffichée sur demande', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les collections' }).click();
+	await page.getByLabel('Nouvelle collection').fill('Movie');
+	await page.getByRole('button', { name: 'Ajouter' }).click();
+	await expect(page.getByLabel('Cacher la collection Movie')).toBeVisible();
+
+	// Au moins une reste visible.
+	await page.getByLabel('Cacher la collection Manga').check();
+	await expect(page.getByLabel('Cacher la collection Manga')).toBeChecked();
+	await page.getByLabel('Cacher la collection Movie').click();
+	await expect(page.getByText('Au moins une collection doit rester visible.')).toBeVisible();
+	await expect(page.getByLabel('Cacher la collection Movie')).not.toBeChecked();
+
+	// La collection active cachée laisse la place à la première visible.
+	await goHome(page);
+	await page.getByRole('heading', { name: 'Movie' }).click();
+	const choices = page.locator('details.dropdown ul button[aria-current]');
+	await expect(choices).toHaveCount(1);
+	await page.getByRole('button', { name: 'Afficher les cachées (1)' }).click();
+	await expect(choices).toHaveCount(2);
+	await expect(page.getByRole('button', { name: 'Masquer les cachées (1)' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('année de naissance : âge sur la fiche, le zoom et l’index, effaçable', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Akira');
+	const age = `${new Date().getFullYear() - 1990} ans`;
+
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByLabel('Année de naissance').fill('1990');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByText(`${age} (1990)`)).toBeVisible();
+	await goHome(page);
+	// Pas sur la carte (place comptée) : dans l'index, à la demande.
+	await expect(page.locator('li.card').getByText(age)).toHaveCount(0);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await expect(page.getByText(age)).toHaveCount(0);
+	await page.getByRole('button', { name: 'Âge' }).click();
+	await expect(page.getByRole('listitem').getByText(age)).toBeVisible();
+	await goHome(page);
+
+	await page.locator('li.card').getByRole('heading').click();
+	await expect(page.getByRole('dialog').getByText(age)).toBeVisible();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect(page.getByLabel('Année de naissance')).toHaveValue('1990');
+	await page.getByLabel('Année de naissance').fill('');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Akira' })).toBeVisible();
+	await expect(page.getByText(age)).toHaveCount(0);
 });

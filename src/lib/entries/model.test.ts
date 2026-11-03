@@ -39,8 +39,10 @@ import {
 	UNRATED,
 	countryFlag,
 	countryName,
+	formatAge,
 	formatRating,
 	matchesCountryFilter,
+	parseBirthYear,
 	parseCountry,
 	resolveCountry,
 	matchesLinkFilter,
@@ -589,5 +591,19 @@ describe('groupTags', () => {
 
 	it('sans catégorie, une seule section', () => {
 		expect(groupTags([tag('a')], [])).toEqual([{ group: null, tags: [tag('a')] }]);
+	});
+});
+
+describe('année de naissance', () => {
+	it('entière, de 1000 à l’année en cours', () => {
+		expect(parseBirthYear(1991, 2026)).toBe(1991);
+		expect(parseBirthYear(2026, 2026)).toBe(2026);
+		for (const value of [999, 2027, 1990.5, '1991', null, undefined, NaN]) expect(parseBirthYear(value, 2026), String(value)).toBeUndefined();
+	});
+
+	it('âge atteint dans l’année', () => {
+		expect(formatAge(1991, 2026)).toBe('35 ans');
+		expect(formatAge(2025, 2026)).toBe('1 an');
+		expect(formatAge(2026, 2026)).toBe('0 an');
 	});
 });

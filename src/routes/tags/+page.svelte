@@ -1,6 +1,8 @@
 <script lang="ts">
 	// Administration des tags de la collection active : catégories, ajout, renommage, catégorie et suppression.
 	// Le catalogue est chiffré comme les fiches ; les catégories vivent dans la collection.
+	import { page } from '$app/state';
+	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagGroupManager from '$lib/components/TagGroupManager.svelte';
@@ -13,6 +15,11 @@
 	let name = $state('');
 	let groupId = $state('');
 	let error = $state('');
+
+	// Depuis les paramètres : sélecteur de collection et retour aux paramètres ;
+	// sinon en-tête des pages de la collection (son menu, retour aux fiches).
+	const fromSettings = $derived(page.url.searchParams.get('from') === 'settings');
+
 	let confirmId = $state<string | null>(null);
 	let editId = $state<string | null>(null);
 	let editName = $state('');
@@ -52,8 +59,13 @@
 	});
 </script>
 
-<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
-<h1 class="mb-2 text-2xl font-bold">Tags</h1>
+{#if fromSettings}
+	<a href="/settings" class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Paramètres</a>
+	<h1 class="mb-2 text-2xl font-bold">Tags</h1>
+{:else}
+	<CollectionHeader onselect={() => (editId = confirmId = null)} />
+	<h2 class="mb-2 text-xl font-bold">Tags</h2>
+{/if}
 
 <ErrorAlert message={error} />
 
@@ -64,18 +76,20 @@
 		Les tags sont propres à chaque collection. <a class="link link-primary" href="/collections">Créez d'abord une collection</a>.
 	</p>
 {:else if entries.tags && entries.collections}
-	<label class="text-base-content/70 mb-4 flex items-center gap-2 text-sm">
-		Collection
-		<select
-			class="select select-sm w-auto"
-			value={entries.active.id}
-			onchange={(e) => ((editId = confirmId = null), selectCollection(e.currentTarget.value))}
-		>
-			{#each entries.collections as collection (collection.id)}
-				<option value={collection.id}>{collection.name}</option>
-			{/each}
-		</select>
-	</label>
+	{#if fromSettings}
+		<label class="text-base-content/70 mb-4 flex items-center gap-2 text-sm">
+			Collection
+			<select
+				class="select select-sm w-auto"
+				value={entries.active.id}
+				onchange={(e) => ((editId = confirmId = null), selectCollection(e.currentTarget.value))}
+			>
+				{#each entries.shownCollections ?? [] as collection (collection.id)}
+					<option value={collection.id}>{collection.name}</option>
+				{/each}
+			</select>
+		</label>
+	{/if}
 	<div class="flex flex-col gap-4">
 		<TagGroupManager collectionId={entries.active.id} />
 
