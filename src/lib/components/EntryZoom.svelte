@@ -36,13 +36,18 @@
 	let savingRating = $state(false);
 
 	const entry = $derived(entries.find(id));
-	// Ressemblantes affichées : les flèches parcourent la fiche de départ et cette liste, plus les résultats.
+	// Ressemblantes de la fiche de départ. En aperçu de l'une d'elles, les flèches ne parcourent que les ressemblantes
+	// et fermer ramène à la fiche de départ ; sur celle-ci, les flèches suivent les résultats de la liste.
 	let similar = $state.raw<{ sourceId: string; items: (Similarity & { item: ListItem })[] } | null>(null);
 	let searching = $state(false);
-	const navIds = $derived(similar ? [similar.sourceId, ...similar.items.map(({ item }) => item.id)] : ids);
-	// Scores de la ressemblante affichée ; rien sur la fiche de départ.
 	const shownSimilar = $derived(similar?.items.find(({ item }) => item.id === id));
+	const source = $derived(shownSimilar && similar ? entries.find(similar.sourceId) : undefined);
+	const navIds = $derived(shownSimilar && similar ? similar.items.map(({ item }) => item.id) : ids);
 	const position = $derived(neighbours(navIds, id));
+
+	const backToSource = () => similar && onchange(similar.sourceId);
+	/** Quitte l'aperçu : la ressemblante devient la fiche agrandie, les flèches reviennent aux résultats. */
+	const goToShown = () => (similar = null);
 
 	async function toggleSimilar() {
 		if (similar) {
@@ -82,6 +87,7 @@
 	});
 
 	async function close() {
+		if (shownSimilar) return backToSource();
 		if (closing) return;
 		closing = true;
 		// La fiche affichée n'est peut-être plus celle du départ : sa carte doit être à l'écran.
@@ -129,6 +135,7 @@
 		event.preventDefault();
 		close();
 	}}
+	onclose={() => onclose()}
 >
 	{#if entry}
 		{@const links = entries.linksOf(entry)}
@@ -139,6 +146,15 @@
 			class="modal-box flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-y-auto overscroll-contain p-0 outline-none"
 			tabindex="-1"
 		>
+			{#if shownSimilar && source}
+				<div class="bg-base-200 flex items-center gap-2 px-2 py-1.5">
+					<button class="btn btn-ghost btn-xs min-w-0" aria-label="Retour à {source.name}" onclick={backToSource}>
+						<Icon name="back" class="size-3 shrink-0" />
+						<span class="truncate">{source.name}</span>
+					</button>
+					<span class="text-base-content/60 ml-auto shrink-0 text-xs">Similaire à {percent(shownSimilar.score)}</span>
+				</div>
+			{/if}
 			<header class="flex items-center gap-2 px-4 py-2">
 				{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
 				<h2 class="min-w-0 flex-1 text-lg font-bold break-words">{entry.name}</h2>
@@ -196,13 +212,25 @@
 				<div class="grid grid-cols-3 gap-2">
 					<a class="btn btn-primary btn-sm" href="/entry/{entry.id}" aria-label="Ouvrir la fiche">Ouvrir</a>
 					<a class="btn btn-outline btn-primary btn-sm" href="/entry/{entry.id}/edit" aria-label="Modifier la fiche">Modifier</a>
-					<button class="btn btn-outline btn-primary btn-sm" aria-pressed={!!similar} disabled={searching} onclick={toggleSimilar}>
-						{#if searching}<span class="loading loading-spinner loading-xs"></span>{:else}Similaires{/if}
-					</button>
+					{#if shownSimilar}
+						<button
+							class="btn btn-outline btn-primary btn-sm"
+							aria-label="Aller à cette fiche"
+							title="Quitter les similaires et continuer depuis cette fiche"
+							onclick={goToShown}
+						>
+							Y aller
+						</button>
+					{:else}
+						<button class="btn btn-outline btn-primary btn-sm" aria-pressed={!!similar} disabled={searching} onclick={toggleSimilar}>
+							{#if searching}<span class="loading loading-spinner loading-xs"></span>{:else}Similaires{/if}
+						</button>
+					{/if}
 				</div>
 				{#if similar}
 					{#if similar.items.length}
-						<ul class="flex gap-2 overflow-x-auto pb-1" data-no-swipe>
+						<!-- Marge pour l'outline de la vignette affichée : le défilement coupe tout ce qui dépasse. -->
+						<ul class="flex gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1" data-no-swipe>
 							{#each similar.items as { item, score } (item.id)}
 								<li class="shrink-0">
 									<button

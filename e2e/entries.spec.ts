@@ -700,8 +700,18 @@ test('fiche agrandie : ouvrir, modifier, ressemblantes', async ({ page }) => {
 	await expect(zoom.getByRole('heading', { name: 'Bravo' })).toBeVisible();
 	// Même image, noms sans mot commun ; ni tags ni pays : non comparables, absents du détail.
 	await expect(zoom.getByText(/^Ressemblance/)).toHaveText('Ressemblance 70 % : image 100 % · nom 0 %');
-	// Les flèches suivent cette liste : la fiche de départ, puis les ressemblantes.
-	await expect(zoom.getByText('2 / 2')).toBeVisible();
+	// Aperçu : fermer ramène à la fiche de départ, le zoom reste ouvert.
+	await page.keyboard.press('Escape');
+	await expect(zoom.getByRole('heading', { name: 'Alpha' })).toBeVisible();
+	await zoom.getByRole('button', { name: 'Voir Bravo' }).click();
+	await zoom.getByRole('button', { name: 'Retour à Alpha' }).click();
+	await expect(zoom.getByRole('heading', { name: 'Alpha' })).toBeVisible();
+
+	// « Aller à cette fiche » quitte l'aperçu : fermer referme alors le zoom.
+	await zoom.getByRole('button', { name: 'Voir Bravo' }).click();
+	await zoom.getByRole('button', { name: 'Aller à cette fiche' }).click();
+	await expect(zoom.getByRole('button', { name: 'Retour à Alpha' })).toHaveCount(0);
+	await expect(zoom.getByRole('heading', { name: 'Bravo' })).toBeVisible();
 
 	await zoom.getByRole('link', { name: 'Modifier la fiche' }).click();
 	await expect(page).toHaveURL(/\/entry\/[^/]+\/edit$/);
