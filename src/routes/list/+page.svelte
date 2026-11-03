@@ -42,7 +42,13 @@
 {#if entries.active}
 	<CollectionHeader>
 		{#snippet actions()}
-			<a class="btn btn-ghost btn-sm shrink-0" href="/entry/import"><Icon name="import" class="size-4" /> Importer</a>
+			<!-- Libellés masqués sur téléphone : avec « Mes fiches », l'en-tête ne tiendrait plus à 320 px. -->
+			<a class="btn btn-ghost btn-sm shrink-0" href="/list/compare" aria-label="Comparer une liste" title="Comparer une liste de noms">
+				<Icon name="list" class="size-4" /><span class="hidden sm:inline">Comparer</span>
+			</a>
+			<a class="btn btn-ghost btn-sm shrink-0" href="/entry/import" aria-label="Importer" title="Importer des fiches">
+				<Icon name="import" class="size-4" /><span class="hidden sm:inline">Importer</span>
+			</a>
 		{/snippet}
 	</CollectionHeader>
 {:else}

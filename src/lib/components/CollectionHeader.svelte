@@ -11,5 +11,8 @@
 <div class="mb-4 flex items-center gap-2">
 	<CollectionSwitcher {onselect} />
 	{@render actions?.()}
-	<a class="btn btn-ghost btn-sm shrink-0" href="/"><Icon name="image" class="size-4" /> Mes fiches</a>
+	<!-- Libellé masqué sur téléphone : le nom de la collection doit rester lisible à 320 px. -->
+	<a class="btn btn-ghost btn-sm shrink-0" href="/" aria-label="Mes fiches" title="Mes fiches">
+		<Icon name="image" class="size-4" /><span class="hidden sm:inline">Mes fiches</span>
+	</a>
 </div>

@@ -1205,3 +1205,33 @@ test('catégorie créée avec ses tags : « Genre = Action, Drame »', async ({ 
 	await expect(tagHeadings).toHaveText(['Genre']);
 	for (const name of ['Action', 'Drame', 'Comédie']) await expect(page.getByText(name, { exact: true })).toHaveCount(1);
 });
+
+test('index : comparer une liste de noms à la collection', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	for (const name of ['Naruto', 'Éric Dupont']) await createEntry(page, name);
+	await goHome(page);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await page.getByRole('link', { name: 'Comparer une liste' }).click();
+	await expect(page.getByRole('heading', { name: 'Comparer une liste' })).toBeVisible();
+
+	await page.getByLabel('Noms à comparer').fill('Zorro\n  naruto \n\nAlpha\nzorro\neric dupont');
+	const missing = page.getByRole('region', { name: /^Absents/ });
+	const found = page.getByRole('region', { name: /^Déjà dans la collection/ });
+	await expect(missing.getByRole('heading')).toHaveText('Absents de la collection (2)');
+	await expect(missing.getByRole('listitem')).toHaveText(['Alpha', 'Zorro']);
+	await expect(found.getByRole('listitem')).toHaveText([/Éric Dupont\s*saisi « eric dupont »$/, /Naruto\s*saisi « naruto »$/]);
+	await expect(page.getByText('1 doublon retiré de la liste.')).toBeVisible();
+
+	// Sans tri : l'ordre saisi ; la liste des absents se copie d'un clic.
+	await page.getByLabel('Trier par ordre alphabétique').uncheck();
+	await expect(missing.getByRole('listitem')).toHaveText(['Zorro', 'Alpha']);
+	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+	await missing.getByRole('button', { name: 'Copier les absents' }).click();
+	expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('Zorro\nAlpha');
+
+	// Une fiche déjà présente s'ouvre depuis la liste.
+	await found.getByRole('link', { name: 'Naruto' }).click();
+	await expect(page.getByRole('heading', { name: 'Naruto' })).toBeVisible();
+});

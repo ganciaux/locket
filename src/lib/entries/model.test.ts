@@ -8,6 +8,8 @@ import {
 	type TagIndex,
 	buildSiteUrl,
 	byName,
+	compareNames,
+	searchKey,
 	facetShown,
 	filterLevel,
 	parseGroupInput,
@@ -613,5 +615,28 @@ describe('saisie d’une catégorie', () => {
 		});
 		expect(parseGroupInput('Genre=')).toEqual({ name: 'Genre', tags: [] });
 		expect(parseGroupInput('Note = 5/5, A=B')).toEqual({ name: 'Note ', tags: ['5/5', 'A=B'] });
+	});
+});
+
+describe('comparer une liste de noms', () => {
+	const known = new Map(['Naruto', 'Éric Dupont'].map((name) => [searchKey(name), { name }]));
+	const find = (key: string) => known.get(key);
+	const text = 'zorro\n  naruto \n\nAlpha  Beta\nZorro\neric dupont\r\nalpha beta';
+
+	it('sépare absents et présents, sans casse ni accents, doublons retirés', () => {
+		expect(compareNames(text, find, false)).toEqual({
+			missing: ['zorro', 'Alpha Beta'],
+			found: [
+				{ name: 'naruto', entry: { name: 'Naruto' } },
+				{ name: 'eric dupont', entry: { name: 'Éric Dupont' } }
+			],
+			duplicates: 2
+		});
+	});
+
+	it('trie par nom à la demande', () => {
+		const { missing, found } = compareNames(text, find, true);
+		expect(missing).toEqual(['Alpha Beta', 'zorro']);
+		expect(found.map((item) => item.name)).toEqual(['eric dupont', 'naruto']);
 	});
 });

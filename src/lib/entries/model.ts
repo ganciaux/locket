@@ -331,6 +331,39 @@ export function parseLabel(input: string, existing: { name: string }[]): string 
 }
 
 /**
+ * Liste de noms (un par ligne) comparée à une collection : absents (doublons retirés, sans casse ni accents) et déjà
+ * présents avec leur fiche (`find`) ; dans l'ordre saisi, ou triés par nom.
+ */
+export function compareNames<T>(
+	text: string,
+	find: (key: string) => T | undefined,
+	sorted: boolean
+): { missing: string[]; found: { name: string; entry: T }[]; duplicates: number } {
+	const seen = new Set<string>();
+	const missing: string[] = [];
+	const found: { name: string; entry: T }[] = [];
+	let duplicates = 0;
+	for (const line of text.split(/\r?\n/)) {
+		const name = line.trim().replace(/\s+/g, ' ');
+		if (!name) continue;
+		const key = searchKey(name);
+		if (seen.has(key)) {
+			duplicates++;
+			continue;
+		}
+		seen.add(key);
+		const entry = find(key);
+		if (entry) found.push({ name, entry });
+		else missing.push(name);
+	}
+	if (sorted) {
+		missing.sort((a, b) => byName({ name: a }, { name: b }));
+		found.sort(byName);
+	}
+	return { missing, found, duplicates };
+}
+
+/**
  * Saisie d'une catégorie : « Genre » seule, ou « Genre = Action, Drame » avec ses tags (vides et doublons retirés,
  * sans casse ni accents). Les libellés sont validés ensuite par `parseLabel`.
  */
