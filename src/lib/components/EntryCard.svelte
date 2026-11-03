@@ -119,7 +119,7 @@
 	{#if (!clickZooms || selecting) && !detailed && (entryTags.length || links.length)}
 		<button
 			type="button"
-			class="text-base-content/60 hover:bg-base-200 border-base-200 flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
+			class="text-base-content/60 hover:bg-base-200 border-base-200 mt-auto flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
 			aria-haspopup="dialog"
 			onclick={onzoom}
 		>
@@ -128,7 +128,10 @@
 		</button>
 	{/if}
 
-	<!-- Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>. -->
+	<!--
+		Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>.
+		Cartes d'une même ligne à la même hauteur (grille étirée) : les liens et « Détails » se calent en bas (mt-auto).
+	-->
 	{#if detailed}
 		{#if entryTags.length}
 			<div class="flex flex-wrap gap-1 px-3 py-2">
@@ -138,7 +141,7 @@
 			</div>
 		{/if}
 		{#if links.length}
-			<div class="border-base-200 border-t px-3 py-2">
+			<div class="border-base-200 mt-auto border-t px-3 py-2">
 				<LinkChips {links} small />
 			</div>
 		{/if}

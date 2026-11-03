@@ -459,7 +459,7 @@
 	{/if}
 
 	<!-- items-start : une carte détaillée s'allonge sans étirer ses voisines. -->
-	<ul class="grid items-start {GRID[prefs.cardSize]}">
+	<ul class="grid {GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
 			<EntryCard
 				{entry}

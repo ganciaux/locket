@@ -99,3 +99,23 @@
 		pointer-events: none;
 	}
 }
+
+/*
+ * Focus des champs : fin contour bordeaux collé au champ, plutôt que l'anneau noir décalé de daisyUI (qui déborde
+ * sur les boutons d'un `join`). Hors couche pour passer devant daisyUI ; les champs en erreur ou validés gardent leur couleur.
+ */
+:is(.input, .select, .textarea):not(.input-error, .input-success):is(:focus, :focus-within) {
+	--input-color: var(--color-primary);
+	outline-width: 1px;
+	outline-offset: 0;
+}
+
+/*
+ * Pastilles : daisyUI centre la hauteur des majuscules, les minuscules paraissent alors trop basses
+ * (nettement avec Segoe UI). Remonter le texte d'un rien le recentre à l'œil.
+ */
+@layer components {
+	.badge {
+		padding-bottom: 0.15em;
+	}
+}
