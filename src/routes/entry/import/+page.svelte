@@ -92,11 +92,29 @@
 			{#if plan.errors.length}
 				<div class="alert alert-error alert-soft flex flex-col items-stretch gap-1">
 					<p class="text-sm font-medium">
-						{count ? 'Lignes en erreur, laissées de côté si vous importez sans elles :' : 'Rien ne peut être importé :'}
+						{count
+							? 'Lignes en erreur, laissées de côté si vous importez sans elles :'
+							: plan.failed.length
+								? 'Rien d’autre à importer. Lignes en erreur :'
+								: 'Rien ne peut être importé :'}
 					</p>
 					<ul class="max-h-60 list-disc overflow-y-auto pl-5 text-sm">
 						{#each plan.errors as message, i (i)}<li>{message}</li>{/each}
 					</ul>
+					<!-- Les autres lignes ne servent plus : on ne garde que celles à corriger, avec l'en-tête. -->
+					{#if plan.failed.length}
+						<button
+							type="button"
+							class="btn btn-sm self-start"
+							disabled={form.busy}
+							onclick={() => {
+								text = rowsText(text, plan?.failed ?? []);
+								plan = null;
+							}}
+						>
+							<Icon name="edit" class="size-4" /> Ne garder que les lignes en erreur
+						</button>
+					{/if}
 				</div>
 			{/if}
 			{@render rows(plan.added, `Ajouts (${plan.added.length})`)}

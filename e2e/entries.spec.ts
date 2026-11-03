@@ -1198,6 +1198,13 @@ test('import d’un tableau : modèle, aperçu, lignes en erreur laissées de c�
 	await page.getByRole('button', { name: 'Corriger les lignes ignorées' }).click();
 	await expect(table).toHaveValue('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventur');
 
+	// Rien d'autre à importer : les lignes en erreur s'isolent directement depuis l'aperçu.
+	await table.fill('Nom;Pays;Naissance;Genre\nnaruto;Japon;1999;Action\nOne Piece;JP;;Aventur');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByText('Rien d’autre à importer. Lignes en erreur :')).toBeVisible();
+	await page.getByRole('button', { name: 'Ne garder que les lignes en erreur' }).click();
+	await expect(table).toHaveValue('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventur');
+
 	await table.fill('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventure');
 	await page.getByRole('button', { name: 'Vérifier' }).click();
 	await expect(page.getByRole('status')).toHaveText(/1 ajout · 0 modification ·\s+0 fiche inchangée/);
