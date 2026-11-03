@@ -28,6 +28,8 @@ export type ImportPlan = {
 	updated: (ImportRow & { id: string })[];
 	unchanged: number;
 	errors: string[];
+	/** Numéros des lignes en erreur, non retenues : les autres peuvent être importées sans elles. */
+	failed: number[];
 };
 
 export const CLEAR = '-';
@@ -95,7 +97,7 @@ function describeChanges(before: ImportFields, after: ImportFields, scopes: Scop
 }
 
 export function planImport(text: string, items: ImportTarget[], tags: Tag[], groups: TagGroup[]): ImportPlan {
-	const plan: ImportPlan = { added: [], updated: [], unchanged: 0, errors: [] };
+	const plan: ImportPlan = { added: [], updated: [], unchanged: 0, errors: [], failed: [] };
 	const lines = text.split(/\r?\n/);
 	const headerIndex = lines.findIndex((line) => line.trim());
 	if (headerIndex < 0) return plan;
@@ -116,7 +118,10 @@ export function planImport(text: string, items: ImportTarget[], tags: Tag[], gro
 		const line = index + 1;
 		const cells = splitLine(lines[index], separator);
 		if (cells.every((cell) => !cell)) continue;
-		const fail = (message: string) => plan.errors.push(`Ligne ${line} : ${message}`);
+		const fail = (message: string) => {
+			plan.errors.push(`Ligne ${line} : ${message}`);
+			if (plan.failed.at(-1) !== line) plan.failed.push(line);
+		};
 		if (cells.length > columns.length) {
 			fail(`${cells.length} colonnes pour ${columns.length} en-têtes (un « ${separator === ';' ? ';' : 'tabulation'} » dans une valeur ?).`);
 			continue;
@@ -181,6 +186,13 @@ export function planImport(text: string, items: ImportTarget[], tags: Tag[], gro
 		else plan.unchanged++;
 	}
 	return plan;
+}
+
+/** En-tête du tableau suivi des seules lignes `numbers` (comptées à partir de 1) : les lignes ignorées, à corriger. */
+export function rowsText(text: string, numbers: number[]): string {
+	const lines = text.split(/\r?\n/);
+	const header = lines.find((line) => line.trim()) ?? '';
+	return [header, ...numbers.map((number) => lines[number - 1] ?? '')].join('\n');
 }
 
 /**

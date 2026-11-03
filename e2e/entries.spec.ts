@@ -1146,7 +1146,7 @@ test('année de naissance : âge sur la fiche, le zoom et l’index, effaçable'
 	await expect(page.getByText(age)).toHaveCount(0);
 });
 
-test('import d’un tableau : modèle, aperçu, erreurs bloquantes, ajouts et mises à jour', async ({ page }) => {
+test('import d’un tableau : modèle, aperçu, lignes en erreur laissées de côté, ajouts et mises à jour', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
 	await createEntry(page, 'Naruto');
@@ -1174,18 +1174,28 @@ test('import d’un tableau : modèle, aperçu, erreurs bloquantes, ajouts et mi
 	const table = page.getByLabel('Tableau', { exact: true });
 	await expect(table).toHaveValue('Nom;Pays;Naissance;Note;Genre\nNaruto;;;;');
 
-	// Une erreur bloque tout l'import.
+	// Une erreur d'en-tête bloque tout l'import.
+	await table.fill('Nom;Pays;Auteur\nnaruto;Japon;x');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByText('Rien ne peut être importé :')).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Importer/ })).toBeDisabled();
+	await page.getByRole('button', { name: 'Modifier le tableau' }).click();
+
+	// Une ligne en erreur est laissée de côté : les autres s'importent sans elle, puis elle reste à corriger.
 	await table.fill('Nom;Pays;Naissance;Genre\nnaruto;Japon;1999;Action\nOne Piece;JP;;Aventur');
 	await page.getByRole('button', { name: 'Vérifier' }).click();
 	await expect(page.getByText('Ligne 3 : tag « Aventur » inconnu dans Genre.')).toBeVisible();
-	await expect(page.getByRole('button', { name: /^Importer/ })).toBeDisabled();
-
-	await page.getByRole('button', { name: 'Modifier le tableau' }).click();
-	await table.fill('Nom;Pays;Naissance;Genre\nnaruto;Japon;1999;Action\nOne Piece;JP;;Aventure');
-	await page.getByRole('button', { name: 'Vérifier' }).click();
-	await expect(page.getByRole('status')).toHaveText(/1 ajout · 1 modification ·\s+0 fiche inchangée/);
 	await expect(page.getByText('Pays : — → Japon · Naissance : — → 1999 · Genre : — → Action')).toBeVisible();
-	await page.getByRole('button', { name: 'Importer (2)' }).click();
+	await page.getByRole('button', { name: 'Importer sans les erreurs (1)' }).click();
+	await expect(page.getByText('1 fiche importée, 1 ligne laissée de côté :')).toBeVisible();
+	await expect(page.getByText('Ligne 3 : tag « Aventur » inconnu dans Genre.')).toBeVisible();
+	await page.getByRole('button', { name: 'Corriger les lignes ignorées' }).click();
+	await expect(table).toHaveValue('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventur');
+
+	await table.fill('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventure');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByRole('status')).toHaveText(/1 ajout · 0 modification ·\s+0 fiche inchangée/);
+	await page.getByRole('button', { name: 'Importer (1)' }).click();
 
 	await expect(page).toHaveURL(/\/list$/);
 	await page.getByRole('button', { name: 'Âge' }).click();

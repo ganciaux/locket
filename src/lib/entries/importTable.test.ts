@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { importTemplate, planImport } from './importTable';
+import { importTemplate, planImport, rowsText } from './importTable';
 import type { Tag, TagGroup } from './model';
 
 const groups: TagGroup[] = [
@@ -106,5 +106,13 @@ describe('importTemplate', () => {
 		expect(template).toBe('Nom;Pays;Naissance;Note;Genre;Statut;Autres tags\nNaruto;Japon;;;Action;Terminé;\nAkira;;;4;;;');
 		const result = plan(template);
 		expect(result).toMatchObject({ errors: [], added: [], updated: [], unchanged: 2 });
+	});
+
+	it('les lignes en erreur sont écartées et se retrouvent, avec l’en-tête, pour être corrigées', () => {
+		const text = '\nNom;Pays\nA;FR\nB;Atlantide;x\nC;JP\nD;XX\nE;\n';
+		const result = planImport(text, [], [], []);
+		expect(result.added.map((row) => row.name)).toEqual(['A', 'C', 'E']);
+		expect(result.failed).toEqual([4, 6]);
+		expect(rowsText(text, result.failed)).toBe('Nom;Pays\nB;Atlantide;x\nD;XX');
 	});
 });

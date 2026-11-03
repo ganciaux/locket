@@ -5,7 +5,7 @@
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { CLEAR, type ImportPlan, importTagColumns, importTemplate, planImport } from '$lib/entries/importTable';
+	import { CLEAR, type ImportPlan, importTagColumns, importTemplate, planImport, rowsText } from '$lib/entries/importTable';
 	import { entries, importEntries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -14,6 +14,8 @@
 	let error = $state('');
 	/** null : saisie ; sinon aperçu de ce qui sera écrit. */
 	let plan = $state<ImportPlan | null>(null);
+	/** Après un import sans les lignes en erreur : ce qui a été écrit, et ce qui reste à corriger. */
+	let partial = $state<{ count: number; lines: number; errors: string[]; retry: string } | null>(null);
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
@@ -29,11 +31,14 @@
 		plan = planImport(text, entries.activeItems ?? [], entries.tags ?? [], entries.tagGroups);
 	}
 
+	// Les lignes en erreur ne sont jamais dans le plan : les autres s'importent sans elles, puis restent à corriger.
 	const form = formAction(async () => {
-		if (!plan || plan.errors.length) return;
+		if (!plan || !count) return;
 		if (!entries.active) throw new Error('Créez d’abord une collection.');
 		await importEntries(entries.active.id, plan);
-		await goto('/list', { replaceState: true });
+		if (!plan.errors.length) return goto('/list', { replaceState: true });
+		partial = { count, lines: plan.failed.length, errors: plan.errors, retry: rowsText(text, plan.failed) };
+		plan = null;
 	});
 
 	const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
@@ -41,7 +46,7 @@
 
 <!-- Import dans la collection active : son menu en en-tête permet d'en changer. -->
 {#if entries.active}
-	<CollectionHeader onselect={() => (plan = null)}>
+	<CollectionHeader onselect={() => (plan = partial = null)}>
 		{#snippet actions()}
 			<a class="btn btn-ghost btn-sm shrink-0" href="/list"><Icon name="back" class="size-4" /> Index</a>
 		{/snippet}
@@ -80,7 +85,9 @@
 			</p>
 			{#if plan.errors.length}
 				<div class="alert alert-error alert-soft flex flex-col items-stretch gap-1">
-					<p class="text-sm font-medium">Rien ne sera importé tant que le tableau contient des erreurs :</p>
+					<p class="text-sm font-medium">
+						{count ? 'Lignes en erreur, laissées de côté si vous importez sans elles :' : 'Rien ne peut être importé :'}
+					</p>
 					<ul class="max-h-60 list-disc overflow-y-auto pl-5 text-sm">
 						{#each plan.errors as message, i (i)}<li>{message}</li>{/each}
 					</ul>
@@ -91,8 +98,12 @@
 
 			<ErrorAlert message={form.error} />
 			<div class="flex flex-wrap gap-2">
-				<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy || !!plan.errors.length || !count}>
-					{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Import…{:else}Importer ({count}){/if}
+				<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy || !count}>
+					{#if form.busy}
+						<span class="loading loading-spinner loading-sm"></span> Import…
+					{:else}
+						{plan.errors.length ? 'Importer sans les erreurs' : 'Importer'} ({count})
+					{/if}
 				</button>
 				<button type="button" class="btn btn-ghost" disabled={form.busy} onclick={() => (plan = null)}>
 					<Icon name="edit" class="size-4" /> Modifier le tableau
@@ -100,6 +111,32 @@
 			</div>
 		</div>
 	</form>
+{:else if partial}
+	<div class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-4">
+			<p role="status" class="alert alert-success alert-soft text-sm">
+				{plural(partial.count, 'fiche')} importée{partial.count > 1 ? 's' : ''}, {plural(partial.lines, 'ligne')} laissée{partial.lines > 1
+					? 's'
+					: ''} de côté :
+			</p>
+			<ul class="max-h-60 list-disc overflow-y-auto pl-5 text-sm">
+				{#each partial.errors as message, i (i)}<li>{message}</li>{/each}
+			</ul>
+			<div class="flex flex-wrap gap-2">
+				<button
+					type="button"
+					class="btn btn-primary flex-1 sm:flex-none"
+					onclick={() => {
+						text = partial?.retry ?? '';
+						partial = null;
+					}}
+				>
+					<Icon name="edit" class="size-4" /> Corriger les lignes ignorées
+				</button>
+				<a class="btn btn-ghost" href="/list">Voir l'index</a>
+			</div>
+		</div>
+	</div>
 {:else}
 	<div class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-4">
