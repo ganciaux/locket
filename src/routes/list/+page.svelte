@@ -7,7 +7,18 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
-	import { countryFlag, countryName, formatAge, groupByInitial, matchesSearch } from '$lib/entries/model';
+	import { listView } from '$lib/entries/listView.svelte';
+	import {
+		type MissingField,
+		countryFlag,
+		countryName,
+		formatAge,
+		groupByInitial,
+		groupTags,
+		matchesSearch,
+		missingFields,
+		missingLabel
+	} from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { prefs } from '$lib/prefs.svelte';
@@ -28,7 +39,25 @@
 
 	// Cachées selon la préférence, comme sur la liste ; corbeille exclue par `activeItems`, déjà trié par nom.
 	const visible = $derived((entries.activeItems ?? []).filter((item) => prefs.showHidden || !item.hidden));
-	const results = $derived(query.trim() ? visible.filter((item) => matchesSearch(item.name, query)) : visible);
+	// « Il manque » : gardé pendant la session, pour compléter les fiches une à une sans le perdre.
+	const missingOf = (item: (typeof visible)[number]) => missingFields(item, entries.tags ?? [], entries.tagGroups);
+	const missingChoices = $derived([
+		{ value: 'country', label: 'Sans pays' },
+		{ value: 'birthYear', label: 'Sans naissance' },
+		{ value: 'image', label: 'Sans image' },
+		...groupTags(entries.tags ?? [], entries.tagGroups).flatMap(({ group }) =>
+			group ? [{ value: `group:${group.id}`, label: `Sans ${group.name}` }] : []
+		)
+	]);
+	const incomplete = (item: (typeof visible)[number]): boolean => {
+		const filter = listView.indexMissing;
+		if (!filter) return true;
+		const missing = missingOf(item);
+		return filter === 'any' ? missing.length > 0 : missing.includes(filter as MissingField);
+	};
+	const results = $derived(
+		visible.filter((item) => (!query.trim() || matchesSearch(item.name, query)) && incomplete(item))
+	);
 	// Sans les lettres de séparation : une seule section, sans titre.
 	const groups = $derived(prefs.indexInitials ? groupByInitial(results) : [{ initial: '', items: results }]);
 
@@ -95,13 +124,22 @@
 				{option.label}
 			</button>
 		{/each}
+		<select class="select select-sm w-auto" aria-label="Il manque" bind:value={listView.indexMissing}>
+			<option value="">Toutes les fiches</option>
+			<option value="any">Il manque une info</option>
+			{#each missingChoices as choice (choice.value)}
+				<option value={choice.value}>{choice.label}</option>
+			{/each}
+		</select>
 		<span class="text-base-content/60 ml-auto text-xs" role="status">
 			{results.length} fiche{results.length > 1 ? 's' : ''}{results.length < visible.length ? ` sur ${visible.length}` : ''}
 		</span>
 	</div>
 
 	{#if results.length === 0}
-		<p class="text-base-content/60 py-8 text-center">{query ? 'Aucun nom ne correspond.' : 'Toutes les fiches sont cachées.'}</p>
+		<p class="text-base-content/60 py-8 text-center">
+			{query ? 'Aucun nom ne correspond.' : listView.indexMissing ? 'Aucune fiche à compléter.' : 'Toutes les fiches sont cachées.'}
+		</p>
 	{/if}
 
 	{#each groups as group (group.initial)}
@@ -126,6 +164,14 @@
 								<span class="text-base-content/60 shrink-0 text-xs" title="Année de naissance : {item.birthYear}">{formatAge(item.birthYear)}</span>
 							{/if}
 						</div>
+						{#if listView.indexMissing}
+							{@const missing = missingOf(item)}
+							{#if missing.length}
+								<span class="text-base-content/60 text-xs italic">
+									Manque : {missing.map((field) => missingLabel(field, entries.tagGroups)).join(', ')}
+								</span>
+							{/if}
+						{/if}
 						{#if tags.length}
 							<div class="flex flex-wrap gap-1">
 								{#each tags as tag (tag.id)}

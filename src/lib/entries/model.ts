@@ -157,6 +157,32 @@ export function groupTags(tags: Tag[], groups: TagGroup[]): { group: TagGroup | 
 	return sections.filter((section) => section.tags.length);
 }
 
+/** Information à compléter sur une fiche : pays, naissance, image, ou une catégorie de tags (`group:<id>`). */
+export type MissingField = 'country' | 'birthYear' | 'image' | `group:${string}`;
+
+/**
+ * Ce qui manque à une fiche : pays, année de naissance, image, puis chaque catégorie (ayant des tags) dont elle n'a
+ * aucun tag. `tags` : ceux de sa collection. La note n'en fait pas partie : une fiche peut rester non notée.
+ */
+export function missingFields(
+	entry: { country?: string; birthYear?: number; imageType?: string; tagIds?: string[] },
+	tags: Tag[],
+	groups: TagGroup[]
+): MissingField[] {
+	const fields: MissingField[] = [];
+	if (!entry.country) fields.push('country');
+	if (!entry.birthYear) fields.push('birthYear');
+	if (!entry.imageType) fields.push('image');
+	for (const { group, tags: groupTagList } of groupTags(tags, groups))
+		if (group && !groupTagList.some((tag) => entry.tagIds?.includes(tag.id))) fields.push(`group:${group.id}`);
+	return fields;
+}
+
+const MISSING_LABELS: Record<string, string> = { country: 'pays', birthYear: 'naissance', image: 'image' };
+
+export const missingLabel = (field: MissingField, groups: TagGroup[]): string =>
+	MISSING_LABELS[field] ?? groups.find((group) => `group:${group.id}` === field)?.name ?? field;
+
 /**
  * Normalise une URL saisie et refuse tout ce qui n'est pas http(s).
  * Un lien `javascript:` exécuterait du code dans l'app au clic, avec la DEK en mémoire.

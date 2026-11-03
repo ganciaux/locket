@@ -14,6 +14,8 @@ type ListView = {
 	country: CountryFilter;
 	sort: SortOrder;
 	extended: boolean;
+	/** Index : '' (toutes), 'any' (il manque une information) ou un `MissingField`. */
+	indexMissing: string;
 };
 
 const defaults = (): ListView => ({
@@ -23,7 +25,8 @@ const defaults = (): ListView => ({
 	rating: 0,
 	country: '',
 	sort: 'random',
-	extended: false
+	extended: false,
+	indexMissing: ''
 });
 
 export const listView = $state<ListView>(defaults());

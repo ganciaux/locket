@@ -10,6 +10,8 @@ import {
 	byName,
 	compareNames,
 	effectiveGroupId,
+	missingFields,
+	missingLabel,
 	planTagGroups,
 	searchKey,
 	facetShown,
@@ -692,5 +694,27 @@ describe('saisie de catégories sur plusieurs lignes', () => {
 		expect(() => planTagGroups('Genre', [genre], [], 'c', ids())).toThrow('« Genre » existe déjà.');
 		expect(() => planTagGroups('A = x\nB\nb', [], [], 'c', ids())).toThrow('Ligne 3 : « b » existe déjà.');
 		expect(() => planTagGroups(' \n ', [], [], 'c', ids())).toThrow('vide');
+	});
+});
+
+describe('fiches incomplètes', () => {
+	const groups = [
+		{ id: 'g', name: 'Genre' },
+		{ id: 'e', name: 'Vide' }
+	];
+	const tags = [
+		{ id: 'a', name: 'Action', collectionId: 'c', groupId: 'g' },
+		{ id: 'l', name: 'Libre', collectionId: 'c' }
+	];
+
+	it('pays, naissance, image, puis chaque catégorie sans tag (les catégories vides ne comptent pas)', () => {
+		expect(missingFields({ tagIds: ['l'] }, tags, groups)).toEqual(['country', 'birthYear', 'image', 'group:g']);
+		expect(missingFields({ country: 'FR', birthYear: 1990, imageType: 'image/webp', tagIds: ['a'] }, tags, groups)).toEqual([]);
+		expect(missingFields({ country: 'FR', birthYear: 1990, imageType: 'image/webp' }, tags, [])).toEqual([]);
+	});
+
+	it('libellés lisibles', () => {
+		expect(missingLabel('birthYear', groups)).toBe('naissance');
+		expect(missingLabel('group:g', groups)).toBe('Genre');
 	});
 });

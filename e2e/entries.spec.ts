@@ -1347,3 +1347,46 @@ test('catégories sur plusieurs lignes, puis tout supprimer : catégories, puis 
 	await page.getByRole('button', { name: 'Tout supprimer' }).click();
 	await expect(page.getByText("Aucun tag dans « Manga » pour l'instant.")).toBeVisible();
 });
+
+test('index : « Il manque » pour compléter les fiches', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	await page.getByLabel('Nouvelle catégorie').fill('Genre = Action');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Catégories (1)')).toBeVisible();
+
+	await goHome(page);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await page.getByRole('link', { name: 'Importer' }).click();
+	await page.getByLabel('Tableau', { exact: true }).fill('Nom;Pays;Naissance;Genre\nAlpha;FR;1990;Action\nBravo;;1990;\nCharlie;JP;;Action');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await page.getByRole('button', { name: 'Importer (3)' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+
+	const missing = page.getByLabel('Il manque');
+	const names = page.getByRole('listitem').getByRole('link');
+	await expect(names).toHaveText(['Alpha', 'Bravo', 'Charlie']);
+	await missing.selectOption({ label: 'Sans pays' });
+	await expect(names).toHaveText(['Bravo']);
+	await expect(page.getByRole('listitem')).toContainText('Manque : pays, image, Genre');
+	await missing.selectOption({ label: 'Sans naissance' });
+	await expect(names).toHaveText(['Charlie']);
+	await missing.selectOption({ label: 'Sans Genre' });
+	await expect(names).toHaveText(['Bravo']);
+	// Aucune image : toutes incomplètes.
+	await missing.selectOption({ label: 'Il manque une info' });
+	await expect(names).toHaveText(['Alpha', 'Bravo', 'Charlie']);
+	await expect(page.getByRole('listitem').filter({ hasText: 'Alpha' })).toContainText('Manque : image');
+
+	// Gardé en revenant d'une fiche.
+	await missing.selectOption({ label: 'Sans pays' });
+	await names.first().click();
+	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
+	await page.goBack();
+	await expect(missing).toHaveValue('country');
+	await expect(names).toHaveText(['Bravo']);
+});
