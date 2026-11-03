@@ -1109,3 +1109,53 @@ test('année de naissance : âge sur la fiche, le zoom et l’index, effaçable'
 	await expect(page.getByRole('heading', { name: 'Akira' })).toBeVisible();
 	await expect(page.getByText(age)).toHaveCount(0);
 });
+
+test('import d’un tableau : modèle, aperçu, erreurs bloquantes, ajouts et mises à jour', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Naruto');
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	await page.getByLabel('Nouvelle catégorie').fill('Genre');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Catégories (1)')).toBeVisible();
+	for (const name of ['Action', 'Aventure']) {
+		await page.getByLabel('Catégorie du nouveau tag').selectOption({ label: 'Genre' });
+		await page.getByLabel('Nouveau tag', { exact: true }).fill(name);
+		await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+		await expect(page.getByText(name, { exact: true })).toBeVisible();
+	}
+
+	await goHome(page);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await page.getByRole('link', { name: 'Importer' }).click();
+
+	// Modèle : en-têtes de la collection et fiches existantes.
+	await page.getByRole('button', { name: 'Partir de mes fiches' }).click();
+	const table = page.getByLabel('Tableau', { exact: true });
+	await expect(table).toHaveValue('Nom;Pays;Naissance;Note;Genre\nNaruto;;;;');
+
+	// Une erreur bloque tout l'import.
+	await table.fill('Nom;Pays;Naissance;Genre\nnaruto;Japon;1999;Action\nOne Piece;JP;;Aventur');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByText('Ligne 3 : tag « Aventur » inconnu dans Genre.')).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Importer/ })).toBeDisabled();
+
+	await page.getByRole('button', { name: 'Modifier le tableau' }).click();
+	await table.fill('Nom;Pays;Naissance;Genre\nnaruto;Japon;1999;Action\nOne Piece;JP;;Aventure');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByRole('status')).toHaveText(/1 ajout · 1 modification ·\s+0 fiche inchangée/);
+	await expect(page.getByText('Pays : — → Japon · Naissance : — → 1999 · Genre : — → Action')).toBeVisible();
+	await page.getByRole('button', { name: 'Importer (2)' }).click();
+
+	await expect(page).toHaveURL(/\/list$/);
+	await page.getByRole('button', { name: 'Âge' }).click();
+	await expect(page.getByRole('listitem').filter({ hasText: 'Naruto' })).toContainText(`${new Date().getFullYear() - 1999} ans`);
+	await page.getByRole('link', { name: 'One Piece' }).click();
+	await expect(page.getByRole('heading', { name: 'One Piece' })).toBeVisible();
+	await expect(page.getByText('Japon')).toBeVisible();
+	await expect(page.getByText('Aventure', { exact: true })).toBeVisible();
+});

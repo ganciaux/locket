@@ -39,7 +39,9 @@ import {
 	sortBy,
 	withRecoveredCollections
 } from './model';
+import type { ImportPlan } from './importTable';
 import {
+	createEntries,
 	deleteEntries,
 	deleteEntry,
 	deleteRemainingImages,
@@ -335,6 +337,18 @@ async function patchEntries(targets: ListItem[], patch: (entry: ListItem) => Par
 		loadEntries().catch(() => {});
 		throw error;
 	}
+}
+
+/** Applique un import vérifié (`planImport`) : créations puis mises à jour, par lots. */
+export async function importEntries(collectionId: string, plan: ImportPlan): Promise<void> {
+	const { uid, dek } = unlocked();
+	if (plan.added.length) {
+		const drafts = plan.added.map(({ name, fields }) => ({ name, ...fields }));
+		upsertEntries(await createEntries(uid, dek, collectionId, drafts));
+	}
+	const fields = new Map(plan.updated.map((row) => [row.id, row.fields]));
+	const targets = (liveItems ?? []).filter((item) => fields.has(item.id));
+	if (targets.length) await patchEntries(targets, (entry) => ({ ...fields.get(entry.id), updatedAt: Date.now() }));
 }
 
 export const trashEntries = (targets: ListItem[]): Promise<void> =>

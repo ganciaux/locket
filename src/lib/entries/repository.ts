@@ -204,20 +204,24 @@ export async function saveEntry(
 /** Un lot Firestore accepte 500 écritures ; on reste en dessous. */
 const IMPORT_BATCH_SIZE = 400;
 
-/** Crée des fiches sans lien ni image (import d'une liste de noms) dans une collection, par lots. */
+/** Fiche créée par l'import : un nom, et les champs donnés par le tableau. */
+export type EntryDraft = Pick<EntryData, 'name' | 'country' | 'birthYear' | 'rating' | 'tagIds'>;
+
+/** Crée des fiches sans lien ni image (import d'un tableau) dans une collection, par lots. */
+
 export async function createEntries(
 	uid: string,
 	dek: CryptoKey,
 	collectionId: string,
-	names: string[]
+	drafts: EntryDraft[]
 ): Promise<EntrySummary[]> {
 	const created: EntrySummary[] = [];
-	for (let start = 0; start < names.length; start += IMPORT_BATCH_SIZE) {
+	for (let start = 0; start < drafts.length; start += IMPORT_BATCH_SIZE) {
 		const stored: CachedEntry[] = [];
-		for (const name of names.slice(start, start + IMPORT_BATCH_SIZE)) {
+		for (const draft of drafts.slice(start, start + IMPORT_BATCH_SIZE)) {
 			const id = doc(entriesRef(uid)).id;
 			const now = Date.now();
-			const data: EntryData = { collectionId, name, links: [], createdAt: now, updatedAt: now };
+			const data: EntryData = { ...draft, collectionId, links: [], createdAt: now, updatedAt: now };
 			stored.push({ id, data: await encryptJson(dek, data, `${id}/data`) });
 			created.push({ ...data, id });
 		}

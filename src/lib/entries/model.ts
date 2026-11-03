@@ -498,31 +498,9 @@ export const matchesCountryFilter = (country: string | undefined, filter: Countr
 export const matchesLinkFilter = (linkCount: number, withLinks: boolean): boolean => !withLinks || linkCount > 0;
 
 // ---------------------------------------------------------------------------
-// Import d'une liste de noms
+// Noms de fiche
 
 export const MAX_NAME_LENGTH = 200;
-
-/**
- * Un nom par ligne. Ignore les lignes vides et les doublons (casse et accents ignorés),
- * qu'ils soient déjà dans les fiches existantes ou répétés dans la liste ; `duplicates` les nomme.
- */
-export function parseNameList(text: string, existingNames: string[]): { names: string[]; duplicates: string[] } {
-	const seen = new Set(existingNames.map(searchKey));
-	const names: string[] = [];
-	const duplicates: string[] = [];
-	for (const line of text.split(/\r?\n/)) {
-		const name = line.trim().replace(/\s+/g, ' ').slice(0, MAX_NAME_LENGTH);
-		if (!name) continue;
-		const key = searchKey(name);
-		if (seen.has(key)) {
-			duplicates.push(name);
-			continue;
-		}
-		seen.add(key);
-		names.push(name);
-	}
-	return { names, duplicates };
-}
 
 // ---------------------------------------------------------------------------
 // Taille : un document Firestore est limité à 1 Mio ; on vise 900 Ko chiffré.

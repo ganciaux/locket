@@ -70,7 +70,7 @@ describe('fiches (émulateurs)', () => {
 
 	it('importe une liste de noms en plusieurs lots', async () => {
 		const names = Array.from({ length: 450 }, (_, i) => `Fiche ${i}`);
-		const created = await createEntries(uid, dek, 'col-1', names);
+		const created = await createEntries(uid, dek, 'col-1', names.map((name) => ({ name })));
 		expect(created).toHaveLength(450);
 		const listed = await listEntries(uid, dek);
 		expect(listed.map((e) => e.name).sort()).toEqual([...names].sort());
@@ -93,7 +93,7 @@ describe('fiches (émulateurs)', () => {
 	}, 30_000);
 
 	it('des écritures simultanées passent toutes', async () => {
-		const created = await createEntries(uid, dek, 'col-1', ['A', 'B', 'C', 'D', 'E', 'F']);
+		const created = await createEntries(uid, dek, 'col-1', ['A', 'B', 'C', 'D', 'E', 'F'].map((name) => ({ name })));
 		await Promise.all(created.map((e) => deleteEntry(uid, e.id)));
 		expect(await listEntries(uid, dek)).toEqual([]);
 	}, 30_000);
