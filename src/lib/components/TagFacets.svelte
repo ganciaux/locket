@@ -3,15 +3,17 @@
 	// qui ouvre la liste de ses tags à cocher, plus « Non renseigné » (aucun tag de la catégorie),
 	// et résume la sélection (« Genre : Combat +1 »).
 	// Le sens du filtre (OU dans une catégorie, ET entre catégories) est celui de `matchesFilter`.
+	// Sans `extended`, seules les catégories en recherche simple sont proposées (voir `facetShown`).
 	import type { Snippet } from 'svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { type Tag, type TagGroup, groupTags } from '$lib/entries/model';
+	import { type Tag, type TagGroup, facetShown, filterLevel, groupTags } from '$lib/entries/model';
 
 	let {
 		tags,
 		groups,
 		selected = $bindable([]),
 		missing = $bindable([]),
+		extended = true,
 		onchange,
 		before
 	}: {
@@ -20,19 +22,28 @@
 		selected?: string[];
 		/** Catégories dont « Non renseigné » est coché. */
 		missing?: string[];
+		/** Recherche avancée : les catégories « avancées » sont aussi proposées. */
+		extended?: boolean;
 		onchange?: () => void;
 		/** Pastilles supplémentaires affichées en tête (ex. « Sans tag »). */
 		before?: Snippet;
 	} = $props();
 
+	// Filtrées après `groupTags` : retirer une catégorie avant rangerait ses tags dans « Autres ».
 	const facets = $derived(
-		groupTags(tags, groups).map((section) => ({
-			key: section.group?.id ?? '',
-			name: section.group?.name ?? 'Autres',
-			tags: section.tags,
-			// « Non renseigné » n'a de sens que pour une vraie catégorie.
-			canMiss: !!section.group
-		}))
+		groupTags(tags, groups)
+			.filter((section) => {
+				const key = section.group?.id ?? '';
+				const active = missing.includes(key) || section.tags.some((tag) => selected.includes(tag.id));
+				return facetShown(filterLevel(section.group), extended, active);
+			})
+			.map((section) => ({
+				key: section.group?.id ?? '',
+				name: section.group?.name ?? 'Autres',
+				tags: section.tags,
+				// « Non renseigné » n'a de sens que pour une vraie catégorie.
+				canMiss: !!section.group
+			}))
 	);
 
 	// Une seule liste ouverte à la fois ; clic à l'extérieur ou Échap la ferment (<details> ne le fait pas seul).

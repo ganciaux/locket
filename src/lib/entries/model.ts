@@ -119,7 +119,22 @@ export function withRecoveredCollections(collections: Collection[], entries: { c
 export type Tag = { id: string; name: string; collectionId: string; groupId?: string };
 
 /** Catégorie de tags (Genre, Statut…) : simple rangement, une fiche peut porter 0 ou n tags d'une catégorie. */
-export type TagGroup = { id: string; name: string };
+export type TagGroup = {
+	id: string;
+	name: string;
+	/** Place dans le filtre de la liste ; absent : recherche simple. */
+	filter?: 'advanced' | 'off';
+};
+
+/** Recherche simple (toujours proposée), avancée (sur demande) ou hors filtre. */
+export type FilterLevel = 'simple' | 'advanced' | 'off';
+
+/** « Autres » (tags sans catégorie) est en recherche simple. */
+export const filterLevel = (group: TagGroup | null): FilterLevel => group?.filter ?? 'simple';
+
+/** Catégorie proposée dans le filtre ; une catégorie où quelque chose est coché reste visible, pour pouvoir le décocher. */
+export const facetShown = (level: FilterLevel, extended: boolean, active: boolean): boolean =>
+	active || level === 'simple' || (level === 'advanced' && extended);
 
 /**
  * Tags par catégorie, dans l'ordre des catégories, sans les catégories vides ; ceux sans catégorie

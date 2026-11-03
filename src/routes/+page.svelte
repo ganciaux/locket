@@ -19,7 +19,8 @@
 		type SortOrder,
 		UNRATED,
 		countryFlag,
-		countryName
+		countryName,
+		filterLevel
 	} from '$lib/entries/model';
 	import { addCollection } from '$lib/entries/collections';
 	import {
@@ -303,6 +304,16 @@
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
 				<span class="text-base-content/60 text-xs">Filtrer</span>
+				{#if entries.tags?.length && entries.tagGroups.some((group) => filterLevel(group) === 'advanced')}
+					<button
+						class="btn btn-xs {listView.extended ? 'btn-primary' : 'btn-ghost'}"
+						aria-pressed={listView.extended}
+						title={listView.extended ? 'Seulement les catégories principales' : 'Proposer aussi les autres catégories'}
+						onclick={() => (listView.extended = !listView.extended)}
+					>
+						Recherche avancée
+					</button>
+				{/if}
 				{#if filterActive}
 					<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
 				{/if}
@@ -355,6 +366,7 @@
 					groups={entries.tagGroups}
 					bind:selected={listView.tags.tagIds}
 					bind:missing={listView.tags.missing}
+					extended={listView.extended}
 					onchange={() => (listView.tags.tagIds.length || listView.tags.missing.length) && (listView.tags.untagged = false)}
 					before={untaggedChip}
 				/>

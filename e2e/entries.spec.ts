@@ -1041,6 +1041,32 @@ test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans
 	await expect(naruto).toHaveCount(0);
 	await expect(facet('Statut')).toHaveText(/Statut\s*: Non renseigné/);
 	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Effacer', exact: true }).click();
+
+	// Recherche simple / avancée : Genre seulement sur demande, Statut jamais ; « Autres » toujours.
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (2)').click();
+	await page.getByLabel('Filtre de la catégorie Genre').selectOption('advanced');
+	await expect(page.getByLabel('Filtre de la catégorie Genre')).toHaveValue('advanced');
+	await page.getByLabel('Filtre de la catégorie Statut').selectOption('off');
+	await expect(page.getByLabel('Filtre de la catégorie Statut')).toHaveValue('off');
+	await goHome(page);
+	const advanced = page.getByRole('button', { name: 'Recherche avancée' });
+	await expect(advanced).toHaveAttribute('aria-pressed', 'false');
+	await expect(facet('Genre')).toHaveCount(0);
+	await expect(facet('Statut')).toHaveCount(0);
+	await advanced.click();
+	await expect(facet('Genre')).toBeVisible();
+	await expect(facet('Statut')).toHaveCount(0);
+	// Un filtre actif n'est jamais caché : la catégorie reste en recherche simple tant qu'elle est cochée.
+	await facet('Genre').click();
+	await page.getByRole('checkbox', { name: 'Action' }).check();
+	await page.keyboard.press('Escape');
+	await advanced.click();
+	await expect(facet('Genre')).toHaveText(/Genre\s*: Action/);
+	await page.getByRole('button', { name: 'Effacer', exact: true }).click();
+	await expect(facet('Genre')).toHaveCount(0);
 
 	// Supprimer une catégorie garde ses tags, sans catégorie.
 	await goSettings(page);

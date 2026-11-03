@@ -8,6 +8,7 @@ import {
 	type Collection,
 	type Site,
 	type SiteMode,
+	type FilterLevel,
 	type Tag,
 	type TagGroup,
 	byName,
@@ -118,6 +119,18 @@ export async function moveTagGroup(collectionId: string, id: string, delta: -1 |
 	const groups = entries.tagGroupsIn(collectionId);
 	const next = moveItem(groups, groups.findIndex((group) => group.id === id), delta);
 	if (next !== groups) await replaceTagGroups(collectionId, next);
+}
+
+export async function setTagGroupFilter(collectionId: string, id: string, level: FilterLevel): Promise<void> {
+	const groups = entries.tagGroupsIn(collectionId);
+	await replaceTagGroups(
+		collectionId,
+		groups.map((group) => {
+			if (group.id !== id) return group;
+			const { filter: _, ...rest } = group;
+			return level === 'simple' ? rest : { ...rest, filter: level };
+		})
+	);
 }
 
 /** Ses tags restent, sans catégorie : leur `groupId` devenu inconnu est ignoré (voir `groupTags`). */

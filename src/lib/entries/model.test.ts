@@ -8,6 +8,8 @@ import {
 	type TagIndex,
 	buildSiteUrl,
 	byName,
+	facetShown,
+	filterLevel,
 	chooseInsertion,
 	duelsLeft,
 	groupByInitial,
@@ -584,5 +586,19 @@ describe('année de naissance', () => {
 		expect(formatAge(1991, 2026)).toBe('35 ans');
 		expect(formatAge(2025, 2026)).toBe('1 an');
 		expect(formatAge(2026, 2026)).toBe('0 an');
+	});
+});
+
+describe('catégories dans le filtre', () => {
+	it('simple toujours, avancée sur demande, hors filtre jamais, sauf si quelque chose y est coché', () => {
+		expect(filterLevel(null)).toBe('simple');
+		expect(filterLevel({ id: 'g', name: 'Genre' })).toBe('simple');
+		expect(filterLevel({ id: 'g', name: 'Genre', filter: 'off' })).toBe('off');
+		expect(facetShown('simple', false, false)).toBe(true);
+		expect(facetShown('advanced', false, false)).toBe(false);
+		expect(facetShown('advanced', true, false)).toBe(true);
+		expect(facetShown('off', true, false)).toBe(false);
+		expect(facetShown('advanced', false, true)).toBe(true);
+		expect(facetShown('off', false, true)).toBe(true);
 	});
 });
