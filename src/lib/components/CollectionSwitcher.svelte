@@ -43,6 +43,9 @@
 				</li>
 			{/each}
 			<li class="border-base-200 mt-1 border-t pt-1">
+				<a href="/list" onclick={() => (open = false)}><Icon name="list" class="size-4" /> Index de la collection</a>
+			</li>
+			<li>
 				<a href="/collections" onclick={() => (open = false)}><Icon name="settings" class="size-4" /> Gérer les collections</a>
 			</li>
 			<li>

@@ -9,6 +9,7 @@ import {
 	byName,
 	chooseInsertion,
 	duelsLeft,
+	groupByInitial,
 	insertionDone,
 	opponentIndex,
 	rankedIds,
@@ -528,5 +529,17 @@ describe('classement', () => {
 			{ id: 'z', name: 'Z', createdAt: 0, updatedAt: 0 }
 		];
 		expect(sortable.sort(sortBy('rank', 0, rank)).map((e) => e.id)).toEqual(['z', 'y', 'a', 'b']);
+	});
+});
+
+describe('groupByInitial', () => {
+	it('regroupe par initiale sans accent, chiffres et symboles sous « # »', () => {
+		const names = ['2046', 'Alpha', 'Écho', 'echo', 'Émile', '#tag', 'Борис'].map((name) => ({ name }));
+		expect(groupByInitial(names).map(({ initial, items }) => [initial, items.map((item) => item.name)])).toEqual([
+			['#', ['2046', '#tag']],
+			['A', ['Alpha']],
+			['E', ['Écho', 'echo', 'Émile']],
+			['Б', ['Борис']]
+		]);
 	});
 });

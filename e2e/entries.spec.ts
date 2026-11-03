@@ -919,3 +919,31 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await page.getByRole('button', { name: 'Retirer', exact: true }).click();
 	await expect(page.getByText('Pas encore classée')).toBeVisible();
 });
+
+test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	for (const name of ['Écho', 'Alpha', '2046']) await createEntry(page, name);
+	await goHome(page);
+
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['#', 'A', 'E']);
+	await expect(page.getByRole('status').filter({ hasText: 'fiches' })).toHaveText('3 fiches');
+
+	// Sans casse ni accents, sur le nom seulement.
+	await page.getByLabel('Rechercher un nom').fill('echo');
+	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['E']);
+	await expect(page.getByRole('status').filter({ hasText: 'fiche' })).toHaveText('1 fiche sur 3');
+
+	// Les options sont mémorisées sur l'appareil.
+	await page.getByRole('button', { name: 'Tags' }).click();
+	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
+
+	await page.getByRole('link', { name: 'Écho' }).click();
+	await expect(page.getByRole('heading', { name: 'Écho' })).toBeVisible();
+	await page.goBack();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
+});

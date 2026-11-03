@@ -19,6 +19,10 @@ type Prefs = {
 	/** Cartes détaillées : tags et liens affichés partout ; sinon compactes. */
 	detailedCards: boolean;
 	cardClick: CardClick;
+	/** Index de la collection (`/list`) : informations affichées sous chaque nom. */
+	indexCountry: boolean;
+	indexTags: boolean;
+	indexLinks: boolean;
 };
 
 const STORAGE_KEY = 'locket.prefs';
@@ -30,7 +34,10 @@ const DEFAULTS: Prefs = {
 	collectionId: '',
 	showHidden: false,
 	detailedCards: false,
-	cardClick: 'zoom'
+	cardClick: 'zoom',
+	indexCountry: true,
+	indexTags: false,
+	indexLinks: false
 };
 
 function load(): Prefs {

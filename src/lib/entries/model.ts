@@ -204,6 +204,17 @@ export const searchKey = (text: string): string =>
 export const matchesSearch = (name: string, query: string): boolean =>
 	searchKey(name).includes(searchKey(query));
 
+/** Index : groupes par initiale sans accent, dans l'ordre reçu ; « # » pour un nom qui ne commence pas par une lettre. */
+export function groupByInitial<T extends { name: string }>(items: T[]): { initial: string; items: T[] }[] {
+	const groups = new Map<string, T[]>();
+	for (const item of items) {
+		const first = searchKey(item.name).charAt(0).toUpperCase();
+		const initial = /\p{L}/u.test(first) ? first : '#';
+		groups.set(initial, [...(groups.get(initial) ?? []), item]);
+	}
+	return [...groups].map(([initial, grouped]) => ({ initial, items: grouped }));
+}
+
 /**
  * Filtre par tags de la liste :
  *  - aucun tag sélectionné : pas de filtre ;
