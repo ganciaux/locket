@@ -1174,6 +1174,12 @@ test('import d’un tableau : modèle, aperçu, lignes en erreur laissées de c�
 	const table = page.getByLabel('Tableau', { exact: true });
 	await expect(table).toHaveValue('Nom;Pays;Naissance;Note;Genre\nNaruto;;;;');
 
+	// Légende : la liste des codes pays ISO, repliée.
+	await page.getByText('Colonnes et valeurs acceptées').click();
+	await page.getByText(/^Voir les 249 codes$/).click();
+	await expect(page.getByRole('listitem').filter({ hasText: /^CZ Tchéquie$/ })).toBeVisible();
+	await page.getByText('Colonnes et valeurs acceptées').click();
+
 	// Une erreur d'en-tête bloque tout l'import.
 	await table.fill('Nom;Pays;Auteur\nnaruto;Japon;x');
 	await page.getByRole('button', { name: 'Vérifier' }).click();

@@ -6,6 +6,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { CLEAR, type ImportPlan, importTagColumns, importTemplate, planImport, rowsText } from '$lib/entries/importTable';
+	import { COUNTRY_CODES, countryName } from '$lib/entries/model';
 	import { entries, importEntries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -40,6 +41,11 @@
 		partial = { count, lines: plan.failed.length, errors: plan.errors, retry: rowsText(text, plan.failed) };
 		plan = null;
 	});
+
+	// Codes ISO 3166-1 acceptés, par nom français, pour la légende.
+	const countries = COUNTRY_CODES.map((code) => ({ code, name: countryName(code) })).sort((a, b) =>
+		a.name.localeCompare(b.name, 'fr')
+	);
 
 	const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
 </script>
@@ -190,7 +196,18 @@
 					<dt class="font-medium">Nom</dt>
 					<dd>Obligatoire. Comparé sans casse ni accents aux fiches de la collection.</dd>
 					<dt class="font-medium">Pays</dt>
-					<dd>Code (<code>FR</code>), nom en français (<code>France</code>) ou en anglais (<code>Germany</code>).</dd>
+					<dd>
+						Code ISO à 2 lettres (<code>FR</code>, <code>CZ</code>), nom en français (<code>France</code>) ou en anglais
+						(<code>Germany</code>).
+						<details class="mt-1">
+							<summary class="link link-primary cursor-pointer">Voir les {countries.length} codes</summary>
+							<ul class="mt-1 max-h-60 overflow-y-auto">
+								{#each countries as country (country.code)}
+									<li><code>{country.code}</code> {country.name}</li>
+								{/each}
+							</ul>
+						</details>
+					</dd>
 					<dt class="font-medium">Naissance</dt>
 					<dd>Année seule (<code>1990</code>).</dd>
 					<dt class="font-medium">Note</dt>
