@@ -105,7 +105,9 @@ restauration testée seulement dans le même compte.
   - [x] protection contre l'écrasement entre appareils, étendue aux tags, aux collections et aux actions groupées
     (fait : `stale.ts` ; fiches par le jeton `meta/version` lu au chargement, catalogues par leur IV ; refus, relecture
     sans vider l'affichage, message « Recommencez » ; jeton global, donc faux conflits possibles, sans perte) ;
-  - [ ] fichier de sauvegarde témoin dans les tests (régression du format) ;
+  - [x] fichier de sauvegarde témoin dans les tests (régression du format) : `backup/fixtures/witness-v4.json`, vraie
+    sauvegarde exportée contre les émulateurs (compte jetable), relue par `witness.test.ts` (test unitaire, donc en CI) :
+    mot de passe et clé de récupération, manifeste, catalogues, fiche, miniature, image, AAD. Changer le format = nouveau témoin ;
   - [ ] taille des catalogues mesurée à 2 000 fiches.
 - **Quick wins** (lecture seule, retenus) :
   - [ ] filtre actif résumé en clair ;
