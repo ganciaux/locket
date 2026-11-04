@@ -447,10 +447,15 @@ test('note : depuis la fiche, conservée en modification, filtre et tri', async 
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	await expect(card('Excellente').getByRole('img', { name: 'Note : 4,5 sur 5' })).toBeVisible();
 
-	await page.getByLabel('Filtrer par note').selectOption({ label: '★ 4 et plus' });
+	// Note : pastille à choix unique, refermée dès le choix.
+	const ratingFacet = page.locator('summary').filter({ hasText: 'Note' });
+	await ratingFacet.click();
+	await page.getByRole('radio', { name: '★ 4 et plus' }).check();
+	await expect(ratingFacet).toHaveText(/Note\s*: ★ 4 et plus/);
 	await expect(card('Excellente')).toBeVisible();
 	await expect(card('Moyenne')).toHaveCount(0);
-	await page.getByLabel('Filtrer par note').selectOption({ label: 'Sans note' });
+	await ratingFacet.click();
+	await page.getByRole('radio', { name: 'Sans note' }).check();
 	await expect(card('Sans avis')).toBeVisible();
 	await expect(card('Excellente')).toHaveCount(0);
 	await page.getByRole('button', { name: 'Effacer' }).click();
@@ -485,12 +490,17 @@ test('pays : saisi par nom ou par code, affiché et filtré', async ({ page }) =
 
 	await goHome(page);
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
-	await page.getByLabel('Filtrer par pays').selectOption('BR');
+	// Pays à cocher, en OU.
+	await page.locator('summary').filter({ hasText: 'Pays' }).click();
+	await page.getByRole('checkbox', { name: /Brésil/ }).check();
 	await expect(card('Pelé')).toBeVisible();
 	await expect(card('Zidane')).toHaveCount(0);
-	await page.getByLabel('Filtrer par pays').selectOption('none');
+	await page.getByRole('checkbox', { name: 'Sans pays' }).check();
 	await expect(card('Inconnu')).toBeVisible();
+	await expect(card('Pelé')).toBeVisible();
+	await page.getByRole('checkbox', { name: /Brésil/ }).uncheck();
 	await expect(card('Pelé')).toHaveCount(0);
+	await expect(card('Inconnu')).toBeVisible();
 });
 
 test('sauvegarde : fichier altéré refusé, suppression totale, puis restauration', async ({ page }) => {
@@ -781,6 +791,8 @@ test('navigation : fiches voisines dans la liste filtrée, retour et place conse
 	await page.getByLabel('Rechercher').fill('br');
 	await card('Bravo').getByRole('heading').click();
 	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	// Sinon la carte et le zoom, encore affichés, donnent deux titres « Bravo ».
+	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
 	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
 	await expect(next).toHaveCount(0);
 
@@ -973,11 +985,25 @@ test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche
 	await page.getByRole('button', { name: 'Tags' }).click();
 	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
 
-	await page.getByRole('link', { name: 'Écho' }).click();
+	await page.getByRole('link', { name: 'Écho', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Écho' })).toBeVisible();
-	await page.goBack();
+	// Fiche, puis modification : le retour mène toujours à l'index.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect(page.getByRole('heading', { name: 'Modifier la fiche' })).toBeVisible();
+	await page.getByRole('link', { name: 'Index', exact: true }).click();
 	await expect(page).toHaveURL(/\/list$/);
 	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
+
+	// Crayon de la ligne : modification directe ; Annuler et Enregistrer ramènent à l'index.
+	await page.getByRole('link', { name: 'Modifier Écho' }).click();
+	await expect(page.getByRole('heading', { name: 'Modifier la fiche' })).toBeVisible();
+	await page.getByRole('link', { name: 'Annuler' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await page.getByRole('link', { name: 'Modifier Alpha' }).click();
+	await page.getByLabel('Nom', { exact: true }).fill('Alpha bis');
+	await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.getByRole('link', { name: 'Alpha bis', exact: true })).toBeVisible();
 });
 
 test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans perte', async ({ page }) => {
@@ -1262,7 +1288,8 @@ test('index : comparer une liste de noms à la collection', async ({ page }) => 
 	await expect(missing.getByRole('listitem')).toHaveText(['Zorro', 'Alpha']);
 	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
 	await missing.getByRole('button', { name: 'Copier les absents' }).click();
-	expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('Zorro\nAlpha');
+	// Windows rend les fins de ligne du presse-papiers en CRLF.
+	expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n')).toBe('Zorro\nAlpha');
 
 	// Une fiche déjà présente s'ouvre depuis la liste.
 	await found.getByRole('link', { name: 'Naruto' }).click();
@@ -1374,26 +1401,94 @@ test('index : « Il manque » pour compléter les fiches', async ({ page }) => {
 	await page.getByRole('button', { name: 'Importer (3)' }).click();
 	await expect(page).toHaveURL(/\/list$/);
 
-	const missing = page.getByLabel('Il manque');
-	const names = page.getByRole('listitem').getByRole('link');
+	// Pastille à choix unique, comme la note de la liste.
+	const missing = page.locator('summary').filter({ hasText: 'Il manque' });
+	const choose = async (label: string) => {
+		await missing.click();
+		await page.getByRole('radio', { name: label, exact: true }).check();
+	};
+	const names = page.getByRole('listitem').getByRole('link').filter({ hasText: /\S/ }); // sans les crayons
 	await expect(names).toHaveText(['Alpha', 'Bravo', 'Charlie']);
-	await missing.selectOption({ label: 'Sans pays' });
+	await choose('Pays');
 	await expect(names).toHaveText(['Bravo']);
 	await expect(page.getByRole('listitem')).toContainText('Manque : pays, image, Genre');
-	await missing.selectOption({ label: 'Sans naissance' });
+	await choose('Naissance');
 	await expect(names).toHaveText(['Charlie']);
-	await missing.selectOption({ label: 'Sans Genre' });
+	await choose('Genre');
 	await expect(names).toHaveText(['Bravo']);
 	// Aucune image : toutes incomplètes.
-	await missing.selectOption({ label: 'Il manque une info' });
+	await choose('Une info');
 	await expect(names).toHaveText(['Alpha', 'Bravo', 'Charlie']);
 	await expect(page.getByRole('listitem').filter({ hasText: 'Alpha' })).toContainText('Manque : image');
 
+	// Miniature (initiale sans image) et classement : affichés à la demande.
+	await page.getByRole('button', { name: 'Miniature' }).click();
+	await expect(page.getByRole('listitem').filter({ hasText: 'Alpha' }).getByText('A', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Miniature' }).click();
+	await expect(page.getByRole('button', { name: 'Classement' })).toHaveAttribute('aria-pressed', 'false');
+
 	// Gardé en revenant d'une fiche.
-	await missing.selectOption({ label: 'Sans pays' });
+	await choose('Pays');
 	await names.first().click();
 	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
 	await page.goBack();
-	await expect(missing).toHaveValue('country');
+	await expect(missing).toHaveText(/Il manque\s*: Pays/);
 	await expect(names).toHaveText(['Bravo']);
+});
+
+test('mode Tagger : file des fiches sans tag, enregistrer et suivante, navigation', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	await page.getByLabel('Nouvelle catégorie').fill('Genre = Action, Drame');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Catégories (1)')).toBeVisible();
+
+	await goHome(page);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await page.getByRole('link', { name: 'Importer' }).click();
+	await page.getByLabel('Tableau', { exact: true }).fill('Nom;Genre\nAlpha;Action\nBravo;\nCharlie;');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await page.getByRole('button', { name: 'Importer (3)' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+
+	// File : les fiches sans tag (Bravo, Charlie), Alpha en est exclue.
+	await page.getByRole('button', { name: 'Tagger' }).click();
+	await expect(page).toHaveURL(/\/tagging$/);
+	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
+	await expect(page.getByRole('status')).toHaveText('1 / 2');
+	await expect(page.getByRole('button', { name: 'Enregistrer', exact: true })).toBeDisabled();
+
+	await page.getByRole('button', { name: 'Drame' }).click();
+	await page.getByRole('button', { name: 'Enregistrer et suivante' }).click();
+	await expect(page.getByRole('heading', { name: 'Charlie' })).toBeVisible();
+	await expect(page.getByText('1 faite · 1 restante')).toBeVisible();
+
+	// Changer de fiche sans enregistrer : la modale propose de continuer, abandonner ou enregistrer.
+	await page.getByRole('button', { name: 'Drame' }).click();
+	await page.getByRole('button', { name: 'Fiche précédente' }).click();
+	const unsaved = page.getByRole('dialog');
+	await expect(unsaved.getByText('Les tags de « Charlie » ont changé.')).toBeVisible();
+	await unsaved.getByRole('button', { name: 'Continuer la saisie' }).click();
+	await expect(page.getByRole('heading', { name: 'Charlie' })).toBeVisible();
+	await page.getByRole('button', { name: 'Fiche précédente' }).click();
+	await unsaved.getByRole('button', { name: 'Abandonner' }).click();
+
+	// Retour en arrière : la fiche enregistrée garde son tag.
+	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Drame' })).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByText('Faite', { exact: true })).toBeVisible();
+
+	// Dernière à faire : enregistrer et terminer ramène à l'index ; le Drame abandonné n'a pas été gardé.
+	await page.getByRole('button', { name: 'Fiche suivante' }).click();
+	await expect(page.getByRole('button', { name: 'Drame' })).toHaveAttribute('aria-pressed', 'false');
+	await page.getByRole('button', { name: 'Action' }).click();
+	await page.getByRole('button', { name: 'Enregistrer et terminer' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await expect(page.getByRole('listitem').filter({ hasText: 'Charlie' })).toContainText('Action');
+	await expect(page.getByRole('listitem').filter({ hasText: 'Bravo' })).toContainText('Drame');
 });

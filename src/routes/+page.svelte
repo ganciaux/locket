@@ -7,6 +7,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import EntryCard from '$lib/components/EntryCard.svelte';
 	import EntryZoom from '$lib/components/EntryZoom.svelte';
+	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import TagFacets from '$lib/components/TagFacets.svelte';
@@ -15,12 +16,14 @@
 	import { listView } from '$lib/entries/listView.svelte';
 	import {
 		MAX_LABEL_LENGTH,
+		NO_COUNTRY,
 		NO_TAG_FILTER,
 		type SortOrder,
 		UNRATED,
 		countryFlag,
 		countryName,
-		filterLevel
+		filterableTags,
+		hasAdvancedFilter
 	} from '$lib/entries/model';
 	import { addCollection } from '$lib/entries/collections';
 	import {
@@ -53,16 +56,15 @@
 		{ value: 'rank', label: 'Tri : classement' },
 		{ value: 'random', label: 'Tri : aléatoire' }
 	];
-	// Note minimale, en demi-étoiles : 6 = 3 étoiles.
-	const RATINGS: { value: number; label: string }[] = [
-		{ value: 0, label: 'Toutes les notes' },
-		{ value: 2, label: '★ 1 et plus' },
-		{ value: 4, label: '★ 2 et plus' },
-		{ value: 6, label: '★ 3 et plus' },
-		{ value: 8, label: '★ 4 et plus' },
-		{ value: 9, label: '★ 4,5 et plus' },
-		{ value: 10, label: '★ 5' },
-		{ value: UNRATED, label: 'Sans note' }
+	// Note minimale, en demi-étoiles : 6 = 3 étoiles ; rien de choisi : toutes les notes.
+	const RATINGS: FacetOption[] = [
+		{ value: '2', label: '★ 1 et plus' },
+		{ value: '4', label: '★ 2 et plus' },
+		{ value: '6', label: '★ 3 et plus' },
+		{ value: '8', label: '★ 4 et plus' },
+		{ value: '9', label: '★ 4,5 et plus' },
+		{ value: '10', label: '★ 5' },
+		{ value: String(UNRATED), label: 'Sans note', extra: true }
 	];
 
 	// Filtres et tri : gardés pendant la session, valeurs par défaut à chaque déverrouillage (voir listView).
@@ -139,21 +141,21 @@
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0 || tagFilter.missing.length > 0);
 	const filterActive = $derived(
-		tagFiltering || (listView.withLinks && anyLinks) || listView.rating !== 0 || !!listView.country
+		tagFiltering || (listView.withLinks && anyLinks) || listView.rating !== 0 || listView.country.length > 0
 	);
 	const filtering = $derived(!!listView.query.trim() || filterActive);
 
-	// Les tags sont propres à chaque collection : le filtre ne survit pas au changement.
-	function resetTagFilter() {
+	// Tags et pays sont propres à chaque collection : leur filtre ne survit pas au changement.
+	function resetCollectionFilters() {
 		listView.tags = { ...NO_TAG_FILTER };
+		listView.country = [];
 	}
 
 	/** « Effacer » : tout afficher (les valeurs par défaut reviennent au prochain déverrouillage). */
 	function clearFilters() {
-		resetTagFilter();
+		resetCollectionFilters();
 		listView.withLinks = false;
 		listView.rating = 0;
-		listView.country = '';
 	}
 
 	let collectionName = $state('');
@@ -174,7 +176,7 @@
 
 <div class="mb-4 flex items-center gap-2">
 	{#if entries.active}
-		<CollectionSwitcher onselect={resetTagFilter} />
+		<CollectionSwitcher onselect={resetCollectionFilters} />
 	{:else}
 		<h1 class="text-2xl font-bold">Mes fiches</h1>
 	{/if}
@@ -304,11 +306,11 @@
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
 				<span class="text-base-content/60 text-xs">Filtrer</span>
-				{#if entries.tags?.length && entries.tagGroups.some((group) => filterLevel(group) === 'advanced')}
+				{#if entries.tags?.length && hasAdvancedFilter(entries.tags, entries.tagGroups)}
 					<button
 						class="btn btn-xs {listView.extended ? 'btn-primary' : 'btn-ghost'}"
 						aria-pressed={listView.extended}
-						title={listView.extended ? 'Seulement les catégories principales' : 'Proposer aussi les autres catégories'}
+						title={listView.extended ? 'Seulement les catégories et tags principaux' : 'Proposer aussi les autres catégories et tags'}
 						onclick={() => (listView.extended = !listView.extended)}
 					>
 						Recherche avancée
@@ -332,20 +334,29 @@
 						</button>
 					{/if}
 					{#if anyRated}
-						<select class="select select-sm w-auto" aria-label="Filtrer par note" bind:value={listView.rating}>
-							{#each RATINGS as rating (rating.value)}
-								<option value={rating.value}>{rating.label}</option>
-							{/each}
-						</select>
+						<!-- Un seul choix : les seuils « et plus » s'incluent l'un l'autre. -->
+						<FacetDropdown
+							name="Note"
+							single
+							options={RATINGS}
+							selected={listView.rating ? [String(listView.rating)] : []}
+							onchange={(next) => (listView.rating = Number(next[0] ?? 0))}
+						/>
 					{/if}
 					{#if countries.length}
-						<select class="select select-sm w-auto" aria-label="Filtrer par pays" bind:value={listView.country}>
-							<option value="">Tous les pays</option>
-							{#each countries as country (country.code)}
-								<option value={country.code}>{countryFlag(country.code)} {country.name} ({country.count})</option>
-							{/each}
-							<option value="none">Sans pays</option>
-						</select>
+						<!-- Plusieurs pays, en OU : même pastille à cocher que les catégories de tags. -->
+						<FacetDropdown
+							name="Pays"
+							options={[
+								...countries.map((country) => ({
+									value: country.code,
+									label: `${countryFlag(country.code)} ${country.name} (${country.count})`
+								})),
+								{ value: NO_COUNTRY, label: 'Sans pays', extra: true }
+							]}
+							selected={listView.country}
+							onchange={(next) => (listView.country = next)}
+						/>
 					{/if}
 				</div>
 			{/if}
@@ -372,7 +383,7 @@
 				/>
 			{:else if entries.tags?.length}
 				<TagPicker
-					tags={entries.tags}
+					tags={filterableTags(entries.tags, listView.extended, listView.tags.tagIds)}
 					bind:selected={listView.tags.tagIds}
 					label="Filtrer par tags"
 					onchange={(selected) => selected.length && (listView.tags.untagged = false)}

@@ -2,7 +2,7 @@
 	// Catégories de tags d'une collection : ajout, renommage, ordre et suppression (ses tags restent, sans catégorie).
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import { type FilterLevel, MAX_LABEL_LENGTH, filterLevel } from '$lib/entries/model';
+	import { FILTER_LEVELS, type FilterLevel, MAX_LABEL_LENGTH, filterLevel } from '$lib/entries/model';
 	import {
 		addTagGroups,
 		deleteAllTagGroups,
@@ -16,12 +16,6 @@
 	import { formAction } from '$lib/form.svelte';
 
 	let { collectionId }: { collectionId: string } = $props();
-
-	const LEVELS: { value: FilterLevel; label: string }[] = [
-		{ value: 'simple', label: 'Recherche simple' },
-		{ value: 'advanced', label: 'Recherche avancée' },
-		{ value: 'off', label: 'Hors filtre' }
-	];
 
 	const groups = $derived(entries.tagGroupsIn(collectionId));
 	const countIn = (groupId: string) => entries.tagsIn(collectionId).filter((tag) => tag.groupId === groupId).length;
@@ -69,7 +63,8 @@
 	<div class="card-body gap-3 pt-0">
 		<p class="text-base-content/60 text-xs">
 			Rangent les tags (Genre, Statut…) dans le choix des tags, le filtre et les fiches. Dans le filtre de la liste, une
-			catégorie est proposée d'emblée (recherche simple), avec le bouton « Recherche avancée », ou jamais.
+			catégorie est proposée d'emblée (recherche simple), avec le bouton « Recherche avancée », ou jamais ; chaque
+			tag se règle de même dans la liste des tags.
 		</p>
 		<p class="text-base-content/60 text-xs">
 			Une catégorie par ligne, avec ses tags si besoin : <code>Genre = Action, Drame</code>. Une catégorie existante
@@ -161,7 +156,7 @@
 						value={filterLevel(group)}
 						onchange={(e) => run(() => setTagGroupFilter(collectionId, group.id, e.currentTarget.value as FilterLevel))}
 					>
-						{#each LEVELS as level (level.value)}
+						{#each FILTER_LEVELS as level (level.value)}
 							<option value={level.value}>{level.label}</option>
 						{/each}
 					</select>

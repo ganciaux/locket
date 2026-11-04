@@ -182,7 +182,7 @@ export const entries = {
 			tags = NO_TAG_FILTER,
 			withLinks = false,
 			rating = 0,
-			country = '',
+			country = [],
 			order = 'name'
 		}: { tags?: TagFilter; withLinks?: boolean; rating?: RatingFilter; country?: CountryFilter; order?: SortOrder } = {}
 	): ListItem[] {

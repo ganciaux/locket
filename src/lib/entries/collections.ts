@@ -17,6 +17,7 @@ import {
 	parseLabel,
 	parseSiteTemplate,
 	planTagGroups,
+	withFilterLevel,
 	withSiteMode
 } from './model';
 import { data, entries, loaded, unlocked } from './store.svelte';
@@ -131,11 +132,7 @@ export async function setTagGroupFilter(collectionId: string, id: string, level:
 	const groups = entries.tagGroupsIn(collectionId);
 	await replaceTagGroups(
 		collectionId,
-		groups.map((group) => {
-			if (group.id !== id) return group;
-			const { filter: _, ...rest } = group;
-			return level === 'simple' ? rest : { ...rest, filter: level };
-		})
+		groups.map((group) => (group.id === id ? withFilterLevel(group, level) : group))
 	);
 }
 
@@ -183,6 +180,11 @@ export async function setTagGroup(id: string, groupId: string | undefined): Prom
 			return groupId ? { ...rest, groupId } : rest;
 		})
 	);
+}
+
+/** Place du tag dans le filtre de la liste, à l'intérieur de sa catégorie. */
+export async function setTagFilter(id: string, level: FilterLevel): Promise<void> {
+	await replaceTags(loaded(data.tags).map((tag) => (tag.id === id ? withFilterLevel(tag, level) : tag)));
 }
 
 /** Les fiches ne stockent que l'identifiant : renommer ne touche que le catalogue. */

@@ -18,11 +18,14 @@
 	let {
 		entry,
 		cancelHref,
+		doneHref,
 		initialCollectionId = '',
 		onnext
 	}: {
 		entry?: ListItem;
 		cancelHref: string;
+		/** Page ouverte après l'enregistrement ; par défaut, la fiche. */
+		doneHref?: string;
 		initialCollectionId?: string;
 		/** Création à la suite : appelé après l'enregistrement, au lieu d'ouvrir la fiche. */
 		onnext?: (saved: { name: string; collectionId: string }) => void;
@@ -169,7 +172,7 @@
 		);
 		upsertEntry(saved);
 		if (thenNext) onnext?.(saved);
-		else await goto(`/entry/${saved.id}`, { replaceState: true });
+		else await goto(doneHref ?? `/entry/${saved.id}`, { replaceState: true });
 	});
 </script>
 

@@ -165,7 +165,9 @@
 				</button>
 			</header>
 
-			<figure class="bg-base-200 relative flex min-h-40 items-center justify-center">
+			<!-- shrink-0 : sinon, quand les similaires allongent la boîte, la figure rétrécit jusqu'à min-h-40 et
+			     l'image centrée déborde sur le titre ; la boîte doit défiler à la place. -->
+			<figure class="bg-base-200 relative flex min-h-40 shrink-0 items-center justify-center">
 				{#if entry.thumbUrl}
 					<img src={entry.thumbUrl} alt="" class="max-h-[45dvh] w-full object-contain" />
 				{:else}

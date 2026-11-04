@@ -1,8 +1,9 @@
 <script lang="ts">
 	// Index de la collection active : toutes les fiches par ordre alphabétique, en texte, groupées par initiale.
 	// Pays, âge, tags et liens affichés à la demande (préférences de l'appareil) ; recherche sur le nom seulement.
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
+	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
@@ -17,14 +18,18 @@
 		groupTags,
 		matchesSearch,
 		missingFields,
-		missingLabel
+		missingLabel,
+		tagQueue
 	} from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
+	import { startTagging } from '$lib/entries/tagging.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { prefs } from '$lib/prefs.svelte';
 
 	const OPTIONS = [
 		{ key: 'indexInitials', label: 'A…Z', title: 'Lettres de séparation' },
+		{ key: 'indexThumb', label: 'Miniature' },
+		{ key: 'indexRank', label: 'Classement', title: 'Rang au classement' },
 		{ key: 'indexCountry', label: 'Pays' },
 		{ key: 'indexAge', label: 'Âge' },
 		{ key: 'indexTags', label: 'Tags' },
@@ -41,12 +46,14 @@
 	const visible = $derived((entries.activeItems ?? []).filter((item) => prefs.showHidden || !item.hidden));
 	// « Il manque » : gardé pendant la session, pour compléter les fiches une à une sans le perdre.
 	const missingOf = (item: (typeof visible)[number]) => missingFields(item, entries.tags ?? [], entries.tagGroups);
-	const missingChoices = $derived([
-		{ value: 'country', label: 'Sans pays' },
-		{ value: 'birthYear', label: 'Sans naissance' },
-		{ value: 'image', label: 'Sans image' },
+	// Libellés lus avec la pastille : « Il manque : Pays ».
+	const missingChoices = $derived<FacetOption[]>([
+		{ value: 'any', label: 'Une info' },
+		{ value: 'country', label: 'Pays' },
+		{ value: 'birthYear', label: 'Naissance' },
+		{ value: 'image', label: 'Image' },
 		...groupTags(entries.tags ?? [], entries.tagGroups).flatMap(({ group }) =>
-			group ? [{ value: `group:${group.id}`, label: `Sans ${group.name}` }] : []
+			group ? [{ value: `group:${group.id}`, label: group.name }] : []
 		)
 	]);
 	const incomplete = (item: (typeof visible)[number]): boolean => {
@@ -68,12 +75,23 @@
 	afterNavigate(({ from }) => {
 		if (from?.route.id?.startsWith('/entry/[id]')) restoreEntryNavScroll('/list');
 	});
+
+	// Mode Tagger : la file part de l'index affiché (recherche et « Il manque » compris), figée au départ.
+	function startTaggingMode() {
+		startTagging(tagQueue(results, listView.indexMissing, (item) => entries.tagsOf(item).length));
+		goto('/tagging');
+	}
 </script>
 
 {#if entries.active}
 	<CollectionHeader>
 		{#snippet actions()}
 			<!-- Libellés masqués sur téléphone : avec « Mes fiches », l'en-tête ne tiendrait plus à 320 px. -->
+			{#if entries.tags?.length && results.length}
+				<button class="btn btn-ghost btn-sm shrink-0" aria-label="Tagger" title="Tagger les fiches une à une" onclick={startTaggingMode}>
+					<Icon name="tag" class="size-4" /><span class="hidden sm:inline">Tagger</span>
+				</button>
+			{/if}
 			<a class="btn btn-ghost btn-sm shrink-0" href="/list/compare" aria-label="Comparer une liste" title="Comparer une liste de noms">
 				<Icon name="list" class="size-4" /><span class="hidden sm:inline">Comparer</span>
 			</a>
@@ -124,13 +142,13 @@
 				{option.label}
 			</button>
 		{/each}
-		<select class="select select-sm w-auto" aria-label="Il manque" bind:value={listView.indexMissing}>
-			<option value="">Toutes les fiches</option>
-			<option value="any">Il manque une info</option>
-			{#each missingChoices as choice (choice.value)}
-				<option value={choice.value}>{choice.label}</option>
-			{/each}
-		</select>
+		<FacetDropdown
+			name="Il manque"
+			single
+			options={missingChoices}
+			selected={listView.indexMissing ? [listView.indexMissing] : []}
+			onchange={(next) => (listView.indexMissing = next[0] ?? '')}
+		/>
 		<span class="text-base-content/60 ml-auto text-xs" role="status">
 			{results.length} fiche{results.length > 1 ? 's' : ''}{results.length < visible.length ? ` sur ${visible.length}` : ''}
 		</span>
@@ -153,10 +171,37 @@
 					{@const links = prefs.indexLinks ? entries.linksOf(item) : []}
 					<li class="flex flex-col gap-1.5 py-2 {item.hidden ? 'opacity-50' : ''}">
 						<div class="flex items-center gap-2">
+							{#if prefs.indexRank}
+								{@const rank = entries.rankOf(item)}
+								<!-- Largeur fixe : les noms restent alignés, classés ou non. -->
+								<span class="w-9 shrink-0 text-center">
+									{#if rank}<span class="badge badge-sm badge-neutral" title="Rang au classement">#{rank}</span>{/if}
+								</span>
+							{/if}
+							{#if prefs.indexThumb}
+								{#if item.thumbUrl}
+									<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover" />
+								{:else}
+									<span class="bg-primary/10 text-primary rounded-box flex size-10 shrink-0 items-center justify-center font-bold" aria-hidden="true">
+										{item.name.charAt(0).toUpperCase()}
+									</span>
+								{/if}
+							{/if}
 							{#if prefs.indexCountry && item.country}
 								<span class="shrink-0" title={countryName(item.country)}>{countryFlag(item.country)}</span>
 							{/if}
-							<a class="link-hover min-w-0 flex-1 truncate font-medium" href="/entry/{item.id}">{item.name}</a>
+							<!-- Le nom ouvre la fiche ; le crayon, la modification (au survol sur ordinateur, toujours au toucher). -->
+							<div class="group flex min-w-0 flex-1 items-center gap-1">
+								<a class="link-hover min-w-0 truncate font-medium" href="/entry/{item.id}">{item.name}</a>
+								<a
+									class="btn btn-ghost btn-xs btn-square pointer-fine:opacity-0 shrink-0 group-hover:opacity-100 focus-visible:opacity-100"
+									href="/entry/{item.id}/edit?from=list"
+									aria-label="Modifier {item.name}"
+									title="Modifier"
+								>
+									<Icon name="edit" class="size-3.5" />
+								</a>
+							</div>
 							{#if prefs.indexCountry && item.country}
 								<span class="text-base-content/50 hidden shrink-0 text-xs sm:inline">{countryName(item.country)}</span>
 							{/if}

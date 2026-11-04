@@ -3,10 +3,11 @@
 	// qui ouvre la liste de ses tags à cocher, plus « Non renseigné » (aucun tag de la catégorie),
 	// et résume la sélection (« Genre : Combat +1 »).
 	// Le sens du filtre (OU dans une catégorie, ET entre catégories) est celui de `matchesFilter`.
-	// Sans `extended`, seules les catégories en recherche simple sont proposées (voir `facetShown`).
+	// Sans `extended`, seuls les catégories et les tags en recherche simple sont proposés (voir `facetShown`) ;
+	// une catégorie dont aucun tag n'est proposé disparaît, sauf si quelque chose y est coché.
 	import type { Snippet } from 'svelte';
-	import Icon from '$lib/components/Icon.svelte';
-	import { type Tag, type TagGroup, facetShown, filterLevel, groupTags } from '$lib/entries/model';
+	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
+	import { type Tag, type TagGroup, facetShown, filterLevel, filterableTags, groupTags } from '$lib/entries/model';
 
 	let {
 		tags,
@@ -22,7 +23,7 @@
 		selected?: string[];
 		/** Catégories dont « Non renseigné » est coché. */
 		missing?: string[];
-		/** Recherche avancée : les catégories « avancées » sont aussi proposées. */
+		/** Recherche avancée : les catégories et les tags « avancés » sont aussi proposés. */
 		extended?: boolean;
 		onchange?: () => void;
 		/** Pastilles supplémentaires affichées en tête (ex. « Sans tag »). */
@@ -32,110 +33,44 @@
 	// Filtrées après `groupTags` : retirer une catégorie avant rangerait ses tags dans « Autres ».
 	const facets = $derived(
 		groupTags(tags, groups)
-			.filter((section) => {
-				const key = section.group?.id ?? '';
-				const active = missing.includes(key) || section.tags.some((tag) => selected.includes(tag.id));
-				return facetShown(filterLevel(section.group), extended, active);
-			})
 			.map((section) => ({
 				key: section.group?.id ?? '',
+				group: section.group,
 				name: section.group?.name ?? 'Autres',
-				tags: section.tags,
+				tags: filterableTags(section.tags, extended, selected),
 				// « Non renseigné » n'a de sens que pour une vraie catégorie.
 				canMiss: !!section.group
 			}))
+			.filter((facet) => {
+				const active = missing.includes(facet.key) || facet.tags.some((tag) => selected.includes(tag.id));
+				return active || (facet.tags.length > 0 && facetShown(filterLevel(facet.group), extended, false));
+			})
 	);
 
-	// Une seule liste ouverte à la fois ; clic à l'extérieur ou Échap la ferment (<details> ne le fait pas seul).
-	let openKey = $state<string | null>(null);
+	// Dans une facette, « Non renseigné » est une option comme les tags ; un id de tag est un UUID, sans « : ».
+	const MISSING = ':missing';
 
-	function closeOutside(event: MouseEvent) {
-		if (openKey === null) return;
-		const facet = (event.target as Element).closest?.('details[data-facet]') as HTMLElement | null;
-		if (facet?.dataset.facet !== openKey) openKey = null;
-	}
+	const optionsOf = (facet: (typeof facets)[number]): FacetOption[] => [
+		...facet.tags.map((tag) => ({ value: tag.id, label: tag.name })),
+		...(facet.canMiss ? [{ value: MISSING, label: 'Non renseigné', extra: true }] : [])
+	];
 
-	const without = (list: string[], value: string) => list.filter((item) => item !== value);
+	const selectedIn = (facet: (typeof facets)[number]) => [
+		...facet.tags.filter((tag) => selected.includes(tag.id)).map((tag) => tag.id),
+		...(missing.includes(facet.key) ? [MISSING] : [])
+	];
 
-	function toggle(id: string) {
-		selected = selected.includes(id) ? without(selected, id) : [...selected, id];
-		onchange?.();
-	}
-
-	function toggleMissing(key: string) {
-		missing = missing.includes(key) ? without(missing, key) : [...missing, key];
-		onchange?.();
-	}
-
-	function clear(key: string, facetTags: Tag[]) {
-		selected = selected.filter((id) => !facetTags.some((tag) => tag.id === id));
-		missing = without(missing, key);
+	function change(facet: (typeof facets)[number], next: string[]) {
+		const own = new Set(facet.tags.map((tag) => tag.id));
+		selected = [...selected.filter((id) => !own.has(id)), ...next.filter((value) => value !== MISSING)];
+		missing = next.includes(MISSING) ? [...new Set([...missing, facet.key])] : missing.filter((key) => key !== facet.key);
 		onchange?.();
 	}
 </script>
 
-<svelte:window onclick={closeOutside} onkeydown={(e) => e.key === 'Escape' && (openKey = null)} />
-
 <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrer par tags">
 	{@render before?.()}
 	{#each facets as facet (facet.key)}
-		{@const chosen = [
-			...facet.tags.filter((tag) => selected.includes(tag.id)).map((tag) => tag.name),
-			...(missing.includes(facet.key) ? ['Non renseigné'] : [])
-		]}
-		<details
-			class="dropdown"
-			data-facet={facet.key}
-			open={openKey === facet.key}
-			ontoggle={(e) => {
-				if (e.currentTarget.open) openKey = facet.key;
-				else if (openKey === facet.key) openKey = null;
-			}}
-		>
-			<summary
-				class="badge badge-lg max-w-64 cursor-pointer list-none gap-1 [&::-webkit-details-marker]:hidden badge-primary {chosen.length ? '' : 'badge-outline'}"
-				aria-label="{facet.name}{chosen.length ? ` : ${chosen.join(', ')}` : ''}"
-			>
-				<span class="truncate">
-					{facet.name}{#if chosen.length}&nbsp;: {chosen[0]}{/if}
-				</span>
-				{#if chosen.length > 1}<span class="shrink-0">+{chosen.length - 1}</span>{/if}
-				<Icon name="chevronDown" class="size-3 shrink-0" />
-			</summary>
-			<div class="dropdown-content bg-base-100 rounded-box z-20 mt-1 flex w-56 max-w-[calc(100vw-2rem)] flex-col p-2 shadow-lg">
-				<ul class="flex max-h-72 flex-col overflow-y-auto" role="group" aria-label="Tags {facet.name}">
-					{#each facet.tags as tag (tag.id)}
-						<li>
-							<label class="hover:bg-base-200 rounded-field flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm">
-								<input
-									type="checkbox"
-									class="checkbox checkbox-sm checkbox-primary"
-									checked={selected.includes(tag.id)}
-									onchange={() => toggle(tag.id)}
-								/>
-								<span class="min-w-0 flex-1 break-words">{tag.name}</span>
-							</label>
-						</li>
-					{/each}
-					{#if facet.canMiss}
-						<li class="border-base-200 mt-1 border-t pt-1">
-							<label class="hover:bg-base-200 rounded-field flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm italic">
-								<input
-									type="checkbox"
-									class="checkbox checkbox-sm checkbox-primary"
-									checked={missing.includes(facet.key)}
-									onchange={() => toggleMissing(facet.key)}
-								/>
-								<span class="flex-1">Non renseigné</span>
-							</label>
-						</li>
-					{/if}
-				</ul>
-				<div class="border-base-200 mt-1 flex justify-between border-t pt-2">
-					<button type="button" class="btn btn-ghost btn-xs" disabled={!chosen.length} onclick={() => clear(facet.key, facet.tags)}>Effacer</button>
-					<button type="button" class="btn btn-primary btn-xs" onclick={() => (openKey = null)}>Fermer</button>
-				</div>
-			</div>
-		</details>
+		<FacetDropdown name={facet.name} options={optionsOf(facet)} selected={selectedIn(facet)} onchange={(next) => change(facet, next)} />
 	{/each}
 </div>

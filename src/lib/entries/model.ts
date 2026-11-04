@@ -116,7 +116,14 @@ export function withRecoveredCollections(collections: Collection[], entries: { c
 }
 
 /** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
-export type Tag = { id: string; name: string; collectionId: string; groupId?: string };
+export type Tag = {
+	id: string;
+	name: string;
+	collectionId: string;
+	groupId?: string;
+	/** Place dans le filtre de la liste, à l'intérieur de sa catégorie ; absent : recherche simple. */
+	filter?: 'advanced' | 'off';
+};
 
 /**
  * Catégorie effective d'un tag : la sienne si elle existe encore, sinon aucune (catégorie supprimée).
@@ -136,12 +143,32 @@ export type TagGroup = {
 /** Recherche simple (toujours proposée), avancée (sur demande) ou hors filtre. */
 export type FilterLevel = 'simple' | 'advanced' | 'off';
 
-/** « Autres » (tags sans catégorie) est en recherche simple. */
-export const filterLevel = (group: TagGroup | null): FilterLevel => group?.filter ?? 'simple';
+export const FILTER_LEVELS: { value: FilterLevel; label: string }[] = [
+	{ value: 'simple', label: 'Recherche simple' },
+	{ value: 'advanced', label: 'Recherche avancée' },
+	{ value: 'off', label: 'Hors filtre' }
+];
 
-/** Catégorie proposée dans le filtre ; une catégorie où quelque chose est coché reste visible, pour pouvoir le décocher. */
+/** Niveau d'une catégorie ou d'un tag ; « Autres » (tags sans catégorie) est en recherche simple. */
+export const filterLevel = (item: Tag | TagGroup | null): FilterLevel => item?.filter ?? 'simple';
+
+/** Catégorie ou tag proposé dans le filtre ; ce qui est coché reste visible, pour pouvoir le décocher. */
 export const facetShown = (level: FilterLevel, extended: boolean, active: boolean): boolean =>
 	active || level === 'simple' || (level === 'advanced' && extended);
+
+/** Tags proposés dans le filtre de la liste (voir `facetShown`) ; l'ordre est conservé. */
+export const filterableTags = (tags: Tag[], extended: boolean, selected: string[]): Tag[] =>
+	tags.filter((tag) => facetShown(filterLevel(tag), extended, selected.includes(tag.id)));
+
+/** Le bouton « Recherche avancée » n'a de sens que si une catégorie ou un tag est en recherche avancée. */
+export const hasAdvancedFilter = (tags: Tag[], groups: TagGroup[]): boolean =>
+	[...groups, ...tags].some((item) => filterLevel(item) === 'advanced');
+
+/** Copie de la catégorie ou du tag au niveau donné ; « simple » retire le champ. */
+export function withFilterLevel<T extends { filter?: 'advanced' | 'off' }>(item: T, level: FilterLevel): T {
+	const { filter: _, ...rest } = item;
+	return (level === 'simple' ? rest : { ...rest, filter: level }) as T;
+}
 
 /**
  * Tags par catégorie, dans l'ordre des catégories, sans les catégories vides ; ceux sans catégorie
@@ -558,6 +585,15 @@ export function neighbours(ids: string[], id: string): { position: number; count
 	return index < 0 ? null : { position: index + 1, count: ids.length, previous: ids[index - 1], next: ids[index + 1] };
 }
 
+/**
+ * File du mode Tagger, parmi les fiches affichées dans l'ordre : avec le filtre « Sans <catégorie> » (`group:<id>`),
+ * toutes (il leur manque déjà un tag) ; sinon celles sans aucun tag. Toutes si aucune n'en manque, pour relire.
+ */
+export function tagQueue<T extends { id: string }>(items: T[], missingFilter: string, tagCount: (item: T) => number): string[] {
+	const untagged = missingFilter.startsWith('group:') ? items : items.filter((item) => tagCount(item) === 0);
+	return (untagged.length ? untagged : items).map((item) => item.id);
+}
+
 // ---------------------------------------------------------------------------
 // Note
 
@@ -672,11 +708,13 @@ export function formatAge(birthYear: number, thisYear = new Date().getFullYear()
 	return `${age} an${age > 1 ? 's' : ''}`;
 }
 
-/** '' : tous les pays ; 'none' : sans pays ; sinon un code. */
-export type CountryFilter = string;
+/** Codes cochés, en OU ; 'none' : sans pays ; vide : tous les pays. */
+export type CountryFilter = string[];
+
+export const NO_COUNTRY = 'none';
 
 export const matchesCountryFilter = (country: string | undefined, filter: CountryFilter): boolean =>
-	!filter || (filter === 'none' ? !country : country === filter);
+	!filter.length || filter.includes(country ?? NO_COUNTRY);
 
 /** `withLinks` : seulement les fiches qui affichent au moins un lien (sites de la collection compris). */
 export const matchesLinkFilter = (linkCount: number, withLinks: boolean): boolean => !withLinks || linkCount > 0;

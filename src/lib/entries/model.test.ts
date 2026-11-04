@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	type TagGroup,
 	ENCODE_ATTEMPTS,
 	MAX_DOC_BYTES,
 	MAX_NAME_LENGTH,
@@ -16,6 +17,10 @@ import {
 	searchKey,
 	facetShown,
 	filterLevel,
+	filterableTags,
+	tagQueue,
+	hasAdvancedFilter,
+	withFilterLevel,
 	parseGroupInput,
 	chooseInsertion,
 	duelsLeft,
@@ -394,12 +399,15 @@ describe('pays', () => {
 		expect(resolveCountry('')).toBeUndefined();
 	});
 
-	it('filtre : tous, sans pays, un pays', () => {
-		expect(matchesCountryFilter(undefined, '')).toBe(true);
-		expect(matchesCountryFilter(undefined, 'none')).toBe(true);
-		expect(matchesCountryFilter('FR', 'none')).toBe(false);
-		expect(matchesCountryFilter('FR', 'FR')).toBe(true);
-		expect(matchesCountryFilter('ES', 'FR')).toBe(false);
+	it('filtre : tous, ou les pays cochés en OU, sans pays compris', () => {
+		expect(matchesCountryFilter(undefined, [])).toBe(true);
+		expect(matchesCountryFilter('FR', [])).toBe(true);
+		expect(matchesCountryFilter(undefined, ['none'])).toBe(true);
+		expect(matchesCountryFilter('FR', ['none'])).toBe(false);
+		expect(matchesCountryFilter('FR', ['FR'])).toBe(true);
+		expect(matchesCountryFilter('ES', ['FR'])).toBe(false);
+		expect(matchesCountryFilter('ES', ['FR', 'ES'])).toBe(true);
+		expect(matchesCountryFilter(undefined, ['FR', 'none'])).toBe(true);
 	});
 });
 
@@ -616,6 +624,45 @@ describe('catégories dans le filtre', () => {
 		expect(facetShown('off', true, false)).toBe(false);
 		expect(facetShown('advanced', false, true)).toBe(true);
 		expect(facetShown('off', false, true)).toBe(true);
+	});
+
+	it('tags : même règle, un tag coché reste proposé', () => {
+		const tags = [
+			{ id: 'a', name: 'A', collectionId: 'c' },
+			{ id: 'b', name: 'B', collectionId: 'c', filter: 'advanced' as const },
+			{ id: 'o', name: 'O', collectionId: 'c', filter: 'off' as const }
+		];
+		const ids = (list: { id: string }[]) => list.map((tag) => tag.id);
+		expect(ids(filterableTags(tags, false, []))).toEqual(['a']);
+		expect(ids(filterableTags(tags, true, []))).toEqual(['a', 'b']);
+		expect(ids(filterableTags(tags, false, ['o']))).toEqual(['a', 'o']);
+		expect(hasAdvancedFilter(tags.slice(0, 1), [])).toBe(false);
+		expect(hasAdvancedFilter(tags, [])).toBe(true);
+		expect(hasAdvancedFilter([], [{ id: 'g', name: 'G', filter: 'advanced' }])).toBe(true);
+	});
+
+	it('niveau simple : champ retiré', () => {
+		expect(withFilterLevel({ id: 't', name: 'T', filter: 'off' as const }, 'simple')).toEqual({ id: 't', name: 'T' });
+		expect(withFilterLevel<TagGroup>({ id: 't', name: 'T' }, 'advanced')).toEqual({ id: 't', name: 'T', filter: 'advanced' });
+	});
+});
+
+describe('file du mode Tagger', () => {
+	const items = [{ id: 'a', n: 0 }, { id: 'b', n: 2 }, { id: 'c', n: 0 }];
+	const count = (item: { n: number }) => item.n;
+
+	it('les fiches sans tag, dans l’ordre affiché', () => {
+		expect(tagQueue(items, '', count)).toEqual(['a', 'c']);
+		expect(tagQueue(items, 'country', count)).toEqual(['a', 'c']);
+	});
+
+	it('filtre « Sans catégorie » : toutes les fiches affichées', () => {
+		expect(tagQueue(items, 'group:g', count)).toEqual(['a', 'b', 'c']);
+	});
+
+	it('toutes déjà taggées : toutes, pour les relire', () => {
+		expect(tagQueue([{ id: 'b', n: 1 }], '', count)).toEqual(['b']);
+		expect(tagQueue([], '', count)).toEqual([]);
 	});
 });
 

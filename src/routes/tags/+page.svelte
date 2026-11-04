@@ -1,13 +1,22 @@
 <script lang="ts">
-	// Administration des tags de la collection active : catégories, ajout, renommage, catégorie et suppression.
+	// Administration des tags de la collection active : catégories, ajout, renommage, catégorie, place dans le filtre
+	// et suppression.
 	// Le catalogue est chiffré comme les fiches ; les catégories vivent dans la collection.
 	import { page } from '$app/state';
 	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import TagGroupManager from '$lib/components/TagGroupManager.svelte';
-	import { MAX_LABEL_LENGTH, effectiveGroupId, groupTags } from '$lib/entries/model';
-	import { addTag, deleteAllTags, deleteTag, renameTag, selectCollection, setTagGroup } from '$lib/entries/collections';
+	import { FILTER_LEVELS, type FilterLevel, MAX_LABEL_LENGTH, effectiveGroupId, filterLevel, groupTags } from '$lib/entries/model';
+	import {
+		addTag,
+		deleteAllTags,
+		deleteTag,
+		renameTag,
+		selectCollection,
+		setTagFilter,
+		setTagGroup
+	} from '$lib/entries/collections';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -47,6 +56,15 @@
 			await setTagGroup(id, select.value || undefined);
 		} catch (e) {
 			select.value = current;
+			error = errorMessage(e);
+		}
+	}
+
+	async function changeFilter(id: string, level: FilterLevel) {
+		error = '';
+		try {
+			await setTagFilter(id, level);
+		} catch (e) {
 			error = errorMessage(e);
 		}
 	}
@@ -163,8 +181,18 @@
 									<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 										<Icon name="tag" class="text-primary size-4" />
 										<span class="flex-1 font-medium break-all">{tag.name}</span>
+										<!-- Sous le nom sur mobile, à côté dès que la place le permet. -->
+										<select
+											class="select select-xs order-last w-full sm:order-none sm:w-40"
+											aria-label="Filtre du tag {tag.name}"
+											value={filterLevel(tag)}
+											onchange={(e) => changeFilter(tag.id, e.currentTarget.value as FilterLevel)}
+										>
+											{#each FILTER_LEVELS as level (level.value)}
+												<option value={level.value}>{level.label}</option>
+											{/each}
+										</select>
 										{#if entries.tagGroups.length}
-											<!-- Sous le nom sur mobile, à côté dès que la place le permet. -->
 											<select
 												class="select select-xs order-last w-full sm:order-none sm:w-36"
 												aria-label="Catégorie du tag {tag.name}"

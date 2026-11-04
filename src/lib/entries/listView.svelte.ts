@@ -23,7 +23,7 @@ const defaults = (): ListView => ({
 	tags: { ...NO_TAG_FILTER },
 	withLinks: true,
 	rating: 0,
-	country: '',
+	country: [],
 	sort: 'random',
 	extended: false,
 	indexMissing: ''
