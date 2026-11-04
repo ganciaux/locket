@@ -282,6 +282,7 @@ describe('fiches (émulateurs)', () => {
 			`users/${uid}/images/${mine.id}`,
 			`users/${uid}/meta/tags`,
 			`users/${uid}/meta/collections`,
+			`users/${uid}/meta/backup`,
 			`users/${uid}/meta/version`,
 			'autre/document'
 		];

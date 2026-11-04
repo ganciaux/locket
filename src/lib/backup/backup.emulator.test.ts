@@ -12,6 +12,7 @@ import { deleteEntry, listEntries, saveEntry } from '$lib/entries/repository';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
 import { deleteAllData } from '$lib/entries/store.svelte';
 import { OldKeyRequired, checkBackup, createBackup, restoreBackup } from './backup';
+import { lastBackupAt, recordSharedBackup } from './lastBackup';
 import { parseBackup } from './format';
 
 const PASSWORD = 'mot-de-passe-de-test';
@@ -66,6 +67,18 @@ describe('sauvegarde (émulateurs)', () => {
 		// L'ancienne clé de récupération est de nouveau la bonne.
 		const { recoveryDek } = await readCurrentKeyring();
 		await expect(unwrapDek(recoveryDek, await deriveRecoveryKek(oldRecoveryKey))).resolves.toBeDefined();
+	}, 60_000);
+
+	it('partage la date de dernière sauvegarde entre appareils, chiffrée', async () => {
+		await signUp(`d${Date.now()}@example.com`, PASSWORD);
+		const { uid } = current();
+		expect(await lastBackupAt()).toBeUndefined();
+		const at = 1_790_000_000_000;
+		await recordSharedBackup(at);
+		expect(await lastBackupAt()).toBe(at);
+		const raw = (await getDoc(doc(db, 'users', uid, 'meta', 'backup'))).data()!;
+		expect(Object.keys(raw)).toEqual(['data']);
+		expect(JSON.stringify(raw)).not.toContain(String(at));
 	}, 60_000);
 
 	it('refuse un fichier altéré sans rien écrire, même si la première fiche est intacte', async () => {

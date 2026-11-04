@@ -10,7 +10,7 @@
 		restoreBackup
 	} from '$lib/backup/backup';
 	import { type Backup, backupFileName, parseBackup } from '$lib/backup/format';
-	import { readBackupInfo, recordBackup } from '$lib/backup/reminder';
+	import { lastBackupAt as readLastBackupAt, recordSharedBackup } from '$lib/backup/lastBackup';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -20,7 +20,8 @@
 
 	// --- Export
 	let includeImages = $state(true);
-	let lastBackupAt = $state(readBackupInfo().lastAt);
+	let lastBackupAt = $state<number | undefined>();
+	readLastBackupAt().then((at) => (lastBackupAt = at));
 
 	let skipped = $state(0);
 
@@ -34,8 +35,9 @@
 		setTimeout(() => URL.revokeObjectURL(url), 60_000);
 		// Un fichier incomplet ne remet pas le rappel à zéro : il ne remplace pas une vraie sauvegarde.
 		if (!backup.skipped) {
-			recordBackup();
-			lastBackupAt = readBackupInfo().lastAt;
+			const now = Date.now();
+			await recordSharedBackup(now);
+			lastBackupAt = now;
 		}
 	});
 
@@ -113,8 +115,8 @@
 			</label>
 			<p class="text-base-content/60 text-xs">
 				{lastBackupAt
-					? `Dernière sauvegarde depuis cet appareil : ${formatDate(new Date(lastBackupAt).toISOString())}.`
-					: 'Aucune sauvegarde depuis cet appareil.'}
+					? `Dernière sauvegarde, tous appareils confondus : ${formatDate(new Date(lastBackupAt).toISOString())}.`
+					: 'Aucune sauvegarde enregistrée.'}
 			</p>
 			<ErrorAlert message={exportForm.error} />
 			{#if session.recoveryDamaged}

@@ -121,7 +121,10 @@ restauration testée seulement dans le même compte.
     cachées, avec image, notées, classées, à compléter → index filtré « Il manque : Une info »), répartitions par
     étoiles, pays (12 premiers), décennie de naissance, couverture de chaque catégorie avec ses 5 tags les plus portés ;
     barres en `<progress>` (pas de style en ligne sous la CSP) ;
-  - [ ] date de dernière sauvegarde synchronisée.
+  - [x] date de dernière sauvegarde synchronisée (`lastBackup.ts`) : `meta/backup` = `{ data }`, `{ lastAt }` chiffré
+    (AAD `meta/backup`), écrite après chaque export complet ; le rappel et la page Sauvegarde prennent la plus récente des
+    dates (appareil, partagée) ; « Plus tard » reste par appareil ; absente, illisible ou refusée = date de l'appareil.
+    **Règles à déployer** (`firebase deploy --only firestore:rules`) : sinon l'écriture est refusée, sans bloquer l'export.
 - **Chantiers** (plus tard) : Face ID par PRF (page de test jetable sur iPhone d'abord), audit section par section,
   outil autonome de déchiffrement d'une sauvegarde (sortie hors Firebase), lecture hors ligne (purge iOS d'IndexedDB
   et effacement du cache à la déconnexion à trancher avant).

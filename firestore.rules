@@ -51,9 +51,9 @@ service cloud.firestore {
     }
 
     match /users/{uid}/meta/{name} {
-      allow read, delete: if isOwner(uid) && name in ['tags', 'collections'];
+      allow read, delete: if isOwner(uid) && name in ['tags', 'collections', 'backup'];
       allow create, update: if isOwner(uid)
-        && name in ['tags', 'collections']
+        && name in ['tags', 'collections', 'backup']
         && request.resource.data.keys().hasOnly(['data'])
         && isEncrypted(request.resource.data.data);
     }

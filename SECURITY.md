@@ -27,6 +27,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 | Images et miniatures | `users/{uid}/images/{id}.image`, `entries/{id}.thumb` | AES-GCM-256 avec la DEK |
 | Noms et ordre des collections, modèles d'URL de leurs sites, classement de leurs fiches (ids) | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
 | Noms des tags | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |
+| Date de la dernière sauvegarde (2026-11-04) | `users/{uid}/meta/backup.data` | AES-GCM-256 avec la DEK |
 | DEK (clé de données) | Firestore, sous forme emballée (2 copies) ; en clair seulement en mémoire, non extractible | Emballée par la KEK (mot de passe) et par la clé de récupération |
 | Mot de passe | Jamais stocké ni transmis | Seul un jeton dérivé est envoyé à Firebase Auth |
 | Clé de récupération | Chez l'utilisateur, hors ligne | Affichée une seule fois à l'inscription |
@@ -36,7 +37,9 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 - les identifiants de documents (aléatoires) et le nombre de fiches ;
 - la taille des chiffrés, la présence ou non d'une image ;
 - les dates d'écriture tenues par Firestore ;
-- `meta/version` : un aléa de 16 octets, sans contenu, changé à chaque écriture de fiche.
+- `meta/version` : un aléa de 16 octets, sans contenu, changé à chaque écriture de fiche ;
+- l'existence de `meta/backup` et sa date d'écriture Firestore, donc le moment des exports (déjà visible par les
+  lectures massives qu'ils provoquent).
 
 **Sur l'appareil**, entre deux déconnexions : IndexedDB `stash-cache` garde les chiffrés `data` et `thumb` des fiches, le
 jeton, l'uid et la date de remplissage. Ni clé, ni trousseau, ni image complète, ni donnée déchiffrée. Conservée au

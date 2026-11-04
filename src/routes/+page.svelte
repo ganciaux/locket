@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { session } from '$lib/auth/session.svelte';
+	import { lastBackupAt } from '$lib/backup/lastBackup';
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
 	import BulkToolbar from '$lib/components/BulkToolbar.svelte';
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
@@ -77,8 +78,13 @@
 	const openZoom = (id: string) => (zoom = { id, ids: results.map((item) => item.id) });
 	let error = $state('');
 	let searchInput = $state<HTMLInputElement>();
-	const backupInfo = readBackupInfo();
-	let remindBackup = $state(isReminderDue(backupInfo, Date.now()));
+	// Date partagée entre appareils (lue sur Firestore) : le bandeau attend de la connaître pour ne pas clignoter.
+	let backupInfo = $state(readBackupInfo());
+	let remindBackup = $state(false);
+	lastBackupAt().then((lastAt) => {
+		backupInfo = { ...readBackupInfo(), lastAt };
+		remindBackup = isReminderDue(backupInfo, Date.now());
+	});
 
 	function remindLater() {
 		snoozeReminder();
@@ -278,7 +284,7 @@
 			<span class="text-sm">
 				{backupInfo.lastAt
 					? `Dernière sauvegarde il y a ${daysSince(backupInfo.lastAt, Date.now())} jours.`
-					: 'Aucune sauvegarde depuis cet appareil.'}
+					: 'Aucune sauvegarde enregistrée.'}
 			</span>
 			<div class="ml-auto flex gap-2">
 				<button class="btn btn-ghost btn-sm" onclick={remindLater}>Plus tard</button>

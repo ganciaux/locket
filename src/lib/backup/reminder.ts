@@ -1,6 +1,7 @@
 /**
- * Rappel de sauvegarde, propre à chaque appareil (localStorage) : seules deux dates y sont gardées,
- * jamais de contenu. Le plan Spark ne sauvegarde pas Firestore : sans export, une erreur serait définitive.
+ * Rappel de sauvegarde : deux dates gardées sur l'appareil (localStorage), jamais de contenu ; la date de dernière
+ * sauvegarde est aussi partagée entre appareils, chiffrée (lastBackup.ts). Le plan Spark ne sauvegarde pas Firestore :
+ * sans export, une erreur serait définitive.
  */
 const STORAGE_KEY = 'locket.backup';
 const DAY_MS = 24 * 60 * 60 * 1000;
