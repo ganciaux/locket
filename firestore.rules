@@ -18,11 +18,13 @@ service cloud.firestore {
       return !(field in data) || isEncrypted(data[field]);
     }
 
+    // `faceIdPepper` : aléa de 32 octets, sel de la clé de Face ID (ouvre les copies gardées sur les appareils).
     function isKeyring(data) {
-      return data.keys().hasOnly(['wrappedDek', 'recoveryDek', 'keyringCheck'])
+      return data.keys().hasOnly(['wrappedDek', 'recoveryDek', 'keyringCheck', 'faceIdPepper'])
         && isEncrypted(data.wrappedDek)
         && isEncrypted(data.recoveryDek)
-        && isOptionalEncrypted(data, 'keyringCheck');
+        && isOptionalEncrypted(data, 'keyringCheck')
+        && (!('faceIdPepper' in data) || (data.faceIdPepper is bytes && data.faceIdPepper.size() == 32));
     }
 
     // Trousseau : sans lui, plus aucune connexion. L'app ne le supprime jamais.

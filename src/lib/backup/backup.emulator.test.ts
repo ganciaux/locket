@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { deleteUser, signOut } from 'firebase/auth';
-import { deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Bytes, deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { checkRecoveryKey, readCurrentKeyring, rotateRecoveryKey, signUp } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
@@ -163,6 +163,17 @@ describe('sauvegarde (émulateurs)', () => {
 		await rotateRecoveryKey(PASSWORD);
 		await checkRecoveryKey();
 		expect(session.recoveryDamaged).toBe(false);
+	}, 60_000);
+
+	it('le trousseau accepte un poivre Face ID de 32 octets, rien d’autre', async () => {
+		await signUp(`p${Date.now()}@example.com`, PASSWORD);
+		const ref = doc(db, 'users', current().uid);
+		const denied = { code: 'permission-denied' };
+		await expect(updateDoc(ref, { faceIdPepper: Bytes.fromUint8Array(new Uint8Array(16)) })).rejects.toMatchObject(denied);
+		await expect(updateDoc(ref, { faceIdPepper: 'texte' })).rejects.toMatchObject(denied);
+		await expect(updateDoc(ref, { autre: Bytes.fromUint8Array(new Uint8Array(32)) })).rejects.toMatchObject(denied);
+		await updateDoc(ref, { faceIdPepper: Bytes.fromUint8Array(new Uint8Array(32)) });
+		await updateDoc(ref, { faceIdPepper: deleteField() });
 	}, 60_000);
 
 	it('un fichier modifié par déplacement d’octets dans le trousseau est refusé', async () => {
