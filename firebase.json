@@ -73,7 +73,7 @@
       }
     ],
     "predeploy": [
-      "node -e \"require('fs').accessSync('build/stash-dechiffrer.html')\""
+      "node scripts/check-build.mjs"
     ]
   },
   "emulators": {
