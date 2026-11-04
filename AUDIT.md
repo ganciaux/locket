@@ -98,10 +98,10 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
 
 ## À décider ou plus tard
 
-- [ ] **Déverrouillage par Face ID** (plus tard) : WebAuthn PRF, 3e copie de la DEK, repli sur le mot de passe, relecture
-      crypto indispensable. *Avancé.*
+- [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
+      le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
 - [ ] **Lecture hors ligne** avec le cache Firestore (chiffrés seulement) : à réévaluer, comportement iPhone à vérifier. *Intermédiaire.*
-- [ ] **Date de dernière sauvegarde** synchronisée entre appareils, chiffrée. *Simple.*
+- [x] **Date de dernière sauvegarde** synchronisée entre appareils, chiffrée — fait (`lastBackup.ts`). *Simple.*
 
 ## Écarté
 

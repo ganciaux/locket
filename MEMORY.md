@@ -208,8 +208,7 @@ Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify
    dans Paramètres, identifiant de la clé de test dans `localStorage` (`locket.prfTest`, pas un secret). Rapport à
    copier depuis la page. Validée dans Chrome avec un authentificateur virtuel PRF (32 octets, stables).
    **Concluant sur iPhone le 2026-11-04** (iOS 18.7, PWA installée) : `prf` annoncée, sortie de 32 octets identique
-   d'un essai à l'autre. **À retirer**
-   ensuite (route, lien, clé `locket.prfTest`), et supprimer la clé d'accès « Stash (test Face ID) » du trousseau.
+   d'un essai à l'autre. Retirée avec le chantier Face ID.
 3. ~~Face ID~~ : fait le 2026-11-04. Une clé d'accès et une copie par appareil : activation dans Paramètres (mot de
    passe), copie de la DEK emballée par la clé PRF dans `localStorage` (`locket.faceId`), jamais dans Firestore ; bouton
    sur l'écran Déverrouiller. Après revue : poivre `faceIdPepper` (32 octets, trousseau Firestore, sel HKDF) pour qu'un
