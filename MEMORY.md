@@ -99,7 +99,9 @@ Faits vérifiés : récupération et changement de mot de passe testés en e2e, 
 restauration testée seulement dans le même compte.
 
 - **Fiabilité** (retenue par l'utilisateur) :
-  - [ ] e2e de restauration dans un **compte neuf** (en test : inscriptions fermées en prod) ;
+  - [x] e2e de restauration dans un **compte neuf** (en test : inscriptions fermées en prod) : fait, autre email +
+    ancienne clé de récupération, fiche, tag et image complète relus après verrouillage, ancienne clé redevenue la bonne
+    (le cas « même email, ancien mot de passe » était déjà couvert par `backup.emulator.test.ts`) ;
   - [x] protection contre l'écrasement entre appareils, étendue aux tags, aux collections et aux actions groupées
     (fait : `stale.ts` ; fiches par le jeton `meta/version` lu au chargement, catalogues par leur IV ; refus, relecture
     sans vider l'affichage, message « Recommencez » ; jeton global, donc faux conflits possibles, sans perte) ;

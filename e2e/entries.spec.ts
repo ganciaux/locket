@@ -554,6 +554,62 @@ test('sauvegarde : fichier altéré refusé, suppression totale, puis restaurati
 	await expect(page.getByRole('heading', { name: 'À garder' })).toBeVisible();
 });
 
+test('sauvegarde : restaurée dans un compte neuf avec l’ancienne clé de récupération', async ({ page }) => {
+	// Ancien compte : une collection, un tag rangé, une fiche avec image complète.
+	const { recoveryKey } = await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	await page.getByLabel('Nouvelle catégorie').fill('Genre = Action');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Catégories (1)')).toBeVisible();
+	await createEntryWithImage(page, 'Gardée');
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByRole('button', { name: 'Action' }).click();
+	await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Gardée' })).toBeVisible();
+
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Sauvegarder / restaurer' }).click();
+	const download = page.waitForEvent('download');
+	await page.getByRole('button', { name: 'Télécharger la sauvegarde' }).click();
+	const file = await readFile((await (await download).path())!);
+
+	// Tout est perdu sauf le fichier et la clé : nouveau compte, autre email, nouvelle clé.
+	await goSettings(page);
+	await page.getByRole('button', { name: 'Se déconnecter' }).click();
+	await signUp(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Sauvegarder / restaurer' }).click();
+	await page.locator('input[type=file]').setInputFiles({ name: 'sauvegarde.json', mimeType: 'application/json', buffer: file });
+	await expect(page.getByText('Fichier chiffré avec une autre clé : il sera vérifié à la restauration.')).toBeVisible();
+	await page.getByLabel(/Je comprends que le contenu actuel/).check();
+	await page.getByLabel('Mot de passe actuel').fill(PASSWORD);
+	await page.getByRole('button', { name: 'Restaurer' }).click();
+	const oldSecret = page.getByLabel("Ancien mot de passe ou clé de récupération de l'ancien compte");
+	await oldSecret.fill(recoveryKey);
+	await page.getByRole('button', { name: 'Restaurer' }).click();
+	await expect(page.getByText(/1 fiche restaurée\.\s*Votre clé de récupération valable est désormais celle de l'ancien compte\./)).toBeVisible();
+
+	// Fiche, tag et image complète relus, y compris après verrouillage avec le mot de passe du nouveau compte.
+	await lockAndUnlock(page);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await expect(page.getByRole('listitem').filter({ hasText: 'Gardée' })).toContainText('Action');
+	await page.getByRole('link', { name: 'Gardée', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Gardée' })).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Gardée' })).toBeVisible();
+
+	// L'ancienne clé de récupération ouvre désormais ce compte.
+	await goSettings(page);
+	await page.getByRole('button', { name: 'Tester ma clé' }).click();
+	await page.getByLabel('Clé à tester').fill(recoveryKey);
+	await page.getByRole('button', { name: 'Tester', exact: true }).click();
+	await expect(page.getByText('Cette clé est la bonne.')).toBeVisible();
+});
+
 test('nom unique dans la collection : signalé à la saisie, refusé à l’enregistrement', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
