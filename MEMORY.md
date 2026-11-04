@@ -126,7 +126,7 @@ restauration testée seulement dans le même compte.
     dates (appareil, partagée) ; « Plus tard » reste par appareil ; absente, illisible ou refusée = date de l'appareil.
     **Règles à déployer** (`firebase deploy --only firestore:rules`) : sinon l'écriture est refusée, sans bloquer l'export.
 - **Chantiers** (plus tard) : Face ID par PRF (page de test jetable sur iPhone d'abord), audit section par section,
-  outil autonome de déchiffrement d'une sauvegarde (sortie hors Firebase), lecture hors ligne (purge iOS d'IndexedDB
+  outil autonome de déchiffrement d’une sauvegarde (cadré, voir plus bas), lecture hors ligne (purge iOS d'IndexedDB
   et effacement du cache à la déconnexion à trancher avant).
 - **Écarté ou gelé** : nouveaux filtres et tris, classement par tag, améliorations des « similaires », ébauches
   créées depuis la comparaison ; niveaux de filtre par tag à réévaluer à l'usage.
@@ -160,3 +160,49 @@ Chantiers retenus (2026-11-04), un commit chacun, en factorisant ce qui sert plu
 - [x] CI avec émulateurs et e2e (job `e2e` de `ci.yml`, vert au premier run).
 Restent notés, non lancés : porte d'écriture avec version par document, classement dans son propre document, store
 séparant lecture et écriture.
+
+## Outil de déchiffrement d'une sauvegarde : cadré le 2026-11-04, à implémenter
+
+But : une sauvegarde reste lisible sans Stash ni Firebase (sortie hors Firebase, chantier du council).
+Plan validé, rien n'est encore codé.
+
+- **Choix de l'utilisateur** :
+  - livraison : un **fichier `.html` autonome** (JS et CSS intégrés), qui marche hors ligne sur ordinateur
+    (Chrome, Edge, Firefox) ; pas sur iPhone (un `.html` local n'y exécute pas de script), accepté ;
+  - **export en clair** sur action volontaire : bouton « Enregistrer la page en clair » avec avertissement ;
+  - contenu : fiches actives, **fiches cachées** et **collections cachées** (signalées), **corbeille** (section à
+    part en fin de collection), **rang au classement** ;
+  - intégrité en défaut : **avertir et afficher ce qui est lisible** (bandeau : fichier modifié, n pièces
+    illisibles), à l'inverse de la restauration qui refuse.
+- **Secret** : clé de récupération seule, ou email + mot de passe de l'époque (la KEK dérive des deux), comme
+  `unwrapBackupDek`.
+- **Architecture retenue** :
+  1. Noyau pur partagé avec l'app, sans Firebase :
+     - `backup/keyring.ts` (`unwrapBackupDek` sorti de `account.ts`) ;
+     - `backup/verify.ts` (`encryptedParts`, `contentHash`, contrôle du manifeste, sortis de `backup.ts`) : la
+       restauration et l'outil vérifient de la même façon ;
+     - `backup/reader.ts` : `readBackup(backup, dek)` déchiffre tout ce qui est lisible, rend collections, tags,
+       fiches (images) et la liste des problèmes d'intégrité au lieu de lever une erreur.
+  2. Outil `tools/decrypt/` : petite app Svelte, Tailwind + daisyUI comme l'app, en français. Fichier, secret, puis
+     vue par collection : image, liens (manuels et sites calculés par `entryLinks`), tags par catégorie, pays, âge,
+     note, rang. CSP en `<meta>` **sans réseau** (`connect-src 'none'`, `img-src blob: data:`).
+     Export en clair = copie de la vue affichée en `.html` statique **sans script**, images en `data:`, CSP sans script.
+  3. Build : config Vite séparée, `npm run build` produit aussi `build/stash-dechiffrer.html` (servi par Hosting) ;
+     intégration JS/CSS par un **petit plugin maison** (pas `vite-plugin-singlefile` : une dépendance de build de
+     moins, voir « À surveiller »). Lien « Télécharger l'outil de lecture » sur la page Sauvegarde.
+  4. Tests : unitaires du lecteur sur `witness-v4.json` (clé, mot de passe, fichier altéré) ; e2e Playwright qui ouvre
+     le fichier généré en `file://`, charge le témoin, saisit la clé, vérifie « Fiche témoin » et l'export en clair.
+  5. Docs : SECURITY.md (export en clair possible, seulement dans l'outil, sur action volontaire), invariant
+     « jamais d'export en clair » de CLAUDE.md précisé, MEMORY.md.
+- **Écarté** : JS pur sans Svelte (rendu à réécrire, style perdu) ; crypto dupliquée dans l'outil (deux définitions
+  du format) ; page `/decrypt` dans l'app (dépend de Stash en ligne).
+- **Découpage prévu** (un commit chacun) : extraction du noyau ; outil + build ; lien depuis la page Sauvegarde ;
+  docs. Taille visée : 100 à 200 Ko.
+
+## Ordre des prochains chantiers (proposé le 2026-11-04)
+
+1. Outil de déchiffrement d'une sauvegarde (ci-dessus).
+2. Page de test PRF jetable sur iPhone (WebAuthn, extension `prf`, dans la PWA installée) : une heure pour savoir si
+   Face ID peut déverrouiller (clé dérivée par PRF qui emballe la DEK, comme la clé de récupération).
+3. Face ID si le test est concluant ; sinon lecture hors ligne (trancher avant la purge iOS d'IndexedDB et
+   l'effacement du cache à la déconnexion).
