@@ -13,7 +13,8 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
   (Europe) stocke les documents. Pas de Cloud Functions, pas de Storage, aucun code serveur à nous.
 - **Code sensible** (~1 300 lignes, le cœur à relire) :
   - `src/lib/crypto/` : toute la crypto (Web Crypto) ;
-  - `src/lib/auth/account.ts` : inscription, connexion, changement de mot de passe, récupération ;
+  - `src/lib/auth/account.ts` : inscription, connexion, changement de mot de passe, récupération, Face ID ;
+  - `src/lib/auth/faceId.ts` : clé d'accès WebAuthn (`prf`) et copie de la DEK propre à l'appareil ;
   - `src/lib/backup/` : export et restauration ; `keyring.ts`, `verify.ts`, `reader.ts` : ouverture, contrôle et
     lecture d'une sauvegarde sans Firebase, partagés avec l'outil de lecture ;
   - `src/tools/decrypt/`, `vite.decrypt.config.ts` : outil autonome de lecture d'une sauvegarde et sa CSP ;
@@ -30,7 +31,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 | Noms et ordre des collections, modèles d'URL de leurs sites, classement de leurs fiches (ids) | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
 | Noms des tags | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |
 | Date de la dernière sauvegarde (2026-11-04) | `users/{uid}/meta/backup.data` | AES-GCM-256 avec la DEK |
-| DEK (clé de données) | Firestore, sous forme emballée (2 copies) ; en clair seulement en mémoire, non extractible | Emballée par la KEK (mot de passe) et par la clé de récupération |
+| DEK (clé de données) | Firestore, sous forme emballée (2 copies) ; une 3e sur l'appareil si Face ID est activé ; en clair seulement en mémoire, non extractible | Emballée par la KEK (mot de passe), par la clé de récupération, et par la clé de Face ID |
 | Mot de passe | Jamais stocké ni transmis | Seul un jeton dérivé est envoyé à Firebase Auth |
 | Clé de récupération | Chez l'utilisateur, hors ligne | Affichée une seule fois à l'inscription |
 
@@ -60,6 +61,15 @@ Limites de cette copie :
 
 Les sauvegardes sont toujours lues sur Firestore, jamais dans la copie.
 
+**Face ID** (2026-11-04, si activé dans les paramètres) : `localStorage` `locket.faceId` garde l'uid, l'identifiant de la
+clé d'accès et la DEK emballée par la clé de Face ID. Ni la sortie PRF ni la DEK en clair. Effacé à la déconnexion, au
+changement de compte, à la désactivation, à l'adoption d'une clé et quand la copie n'ouvre plus le compte. La clé
+d'accès « Stash » (une par activation, identifiant d'utilisateur aléatoire) vit dans le trousseau du système (iCloud
+sur iPhone, synchronisée). La clé de Face ID exige trois éléments : la clé d'accès avec Face ID (ou le code de
+l'appareil), la copie de l'appareil, et le poivre `faceIdPepper` du trousseau Firestore (32 octets aléatoires, sel
+HKDF). Aucun ne suffit seul ; Firebase ne voit que le poivre. Un nouveau mot de passe retire le poivre : toutes les
+copies, sur tous les appareils, cessent de s'ouvrir.
+
 ## 3. Chaîne de clés (résumé)
 
 ```
@@ -67,6 +77,8 @@ mot de passe + email normalisé (sel) ──PBKDF2-SHA-256, 600 000 itérations�
 maître ──HKDF "locket/kek"──► KEK (emballe la DEK)
 maître ──HKDF "locket/auth"──► jeton envoyé à Firebase Auth comme « mot de passe »
 clé de récupération (256 bits aléatoires) ──HKDF "locket/recovery"──► KEK de récupération (2e emballage)
+clé d'accès + Face ID ──WebAuthn prf, sel "locket/face-id/v1"──► 32 octets ──HKDF "locket/face-id", sel = poivre──► KEK de Face ID
+                                       (poivre : faceIdPepper du trousseau ; 3e emballage, gardé sur l'appareil seulement)
 DEK aléatoire AES-GCM-256 ──► chiffre chaque champ, IV aléatoire de 12 octets à chaque écriture,
                               AAD = "<id>/<champ>" (data, thumb, image), "meta/tags" ou "meta/collections"
 sauvegarde v4 : manifeste chiffré par la DEK, AAD "backup/manifest" (compteurs, date, pièces écartées, SHA-256 de tout le contenu, trousseau compris)
@@ -85,6 +97,8 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
 | **Script injecté dans la page** (XSS) | Pendant la session : utiliser la DEK pour tout déchiffrer et exfiltrer | — | CSP stricte (scripts du site et hash SvelteKit seulement) ; aucun `{@html}` ; liens limités à http(s). `connect-src` n'est pas une barrière de sortie : Firestore accepte aussi un projet tiers, et une navigation reste possible |
 | **Dépendance npm compromise** (chaîne d'approvisionnement) | Tout : son code est servi par le site lui-même, la CSP ne l'arrête pas | — | Peu de dépendances, `package-lock.json`, `npm audit` (voir § 7) |
 | **PC laissé déverrouillé** | Les fiches tant que la session est ouverte | Après le verrouillage auto : le contenu, qui exige le mot de passe. La session Firebase reste ouverte : il peut lire `wrappedDek` ou effacer via un client modifié | Verrouillage après inactivité (5 min par défaut) ; DEK en mémoire seulement ; mot de passe pour les actions destructrices de l'app |
+| **Téléphone volé dont on connaît le code** (Face ID activé) | En ligne : déverrouiller Stash comme le propriétaire (iOS propose le code en secours de Face ID). En exécutant son propre JavaScript sur l'origine (Inspecteur web depuis un Mac), la **DEK brute, durablement** : elle ne change jamais | Hors ligne : rien, le poivre est dans Firestore. Rien non plus après un changement de mot de passe fait depuis un autre appareil (poivre retiré, sessions révoquées) | Option désactivée par défaut, mot de passe exigé pour l'activer, avertissement dans les paramètres. **Appareil perdu : changer de mot de passe au plus vite** |
+| **Script injecté, Face ID activé** | En plus du XSS ci-dessus : avec un seul Face ID accepté (une invite qui paraît normale), la **DEK brute, durablement**, valable pour les données futures, même après un changement de mot de passe | — | Comme pour le XSS ; seule une recréation du compte (nouvelle DEK) répare |
 | **Site tiers qui intègre l'app** (clickjacking) | — | — | `frame-ancestors 'none'` |
 
 ## 5. Limites connues et acceptées
@@ -158,6 +172,13 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
   suppression totale ne contrôlent pas : elles remplacent tout volontairement. Reste : le jeton est global, une écriture
   sur une autre fiche suffit à refuser (faux conflit, sans perte) ; et un client qui ne change pas le jeton (ancienne
   version de l'app, client modifié) n'est pas vu, comme pour le cache (§ 3).
+- **Face ID** (2026-11-04) : le niveau de protection devient celui du verrouillage du téléphone, et la DEK devient
+  extractible pour du code qui s'exécute sur l'origine avec un Face ID accepté (§ 4). Une adoption de clé remplace le
+  trousseau, poivre compris : les copies d'avant ne s'ouvrent plus. Défense en plus : après Face ID, la DEK doit
+  ouvrir le sceau `keyringCheck` ; sinon la copie est effacée et le mot de passe redemandé (un sceau retiré ou remplacé
+  désactive donc aussi Face ID, sans danger). Un poivre remis en arrière avec un ancien sceau relève du « retour en
+  arrière non détecté » ci-dessus. Changer de clé de récupération ne touche pas Face ID. Désactiver laisse la clé
+  d'accès dans le trousseau, sans usage (à supprimer à la main) ; chaque activation en crée une nouvelle.
 - **Aperçu iOS** : le sélecteur d'apps peut montrer une capture de l'écran déverrouillé.
 
 ## 6. Plan d'audit
@@ -223,6 +244,7 @@ Résultats attendus et avertissements déjà triés : voir le journal (§ 7). Y 
 | 2026-11-03 | OWASP ZAP baseline (passif, sans connexion, après déploiement) | Identique au 2026-10-30 : 0 FAIL, 62 PASS, 6 WARN déjà triés, aucun exploitable. « Dangerous JS Functions » : revérifié dans le chunk en ligne, toujours la méthode `eval` du moteur de regex embarqué (aucun vrai `eval` ni `new Function`). Cache (`immutable` voulu), Timestamp, Modern Web Application : informatifs. COEP : écarté. |
 | 2026-11-04 | Agent `security-reviewer` (revue statique, non indépendante) sur l'outil de lecture | Aucun accès au clair ni fuite de clé ; restauration toujours vérifiée en entier avant écriture, DEK non extractible dans l'outil, pas d'injection depuis une sauvegarde, page en clair sans script. Corrigés : mot de passe rogné par l'outil (un espace au bord l'empêchait d'ouvrir), CSP qui pouvait disparaître sans erreur de build, outil servi comme l'app s'il manquait ou exécutable sur l'origine de l'app, préchargement DNS des liens, date non authentifiée affichée, conseil de rangement (outil remplaçable dans un dossier synchronisé, § 4). |
 | 2026-11-04 | Tests (outil de lecture) | Lecteur testé sur le témoin v4 (clé, mot de passe, mauvais secret, pièce altérée, fiche retirée) ; e2e de l'outil généré ouvert en `file://` : aucune erreur de CSP dans la console, page en clair sans `<script>` rouverte sans erreur ; bundle de l'outil sans Firebase. |
+| 2026-11-04 | Agent `security-reviewer` (revue statique, non indépendante) sur Face ID | DEK non extractible au déverrouillage, sortie PRF ni gardée ni affichée, copie liée à l'uid et effacée à la déconnexion. Corrigés : copie ouvrable hors ligne sur un téléphone volé (poivre `faceIdPepper` dans le trousseau, retiré à chaque nouveau mot de passe), clé d'accès remplacée par l'activation d'un 2e appareil iCloud (identifiant d'utilisateur aléatoire), copie gardée après une adoption de clé, déverrouillage possible après une déconnexion pendant l'invite, docs qui sous-estimaient le XSS (DEK brute obtenue avec un Face ID accepté, § 4). Tests : e2e avec l'authentificateur virtuel PRF de Chrome (activation, réouverture, désactivation, nouveau mot de passe, déconnexion), règles du poivre sur émulateur. |
 | 2026-11-03 | Mozilla Observatory, securityheaders.com (après déploiement) | **A+** aux deux : Observatory 135/100, 12 tests sur 12 (+10 depuis le 2026-10-30, grâce à `Cross-Origin-Opener-Policy: same-origin`). securityheaders : CSP d'en-tête (`frame-ancestors`, `object-src`, `base-uri`), Permissions-Policy, Referrer-Policy, HSTS preload, nosniff, COOP. Restent suggérés et écartés comme avant : SRI (scripts du même site), COEP et CORP. |
 | 2026-11-03 | `npm audit`, bundle de prod, agent `security-reviewer` (revue statique, non indépendante) sur l'état de HEAD | `npm audit --omit=dev` : les 4 « high » gRPC déjà triées, rien de nouveau ; 29 autres dans les outils de dev seulement. Bundle : aucun code d'émulateur, CSP inchangée, pas de vrai `eval`. Revue : aucun accès au clair ni fuite de clé ; règles, cache IndexedDB, clés, sauvegarde, AAD/IV, nouveaux champs, import et CSP vérifiés. Corrigés : sceau de `recoveryDek` reposé quand il était absent (un accès en écriture pouvait faire sceller un `recoveryDek` remplacé ; désormais signalé, et les règles interdisent de le retirer), import interrompu qui recréait des doublons à la relance (liste relue, 2 000 lignes au plus), modèle d'import en clair non signalé (avertissement, § 5). Reste ouvert : écrasement entre appareils (§ 5, AUDIT.md). Scans en ligne à refaire après le prochain déploiement. |
 | 2026-10-29 | Bundle de prod | Aucun code d'émulateur (`demo-locket`, `127.0.0.1`) ; CSP en `<meta>` avec le hash du script de démarrage vérifié. |

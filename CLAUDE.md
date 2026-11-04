@@ -58,6 +58,10 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - Cache local (`cache.ts`) : chiffrés uniquement, tels que dans Firestore ; jamais de clé, de donnée déchiffrée
   ni d'image complète. Effacé à la déconnexion, y compris une session terminée sans `signOut`.
   Une copie indéchiffrable entraîne une relecture de Firestore, jamais une fiche « illisible » (sa suppression agirait sur le serveur).
+- Face ID (`faceId.ts`) : seule exception au « jamais de clé » local, la DEK **emballée** par la clé de Face ID (PRF,
+  salée par le poivre `faceIdPepper` du trousseau), dans `localStorage`, jamais dans Firebase ; ni la sortie PRF ni la
+  DEK en clair. Effacée à la déconnexion, au changement de compte et à l'adoption d'une clé ; un nouveau mot de passe
+  retire le poivre (Face ID désactivé partout) ; une DEK qui n'ouvre pas le sceau `keyringCheck` est refusée.
 - Sauvegarde : uniquement des documents chiffrés (base64 dans le fichier) ; jamais d'export en clair depuis l'app.
   Seul l'outil de lecture (`src/tools/decrypt/`) enregistre une page en clair : sur action volontaire et avertie,
   sans aucun script, hors ligne (sa CSP n'a aucun réseau).

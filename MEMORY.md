@@ -125,7 +125,7 @@ restauration testée seulement dans le même compte.
     (AAD `meta/backup`), écrite après chaque export complet ; le rappel et la page Sauvegarde prennent la plus récente des
     dates (appareil, partagée) ; « Plus tard » reste par appareil ; absente, illisible ou refusée = date de l'appareil.
     **Règles à déployer** (`firebase deploy --only firestore:rules`) : sinon l'écriture est refusée, sans bloquer l'export.
-- **Chantiers** (plus tard) : Face ID par PRF (page de test jetable sur iPhone d'abord), audit section par section,
+- **Chantiers** (plus tard) : audit section par section,
   lecture hors ligne (purge iOS d'IndexedDB
   et effacement du cache à la déconnexion à trancher avant).
 - **Écarté ou gelé** : nouveaux filtres et tris, classement par tag, améliorations des « similaires », ébauches
@@ -210,5 +210,14 @@ Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify
    **Concluant sur iPhone le 2026-11-04** (iOS 18.7, PWA installée) : `prf` annoncée, sortie de 32 octets identique
    d'un essai à l'autre. **À retirer**
    ensuite (route, lien, clé `locket.prfTest`), et supprimer la clé d'accès « Stash (test Face ID) » du trousseau.
-3. Face ID si le test est concluant ; sinon lecture hors ligne (trancher avant la purge iOS d'IndexedDB et
-   l'effacement du cache à la déconnexion).
+3. ~~Face ID~~ : fait le 2026-11-04. Une clé d'accès et une copie par appareil : activation dans Paramètres (mot de
+   passe), copie de la DEK emballée par la clé PRF dans `localStorage` (`locket.faceId`), jamais dans Firestore ; bouton
+   sur l'écran Déverrouiller. Après revue : poivre `faceIdPepper` (32 octets, trousseau Firestore, sel HKDF) pour qu'un
+   téléphone volé hors ligne n'en tire rien, retiré à chaque nouveau mot de passe (Face ID désactivé partout) ;
+   identifiant d'utilisateur aléatoire (avec l'uid, un 2e appareil iCloud remplaçait la clé d'accès du 1er) ; sceau
+   `keyringCheck` contrôlé en plus. Limite acceptée : une XSS ou un voleur qui exécute du JS avec un Face ID accepté
+   obtient la DEK brute (SECURITY.md § 4). **Règles Firestore à déployer** (`faceIdPepper`), sinon l'activation est
+   refusée. Écartés : copie dans Firestore, mot de passe redemandé tous les 30 jours (à reconsidérer à l'usage).
+   Page de test `/prf-test` retirée.
+   **À faire par l'utilisateur** : supprimer la clé d'accès « Stash (test Face ID) » de Réglages › Mots de passe.
+4. Lecture hors ligne (trancher avant la purge iOS d'IndexedDB et l'effacement du cache à la déconnexion).
