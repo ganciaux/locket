@@ -1,0 +1,23 @@
+/* Seuls les fichiers de l'outil sont analysés : le CSS de l'app n'y entre pas, le fichier reste léger. */
+@import 'tailwindcss' source('./');
+
+@plugin 'daisyui' {
+	themes:
+		light --default,
+		dark --prefersdark;
+}
+
+/* Accent de l'app (voir src/app.css). */
+@plugin 'daisyui/theme' {
+	name: 'light';
+	default: true;
+	--color-primary: oklch(44% 0.17 22);
+	--color-primary-content: oklch(98% 0.01 22);
+}
+
+@plugin 'daisyui/theme' {
+	name: 'dark';
+	prefersdark: true;
+	--color-primary: oklch(64% 0.19 25);
+	--color-primary-content: oklch(20% 0.06 22);
+}

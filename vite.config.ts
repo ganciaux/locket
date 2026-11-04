@@ -30,8 +30,9 @@ export default defineConfig({
 			},
 			workbox: {
 				globPatterns: ['client/**/*.{js,css,html,svg,png,jpg,webmanifest}'],
-				// Chemins réservés de Firebase Hosting (/__/auth/...) : jamais servis par l'app.
-				navigateFallbackDenylist: [/^\/__\//]
+				// Chemins réservés de Firebase Hosting (/__/auth/...) et outil de lecture des sauvegardes : jamais servis
+				// par l'app.
+				navigateFallbackDenylist: [/^\/__\//, /^\/stash-dechiffrer\.html$/]
 			}
 		})
 	],
