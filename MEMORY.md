@@ -219,4 +219,12 @@ Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify
    refusée. Écartés : copie dans Firestore, mot de passe redemandé tous les 30 jours (à reconsidérer à l'usage).
    Page de test `/prf-test` retirée.
    **À faire par l'utilisateur** : supprimer la clé d'accès « Stash (test Face ID) » de Réglages › Mots de passe.
-4. Lecture hors ligne (trancher avant la purge iOS d'IndexedDB et l'effacement du cache à la déconnexion).
+4. Lecture hors ligne : seulement sur besoin réel (proposé le 2026-11-04, en attente de la réponse de l'utilisateur).
+   À trancher avant : purge iOS d'IndexedDB, effacement du cache à la déconnexion, Face ID qui lit le trousseau en
+   ligne (déverrouillage hors ligne par mot de passe à prévoir).
+
+**Reste à faire au 2026-11-04** (ordre proposé) : déployer les règles Firestore (`faceIdPepper`, sinon « Accès
+refusé » à l'activation de Face ID) puis tester Face ID sur l'iPhone ; supprimer la clé d'accès « Stash (test Face
+ID) » ; test de l'email de réinitialisation externe (AUDIT.md § 1) ; scans en ligne à refaire après déploiement ;
+plus tard : audit indépendant, empreinte SHA-256 de l'outil s'il circule, mot de passe tous les 30 jours avec Face ID
+à reconsidérer à l'usage.

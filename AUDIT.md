@@ -27,6 +27,8 @@ vont dans [MEMORY.md](MEMORY.md).
       refuser une réécriture de `data` (fiche, action groupée, import) s'il a changé, puis relire la liste et demander de
       recommencer. Voir [SECURITY.md](SECURITY.md) § 5. *Intermédiaire.*
 - [ ] **Audit de sécurité réel** : plan en 3 niveaux et journal dans [SECURITY.md](SECURITY.md) (2026-10-29).
+- [ ] **Scans en ligne à refaire** (OWASP ZAP baseline, Mozilla Observatory, securityheaders.com) après le déploiement
+      de l'outil de lecture et de Face ID (2026-11-04), résultat à noter dans le journal de [SECURITY.md](SECURITY.md). *Simple.*
 
 ## 2. Confort
 
@@ -100,7 +102,9 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
 
 - [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
       le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
-- [ ] **Lecture hors ligne** avec le cache Firestore (chiffrés seulement) : à réévaluer, comportement iPhone à vérifier. *Intermédiaire.*
+- [ ] **Lecture hors ligne** avec le cache (chiffrés seulement) : seulement si un vrai besoin apparaît (métro, avion).
+      À trancher avant : purge iOS du stockage, cache effacé à la déconnexion, Face ID qui lit le trousseau en ligne
+      (il faudrait un déverrouillage hors ligne par mot de passe). *Intermédiaire.*
 - [x] **Date de dernière sauvegarde** synchronisée entre appareils, chiffrée — fait (`lastBackup.ts`). *Simple.*
 
 ## Écarté
