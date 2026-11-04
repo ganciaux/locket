@@ -1,4 +1,4 @@
-# Types, tests unitaires et build à chaque push et sur les propositions de Dependabot.
+# Types, tests unitaires et build, puis intégration et e2e sur émulateurs, à chaque push et sur les propositions de Dependabot.
 # Sans secret ni accès à Firebase : la configuration vient du modèle `.env.example`.
 name: CI
 
@@ -24,3 +24,32 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
+
+  # Tests d'intégration et parcours Playwright contre les émulateurs (projet fictif `demo-locket`), jamais la prod.
+  # Chrome est déjà installé sur ubuntu-latest (`channel: 'chrome'`) ; Java 21 est exigé par firebase-tools.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+      - run: npm ci
+      - run: cp .env.example .env
+      - run: npx firebase emulators:exec --only auth,firestore --project demo-locket "npm run test:emulators && npx playwright test"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

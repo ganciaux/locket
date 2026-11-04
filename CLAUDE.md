@@ -22,6 +22,7 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - `npm run test:e2e` : parcours Playwright dans Chrome (`e2e/`), démarre les émulateurs ; jamais contre la prod
 - `npm run check` : svelte-check (types)
 - `npm run build` : build statique dans `build/`
+- CI (`.github/workflows/ci.yml`) : job `check` (types, tests unitaires, build) et job `e2e` (intégration + Playwright sur émulateurs)
 
 ## Environnement
 - Node ≥ 24.12 exigé par le SDK `firebase` (`.nvmrc`).
