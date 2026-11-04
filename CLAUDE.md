@@ -39,6 +39,8 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - `src/lib/entries/cache.ts` : copie IndexedDB des fiches chiffrées, valide tant que le jeton `meta/version` n'a pas changé.
 - `firebase.json` : Hosting (cache, en-têtes de sécurité dont `frame-ancestors`), émulateurs.
 - `svelte.config.js` : CSP (`kit.csp` en `<meta>`, hash du script de démarrage recalculé à chaque build).
+- `src/tools/decrypt/` : outil autonome de lecture d'une sauvegarde, un seul `.html` (`vite.decrypt.config.ts`,
+  `build/stash-dechiffrer.html`), qui réutilise `src/lib/backup/` et le modèle pur, jamais Firebase.
 
 ## Invariants de sécurité (ne jamais casser)
 - Aucun `console.*` de donnée déchiffrée, mot de passe, jeton ou clé.
@@ -56,7 +58,9 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - Cache local (`cache.ts`) : chiffrés uniquement, tels que dans Firestore ; jamais de clé, de donnée déchiffrée
   ni d'image complète. Effacé à la déconnexion, y compris une session terminée sans `signOut`.
   Une copie indéchiffrable entraîne une relecture de Firestore, jamais une fiche « illisible » (sa suppression agirait sur le serveur).
-- Sauvegarde : uniquement des documents chiffrés (base64 dans le fichier) ; jamais d'export en clair.
+- Sauvegarde : uniquement des documents chiffrés (base64 dans le fichier) ; jamais d'export en clair depuis l'app.
+  Seul l'outil de lecture (`src/tools/decrypt/`) enregistre une page en clair : sur action volontaire et avertie,
+  sans aucun script, hors ligne (sa CSP n'a aucun réseau).
   Tout id lu depuis un fichier est validé avant de servir de chemin Firestore.
   Une sauvegarde est vérifiée en entier (déchiffrement, manifeste) avant la première écriture.
 - Ne jamais utiliser `sendPasswordResetEmail` : sa page hébergée par Firebase recevrait le vrai mot de passe.

@@ -126,7 +126,7 @@ restauration testée seulement dans le même compte.
     dates (appareil, partagée) ; « Plus tard » reste par appareil ; absente, illisible ou refusée = date de l'appareil.
     **Règles à déployer** (`firebase deploy --only firestore:rules`) : sinon l'écriture est refusée, sans bloquer l'export.
 - **Chantiers** (plus tard) : Face ID par PRF (page de test jetable sur iPhone d'abord), audit section par section,
-  outil autonome de déchiffrement d’une sauvegarde (cadré, voir plus bas), lecture hors ligne (purge iOS d'IndexedDB
+  lecture hors ligne (purge iOS d'IndexedDB
   et effacement du cache à la déconnexion à trancher avant).
 - **Écarté ou gelé** : nouveaux filtres et tris, classement par tag, améliorations des « similaires », ébauches
   créées depuis la comparaison ; niveaux de filtre par tag à réévaluer à l'usage.
@@ -161,10 +161,10 @@ Chantiers retenus (2026-11-04), un commit chacun, en factorisant ce qui sert plu
 Restent notés, non lancés : porte d'écriture avec version par document, classement dans son propre document, store
 séparant lecture et écriture.
 
-## Outil de déchiffrement d'une sauvegarde : cadré le 2026-11-04, à implémenter
+## Outil de déchiffrement d'une sauvegarde : cadré et fait le 2026-11-04
 
 But : une sauvegarde reste lisible sans Stash ni Firebase (sortie hors Firebase, chantier du council).
-Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify.ts` (`inspectBackup` → `integrityProblems` pour l'outil, `verifyBackup` pour la restauration), `backup/reader.ts`, testés sur le témoin. **Étape 2 faite** : outil dans `src/tools/decrypt/` (plutôt que `tools/`, pour la vérification des types et les tests), vue pure `backup/readerView.ts`, build `vite.decrypt.config.ts` (plugin `singleFile`, CSP par empreintes, `connect-src blob:` car Chrome contrôle une image blob: d'une page `file://` par connect-src), ~125 Ko ; `npm run build` le produit, le service worker l'exclut de sa navigation ; e2e `decrypt-tool.spec.ts` en `file://`. **Étape 3 faite** : section « Lire sans Stash » de la page Sauvegarde, lien `download` + `rel="external"` vers `/stash-dechiffrer.html`.
+Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify.ts` (`inspectBackup` → `integrityProblems` pour l'outil, `verifyBackup` pour la restauration), `backup/reader.ts`, testés sur le témoin. **Étape 2 faite** : outil dans `src/tools/decrypt/` (plutôt que `tools/`, pour la vérification des types et les tests), vue pure `backup/readerView.ts`, build `vite.decrypt.config.ts` (plugin `singleFile`, CSP par empreintes, `connect-src blob:` car Chrome contrôle une image blob: d'une page `file://` par connect-src), ~125 Ko ; `npm run build` le produit, le service worker l'exclut de sa navigation ; e2e `decrypt-tool.spec.ts` en `file://`. **Étape 4 faite** : SECURITY.md (§ 1, § 4, § 5 « Outil de lecture » et « Page en clair », journal), invariant de CLAUDE.md précisé, README. **Étape 3 faite** : section « Lire sans Stash » de la page Sauvegarde, lien `download` + `rel="external"` vers `/stash-dechiffrer.html`.
 
 - **Choix de l'utilisateur** :
   - livraison : un **fichier `.html` autonome** (JS et CSS intégrés), qui marche hors ligne sur ordinateur
@@ -201,7 +201,7 @@ Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify
 
 ## Ordre des prochains chantiers (proposé le 2026-11-04)
 
-1. Outil de déchiffrement d'une sauvegarde (ci-dessus).
+1. ~~Outil de déchiffrement d'une sauvegarde~~ : fait le 2026-11-04 (ci-dessus).
 2. Page de test PRF jetable sur iPhone (WebAuthn, extension `prf`, dans la PWA installée) : une heure pour savoir si
    Face ID peut déverrouiller (clé dérivée par PRF qui emballe la DEK, comme la clé de récupération).
 3. Face ID si le test est concluant ; sinon lecture hors ligne (trancher avant la purge iOS d'IndexedDB et

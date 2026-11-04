@@ -14,7 +14,9 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 - **Code sensible** (~1 300 lignes, le cœur à relire) :
   - `src/lib/crypto/` : toute la crypto (Web Crypto) ;
   - `src/lib/auth/account.ts` : inscription, connexion, changement de mot de passe, récupération ;
-  - `src/lib/backup/` : export et restauration ;
+  - `src/lib/backup/` : export et restauration ; `keyring.ts`, `verify.ts`, `reader.ts` : ouverture, contrôle et
+    lecture d'une sauvegarde sans Firebase, partagés avec l'outil de lecture ;
+  - `src/tools/decrypt/`, `vite.decrypt.config.ts` : outil autonome de lecture d'une sauvegarde et sa CSP ;
   - `src/lib/entries/repository.ts`, `src/lib/entries/catalog.ts` : écriture dans Firestore ;
   - `src/lib/entries/cache.ts` : copie locale des chiffrés ;
   - `firestore.rules`, `firebase.json` (en-têtes), `svelte.config.js` (CSP).
@@ -77,7 +79,7 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
 |---|---|---|---|
 | **Accès aux données Firebase** (fuite, compte console compromis, Google) | Les chiffrés et les métadonnées de la section 2 ; il peut effacer ou remplacer des documents | Le contenu ; il ne peut pas déplacer un chiffré d'une fiche ou d'un champ à l'autre (AAD) | AES-GCM + AAD ; sauvegardes chiffrées hors ligne |
 | **Même attaquant, attaque hors ligne** sur la DEK emballée | Peut tester des mots de passe à 600 000 itérations PBKDF2 chacun | Rien si le mot de passe est fort ; la clé de récupération (256 bits) est hors de portée | 12 caractères minimum ; PBKDF2 600k |
-| **Vol du fichier de sauvegarde** | Comme ci-dessus, plus l'emballage **avec le mot de passe en vigueur au moment de l'export** | Le contenu sans ce mot de passe ou la clé de récupération | Fichier chiffré, aucun export en clair |
+| **Vol du fichier de sauvegarde** | Comme ci-dessus, plus l'emballage **avec le mot de passe en vigueur au moment de l'export** | Le contenu sans ce mot de passe ou la clé de récupération | Fichier chiffré ; l'app n'exporte rien en clair, seul l'outil de lecture enregistre une page en clair, sur demande (§ 5) |
 | **Contrôle de la boîte email** | Se connecter à Firebase par lien email, donc lire les chiffrés, et **effacer** ou corrompre les données | Le contenu sans le mot de passe : la récupération exige la clé, mais il lit `wrappedDek` et peut tester des mots de passe hors ligne (ligne ci-dessus) | Récupération = lien + clé ; jamais `sendPasswordResetEmail` ; sauvegardes ; règles Firestore (types, emplacements, trousseau non supprimable) ; sceau de `recoveryDek` |
 | **Script injecté dans la page** (XSS) | Pendant la session : utiliser la DEK pour tout déchiffrer et exfiltrer | — | CSP stricte (scripts du site et hash SvelteKit seulement) ; aucun `{@html}` ; liens limités à http(s). `connect-src` n'est pas une barrière de sortie : Firestore accepte aussi un projet tiers, et une navigation reste possible |
 | **Dépendance npm compromise** (chaîne d'approvisionnement) | Tout : son code est servi par le site lui-même, la CSP ne l'arrête pas | — | Peu de dépendances, `package-lock.json`, `npm audit` (voir § 7) |
@@ -129,7 +131,19 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
   retirer.
 - **Modèle d'import en clair** : « Partir de mes fiches » (import d'un tableau) met noms, pays, années, notes et tags
   de la collection en clair dans la zone de texte, puis dans le presse-papiers ou un tableur si on les y copie, où ils
-  peuvent être synchronisés. Seule sortie en clair, voulue et signalée sur la page ; rien n'est envoyé par l'app.
+  peuvent être synchronisés. Sortie en clair voulue et signalée sur la page ; rien n'est envoyé par l'app. L'autre
+  sortie en clair est la page enregistrée par l'outil de lecture (ci-dessous).
+- **Outil de lecture d'une sauvegarde** (2026-11-04, `src/tools/decrypt/`, `build/stash-dechiffrer.html`) : un fichier
+  autonome qui ouvre une sauvegarde avec la clé de récupération, ou l'email et le mot de passe de l'époque, hors ligne
+  et sans Firebase. Sa CSP (dans le fichier) : `default-src 'none'`, script et style par empreinte, images `blob:` et
+  `data:`, `connect-src blob:` seulement (Chrome contrôle par `connect-src` une image `blob:` d'une page `file://`) :
+  aucun réseau. Il est servi par Hosting, comme l'app : un fichier téléchargé une fois et gardé avec les sauvegardes ne
+  dépend plus du serveur, un fichier retéléchargé lui fait confiance (première limite ci-dessus). À l'inverse de la
+  restauration, un fichier altéré est lu quand même, défauts signalés en tête : on récupère ce qui est lisible. La DEK
+  y est non extractible. Ne marche pas sur iPhone (un `.html` local n'y exécute pas de script).
+- **Page en clair** de l'outil : sur action volontaire, après un avertissement, la vue affichée est enregistrée en
+  `.html` **sans aucun script** (CSP : son style par empreinte, images `data:`), miniatures ou images complètes au
+  choix. Quiconque obtient ce fichier lit tout, sans secret : à garder en lieu sûr et à supprimer après usage.
 - **Écrasement entre appareils** (corrigé le 2026-11-04, `stale.ts`) : une écriture part de la copie en mémoire. Elle
   est refusée si un autre appareil a écrit depuis le chargement : jeton `meta/version` comparé dans la transaction de
   chaque écriture de fiche (fiche, action groupée, import, Tagger), IV du catalogue comparé dans celle de chaque
@@ -200,6 +214,7 @@ Résultats attendus et avertissements déjà triés : voir le journal (§ 7). Y 
 | 2026-10-30 | Mozilla Observatory, securityheaders.com | **A+** aux deux : Observatory 125/100, 12 tests sur 12, CSP `<meta>` reconnue (`default-src 'self'`, pas de `unsafe`). `Cross-Origin-Opener-Policy: same-origin` ajouté ensuite. COEP et CORP écartés (non nécessaires, COEP pourrait gêner Firestore). SRI sans objet : tous les scripts viennent du site. |
 | 2026-10-30 | Fichier de sauvegarde altéré à la main | Bug trouvé : seule la 1re fiche était vérifiée, le reste écrasait des fiches saines, et l'erreur vide de Web Crypto sous Chrome laissait le loader tourner. Corrigé : tout le fichier est déchiffré avant la première écriture, y compris pour l'adoption du trousseau. Le manifeste chiffré (format v3) couvre aussi les pièces retirées, les métadonnées et le trousseau, et le contrôle a lieu dès le choix du fichier. |
 | 2026-11-03 | OWASP ZAP baseline (passif, sans connexion, après déploiement) | Identique au 2026-10-30 : 0 FAIL, 62 PASS, 6 WARN déjà triés, aucun exploitable. « Dangerous JS Functions » : revérifié dans le chunk en ligne, toujours la méthode `eval` du moteur de regex embarqué (aucun vrai `eval` ni `new Function`). Cache (`immutable` voulu), Timestamp, Modern Web Application : informatifs. COEP : écarté. |
+| 2026-11-04 | Tests (outil de lecture) | Lecteur testé sur le témoin v4 (clé, mot de passe, mauvais secret, pièce altérée, fiche retirée) ; e2e de l'outil généré ouvert en `file://` : aucune erreur de CSP dans la console, page en clair sans `<script>` rouverte sans erreur ; bundle de l'outil sans Firebase. |
 | 2026-11-03 | Mozilla Observatory, securityheaders.com (après déploiement) | **A+** aux deux : Observatory 135/100, 12 tests sur 12 (+10 depuis le 2026-10-30, grâce à `Cross-Origin-Opener-Policy: same-origin`). securityheaders : CSP d'en-tête (`frame-ancestors`, `object-src`, `base-uri`), Permissions-Policy, Referrer-Policy, HSTS preload, nosniff, COOP. Restent suggérés et écartés comme avant : SRI (scripts du même site), COEP et CORP. |
 | 2026-11-03 | `npm audit`, bundle de prod, agent `security-reviewer` (revue statique, non indépendante) sur l'état de HEAD | `npm audit --omit=dev` : les 4 « high » gRPC déjà triées, rien de nouveau ; 29 autres dans les outils de dev seulement. Bundle : aucun code d'émulateur, CSP inchangée, pas de vrai `eval`. Revue : aucun accès au clair ni fuite de clé ; règles, cache IndexedDB, clés, sauvegarde, AAD/IV, nouveaux champs, import et CSP vérifiés. Corrigés : sceau de `recoveryDek` reposé quand il était absent (un accès en écriture pouvait faire sceller un `recoveryDek` remplacé ; désormais signalé, et les règles interdisent de le retirer), import interrompu qui recréait des doublons à la relance (liste relue, 2 000 lignes au plus), modèle d'import en clair non signalé (avertissement, § 5). Reste ouvert : écrasement entre appareils (§ 5, AUDIT.md). Scans en ligne à refaire après le prochain déploiement. |
 | 2026-10-29 | Bundle de prod | Aucun code d'émulateur (`demo-locket`, `127.0.0.1`) ; CSP en `<meta>` avec le hash du script de démarrage vérifié. |

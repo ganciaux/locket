@@ -93,6 +93,10 @@ d'accueil puis l'ajouter à nouveau. Les données ne sont pas touchées, elles s
 - **La sauvegarde** (Paramètres > Sauvegarde) produit un fichier **chiffré**. Avec la clé de récupération ou l'ancien
   mot de passe, il permet de tout restaurer, même dans un compte recréé. Le plan Spark ne sauvegarde rien de lui-même :
   l'app le rappelle tous les 30 jours.
+- **L'outil de lecture** (Paramètres > Sauvegarde > « Lire sans Stash ») est un fichier `.html` autonome à garder avec
+  les sauvegardes : ouvert hors ligne dans Chrome, Edge ou Firefox sur un ordinateur, il affiche le contenu d'une
+  sauvegarde sans Stash ni Firebase, et peut l'enregistrer en clair sur demande. `npm run build` le produit dans
+  `build/stash-dechiffrer.html`.
 - **L'app se verrouille** après 5 minutes d'inactivité (réglable dans Paramètres) : le mot de passe est alors
   redemandé.
 
