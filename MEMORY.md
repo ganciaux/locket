@@ -114,7 +114,9 @@ restauration testée seulement dans le même compte.
 - **Quick wins** (lecture seule, retenus) :
   - [x] filtre actif résumé en clair (`describeFilter`) : ligne sous les filtres de « Mes fiches », un morceau par
     critère relié par « et », valeurs en « ou » (« Pays : Brésil ou Sans pays et Genre : Action ou Non renseigné ») ;
-  - [ ] suggestions de tags dans le Tagger, depuis les fiches ressemblantes ;
+  - [x] suggestions de tags dans le Tagger, depuis les fiches ressemblantes (`suggestTags`) : jusqu'à 6 pastilles
+    « + tag » au-dessus du choix, chaque tag pondéré par la somme des scores des fiches qui le portent ; calcul local
+    (`findSimilar`, image, nom, pays), rien sans image ni tag de part et d'autre ;
   - [ ] page Statistiques ;
   - [ ] date de dernière sauvegarde synchronisée.
 - **Chantiers** (plus tard) : Face ID par PRF (page de test jetable sur iPhone d'abord), audit section par section,

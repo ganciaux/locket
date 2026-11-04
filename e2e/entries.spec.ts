@@ -1551,3 +1551,39 @@ test('mode Tagger : file des fiches sans tag, enregistrer et suivante, navigatio
 	await expect(page.getByRole('listitem').filter({ hasText: 'Charlie' })).toContainText('Action');
 	await expect(page.getByRole('listitem').filter({ hasText: 'Bravo' })).toContainText('Drame');
 });
+
+test('mode Tagger : tags suggérés par les fiches ressemblantes', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	await page.getByLabel('Nouvelle catégorie').fill('Genre = Action, Drame');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Catégories (1)')).toBeVisible();
+
+	// Même image : Bravo ressemble à Alpha, qui porte « Action ».
+	await createEntryWithImage(page, 'Alpha');
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByRole('button', { name: 'Action' }).click();
+	await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Alpha' })).toBeVisible();
+	await createEntryWithImage(page, 'Bravo');
+
+	await goHome(page);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await page.getByRole('button', { name: 'Tagger' }).click();
+	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
+	const suggested = page.getByRole('group', { name: 'Tags suggérés' });
+	await suggested.getByRole('button', { name: 'Ajouter Action' }).click();
+	await expect(page.getByRole('group', { name: 'Tags de la fiche' }).getByRole('button', { name: 'Action' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await expect(suggested).toHaveCount(0);
+	await page.getByRole('button', { name: 'Enregistrer et terminer' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await expect(page.getByRole('listitem').filter({ hasText: 'Bravo' })).toContainText('Action');
+});

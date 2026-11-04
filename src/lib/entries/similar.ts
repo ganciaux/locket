@@ -85,3 +85,14 @@ export async function findSimilar<T extends EntrySummary>(entry: T, candidates: 
 	}
 	return scored.sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
 }
+
+/**
+ * Tags à proposer d'après les fiches ressemblantes : chaque tag reçoit la somme des scores des fiches qui le portent,
+ * les plus proches et les plus fréquents d'abord. Ceux de `exclude` (déjà posés) sont écartés.
+ */
+export function suggestTags(similar: { score: number; tagIds?: string[] }[], exclude: string[], limit = 6): string[] {
+	const weights = new Map<string, number>();
+	for (const { score, tagIds } of similar)
+		for (const id of tagIds ?? []) if (!exclude.includes(id)) weights.set(id, (weights.get(id) ?? 0) + score);
+	return [...weights].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => id);
+}

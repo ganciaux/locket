@@ -9,6 +9,7 @@
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { countryFlag, countryName, formatAge, neighbours } from '$lib/entries/model';
 	import { changeEntriesTags, entries, loadEntries } from '$lib/entries/store.svelte';
+	import { findSimilar, suggestTags } from '$lib/entries/similar';
 	import { markTagged, showTagged, stopTagging, tagging } from '$lib/entries/tagging.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { swipe } from '$lib/swipe';
@@ -38,6 +39,30 @@
 	$effect(() => {
 		void entry;
 		selected = untrack(() => [...saved]);
+	});
+
+	// Tags des fiches ressemblantes (image, nom, pays : la fiche à tagger n'en a souvent aucun), calculés en local.
+	// Recalculés quand la fiche change ; les autres fiches sont lues sans en dépendre.
+	let suggested = $state<string[]>([]);
+	$effect(() => {
+		const current = entry;
+		suggested = [];
+		if (!current) return;
+		let cancelled = false;
+		findSimilar(current, untrack(() => entries.siblings(current)))
+			.then((similar) => {
+				if (!cancelled) suggested = suggestTags(similar.map(({ score, item }) => ({ score, tagIds: item.tagIds })), [], 10);
+			})
+			.catch(() => {}); // une miniature illisible ne doit pas bloquer la saisie
+		return () => (cancelled = true);
+	});
+	const suggestions = $derived.by(() => {
+		const known = entry ? entries.tagsIn(entry.collectionId) : [];
+		return suggested
+			.filter((id) => !selected.includes(id))
+			.map((id) => known.find((tag) => tag.id === id))
+			.filter((tag) => tag !== undefined)
+			.slice(0, 6);
 	});
 
 	// Quitter la fiche avec des tags non enregistrés : la modale demande quoi en faire, puis reprend l'action.
@@ -176,6 +201,21 @@
 			</figure>
 		{/if}
 		<div class="card-body gap-4">
+			{#if suggestions.length}
+				<div class="flex flex-wrap items-center gap-2" role="group" aria-label="Tags suggérés">
+					<span class="text-base-content/60 w-full text-xs font-medium">Suggérés par les fiches ressemblantes</span>
+					{#each suggestions as tag (tag.id)}
+						<button
+							type="button"
+							class="badge badge-lg badge-primary badge-dash cursor-pointer gap-1"
+							aria-label="Ajouter {tag.name}"
+							onclick={() => (selected = [...selected, tag.id])}
+						>
+							<Icon name="plus" class="size-3" />{tag.name}
+						</button>
+					{/each}
+				</div>
+			{/if}
 			{#if entries.tagsIn(entry.collectionId).length}
 				<TagPicker
 					tags={entries.tagsIn(entry.collectionId)}

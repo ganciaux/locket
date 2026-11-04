@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { similarity } from './similar';
+import { similarity, suggestTags } from './similar';
 
 // Empreinte 16 × 16 RVB d'une seule couleur.
 const image = (value: number) => new Uint8ClampedArray(768).fill(value);
@@ -37,5 +37,20 @@ describe('similarity', () => {
 
 	it('sans image ni tags, nom et pays ne suffisent pas', () => {
 		expect(similarity({ name: 'Alpha', country: 'JP' }, { name: 'Bravo', country: 'JP' }).score).toBe(0);
+	});
+});
+
+describe('tags suggérés', () => {
+	it('pondérés par le score des fiches qui les portent, sans ceux déjà posés', () => {
+		const similar = [
+			{ score: 0.9, tagIds: ['action', 'fini'] },
+			{ score: 0.5, tagIds: ['drame', 'fini'] },
+			{ score: 0.45, tagIds: ['drame'] },
+			{ score: 0.3 }
+		];
+		expect(suggestTags(similar, [])).toEqual(['fini', 'drame', 'action']);
+		expect(suggestTags(similar, ['fini'])).toEqual(['drame', 'action']);
+		expect(suggestTags(similar, [], 1)).toEqual(['fini']);
+		expect(suggestTags([], [])).toEqual([]);
 	});
 });
