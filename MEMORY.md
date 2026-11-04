@@ -157,6 +157,6 @@ Chantiers retenus (2026-11-04), un commit chacun, en factorisant ce qui sert plu
 - [x] `model.ts` découpé par domaine (788 → 165 lignes) : `types`, `text`, `sites`, `tags`, `countries`, `duels`,
   `docSize`, feuilles sans cycle, réexportées par `model.ts` (aucun import existant modifié) ;
 - [x] e2e découpés par page (`e2e/*.spec.ts`), aides communes dans `e2e/helpers.ts` ;
-- [ ] CI avec émulateurs et e2e.
+- [x] CI avec émulateurs et e2e (job `e2e` de `ci.yml`, vert au premier run).
 Restent notés, non lancés : porte d'écriture avec version par document, classement dans son propre document, store
 séparant lecture et écriture.
