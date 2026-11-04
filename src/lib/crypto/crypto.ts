@@ -3,7 +3,8 @@
  *
  *   mot de passe + email ──PBKDF2 600k──► maître (256 bits) ──HKDF──┬─► KEK (non extractible)
  *                                                                  └─► jeton de login Firebase
- *   DEK (AES-GCM 256, aléatoire) emballée 2 fois : par la KEK et par la clé de récupération.
+ *   DEK (AES-GCM 256, aléatoire) emballée 2 fois : par la KEK et par la clé de récupération ;
+ *   une 3e copie, propre à un appareil, par la clé que donne Face ID (extension WebAuthn `prf`).
  *
  * Aucune fonction de ce module ne journalise quoi que ce soit.
  */
@@ -29,16 +30,16 @@ async function hkdfBase(secret: Bytes): Promise<CryptoKey> {
 	return crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey', 'deriveBits']);
 }
 
-const hkdfParams = (info: string) => ({
+const hkdfParams = (info: string, salt: Bytes = new Uint8Array(0)) => ({
 	name: 'HKDF',
 	hash: 'SHA-256',
-	salt: new Uint8Array(0),
+	salt,
 	info: utf8(info)
 });
 
 /** KEK : sert uniquement à emballer / déballer la DEK, jamais exportable. */
-const deriveWrappingKey = (base: CryptoKey, info: string) =>
-	crypto.subtle.deriveKey(hkdfParams(info), base, AES_GCM, false, ['wrapKey', 'unwrapKey']);
+const deriveWrappingKey = (base: CryptoKey, info: string, salt?: Bytes) =>
+	crypto.subtle.deriveKey(hkdfParams(info, salt), base, AES_GCM, false, ['wrapKey', 'unwrapKey']);
 
 export type DerivedKeys = { kek: CryptoKey; authToken: string };
 
@@ -79,6 +80,21 @@ export async function deriveRecoveryKek(recoveryKey: string): Promise<CryptoKey>
 	const raw = fromBase32(recoveryKey);
 	if (raw.length !== RECOVERY_KEY_LENGTH) throw new Error('Clé de récupération invalide');
 	return deriveWrappingKey(await hkdfBase(raw), 'locket/recovery');
+}
+
+// ---------------------------------------------------------------------------
+// Face ID / Touch ID (voir auth/faceId.ts)
+
+export const FACE_ID_PEPPER_LENGTH = 32;
+
+/**
+ * Sortie PRF d'une clé d'accès (32 octets aléatoires, stables) : HKDF suffit, comme pour la clé de récupération.
+ * Le poivre (32 octets aléatoires, dans le trousseau Firestore) sert de sel : la copie de l'appareil ne s'ouvre pas sans
+ * lui, et le retirer révoque d'un coup toutes les copies.
+ */
+export async function derivePrfKek(prfOutput: Bytes, pepper: Bytes): Promise<CryptoKey> {
+	if (prfOutput.length !== 32 || pepper.length !== FACE_ID_PEPPER_LENGTH) throw new Error('Clé Face ID inattendue.');
+	return deriveWrappingKey(await hkdfBase(prfOutput), 'locket/face-id', pepper);
 }
 
 // ---------------------------------------------------------------------------

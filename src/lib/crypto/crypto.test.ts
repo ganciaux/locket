@@ -3,19 +3,21 @@ import {
 	decrypt,
 	decryptJson,
 	deriveKeys,
+	derivePrfKek,
 	deriveRecoveryKek,
 	encrypt,
 	encryptJson,
 	generateDek,
 	generateRecoveryKey,
 	normalizeEmail,
+	randomBytes,
 	rewrapDek,
 	sha256,
 	unwrapDek,
 	wrapDek,
 	type DerivedKeys
 } from './crypto';
-import { utf8 } from './encoding';
+import { toBase32, utf8 } from './encoding';
 
 // PBKDF2 600k est volontairement lent : on dérive une seule fois par jeu d'identifiants.
 let alice: DerivedKeys;
@@ -125,6 +127,33 @@ describe('clé de récupération', () => {
 
 	it('rejette une clé de mauvaise longueur', async () => {
 		await expect(deriveRecoveryKek('ABCD-EFGH')).rejects.toThrow();
+	});
+});
+
+describe('clé de Face ID (sortie PRF)', () => {
+	it('déballe la DEK avec la même sortie et le même poivre, pas avec un autre', async () => {
+		const output = randomBytes(32);
+		const pepper = randomBytes(32);
+		const dek = await generateDek();
+		const wrapped = await wrapDek(dek, await derivePrfKek(output, pepper));
+		const encrypted = await encrypt(dek, utf8('x'), 'ctx');
+
+		const unwrapped = await unwrapDek(wrapped, await derivePrfKek(new Uint8Array(output), new Uint8Array(pepper)));
+		expect(await decrypt(unwrapped, encrypted, 'ctx')).toEqual(utf8('x'));
+		await expect(unwrapDek(wrapped, await derivePrfKek(randomBytes(32), pepper))).rejects.toThrow();
+		await expect(unwrapDek(wrapped, await derivePrfKek(output, randomBytes(32)))).rejects.toThrow();
+	});
+
+	it("n'ouvre pas une copie emballée par la clé de récupération de mêmes octets", async () => {
+		const raw = randomBytes(32);
+		const dek = await generateDek();
+		const wrapped = await wrapDek(dek, await deriveRecoveryKek(toBase32(raw)));
+		await expect(unwrapDek(wrapped, await derivePrfKek(raw, new Uint8Array(32)))).rejects.toThrow();
+	});
+
+	it('refuse une sortie ou un poivre qui ne font pas 32 octets', async () => {
+		await expect(derivePrfKek(randomBytes(16), randomBytes(32))).rejects.toThrow();
+		await expect(derivePrfKek(randomBytes(32), randomBytes(16))).rejects.toThrow();
 	});
 });
 
