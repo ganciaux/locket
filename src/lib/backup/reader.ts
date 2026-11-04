@@ -19,6 +19,8 @@ export type BackupReading = {
 	entries: ReadEntry[];
 	/** Défauts d'intégrité lisibles (voir `integrityProblems`) ; [] : fichier intact. */
 	problems: string[];
+	/** Date scellée dans le manifeste, seule authentique ; null s'il est illisible (celle du fichier n'est pas vérifiée). */
+	createdAt: string | null;
 };
 
 const orUndefined = <T>(promise: Promise<T>): Promise<T | undefined> => promise.catch(() => undefined);
@@ -27,7 +29,8 @@ const readBytes = (dek: CryptoKey, encrypted: Encrypted | undefined, context: st
 	encrypted ? orUndefined(decrypt(dek, encrypted, context)) : Promise.resolve(undefined);
 
 export async function readBackup(backup: Backup, dek: CryptoKey): Promise<BackupReading> {
-	const problems = integrityProblems(await inspectBackup(backup, dek));
+	const integrity = await inspectBackup(backup, dek);
+	const problems = integrityProblems(integrity);
 	const catalog = async <T>(encrypted: Encrypted | null, context: string): Promise<T[]> =>
 		encrypted ? ((await orUndefined(decryptJson<T[]>(dek, encrypted, context))) ?? []) : [];
 
@@ -46,6 +49,7 @@ export async function readBackup(backup: Backup, dek: CryptoKey): Promise<Backup
 		collections: withRecoveredCollections(await catalog<Collection>(backup.collections, COLLECTIONS_CONTEXT), entries),
 		tags: await catalog<Tag>(backup.tags, TAGS_CONTEXT),
 		entries,
-		problems
+		problems,
+		createdAt: integrity.manifest?.createdAt ?? null
 	};
 }

@@ -19,6 +19,7 @@ export async function plainPage({ title, body, css }: { title: string; body: str
 		'<meta name="viewport" content="width=device-width, initial-scale=1">',
 		`<meta http-equiv="Content-Security-Policy" content="${csp}">`,
 		'<meta name="referrer" content="no-referrer">',
+		'<meta http-equiv="x-dns-prefetch-control" content="off">',
 		`<title>${escapeHtml(title)}</title>`,
 		`<style>${css}</style>`,
 		'</head>',

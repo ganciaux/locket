@@ -6,6 +6,8 @@
 		<!-- Remplacée au build par la CSP réelle (empreintes du script et du style intégrés), voir vite.decrypt.config.ts. -->
 		<meta http-equiv="Content-Security-Policy" content="__CSP__" />
 		<meta name="referrer" content="no-referrer" />
+		<!-- Sans cela, le navigateur peut résoudre les domaines des liens affichés sans qu'on les clique. -->
+		<meta http-equiv="x-dns-prefetch-control" content="off" />
 		<title>Stash — lire une sauvegarde</title>
 	</head>
 	<body class="bg-base-200 min-h-dvh">

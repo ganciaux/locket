@@ -10,6 +10,8 @@ import { pathToFileURL } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
 
 const RECOVERY_KEY = 'A2DO-LXHX-FOCE-2PD2-M65K-FP5K-JAI4-LU7I-3A7T-FZRZ-46YX-5EVM-7Q7Q';
+const EMAIL = 'temoin-1793793418441@example.com';
+const PASSWORD = 'mot-de-passe-temoin-v4';
 const WITNESS = 'src/lib/backup/fixtures/witness-v4.json';
 
 let dir = '';
@@ -57,6 +59,7 @@ test('lit le témoin avec la clé de récupération, puis enregistre une page en
 	await (await download).saveAs(file);
 	const plain = readFileSync(file, 'utf8');
 	expect(plain).not.toMatch(/<script/i);
+	expect(plain).toContain(`content="default-src 'none'; style-src 'sha256-`);
 	expect(plain).toContain('Fiche témoin');
 	expect(plain).not.toContain('Enregistrer la page en clair');
 
@@ -83,4 +86,19 @@ test('signale un fichier altéré et affiche ce qui reste lisible', async ({ pag
 	await expect(page.getByText('1 pièce illisible : fichier abîmé ou modifié.')).toBeVisible();
 	await expect(page.getByRole('listitem').filter({ hasText: 'Fiche témoin' })).toBeVisible();
 	expect(errors).toEqual([]);
+});
+
+test('CSP : aucun réseau ; ouverture par l’email et le mot de passe de l’époque', async ({ page }) => {
+	await page.goto(pathToFileURL(join(dir, 'stash-dechiffrer.html')).href);
+	const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+	expect(csp).toMatch(/^default-src 'none'; script-src 'sha256-[^']+'; style-src 'sha256-[^']+'; img-src blob: data:; connect-src blob:;/);
+	// La CSP est bien appliquée : une requête vers l'extérieur échoue.
+	expect(await page.evaluate(() => fetch('https://example.com/').then(() => 'envoyée', () => 'bloquée'))).toBe('bloquée');
+
+	await page.getByLabel('Fichier de sauvegarde').setInputFiles(WITNESS);
+	await page.getByRole('radio', { name: 'Mot de passe' }).check();
+	await page.getByLabel('Email du compte').fill(EMAIL);
+	await page.getByLabel("Mot de passe de l'époque").fill(PASSWORD);
+	await page.getByRole('button', { name: 'Ouvrir' }).click();
+	await expect(page.getByRole('heading', { name: 'Collection témoin' })).toBeVisible();
 });

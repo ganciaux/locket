@@ -18,6 +18,8 @@
 	let error = $state('');
 	let collections = $state.raw<ViewCollection[] | null>(null);
 	let problems = $state.raw<string[]>([]);
+	/** Date scellée dans le manifeste ; null : illisible, seule celle du fichier (non vérifiée) est connue. */
+	let sealedAt = $state<string | null>(null);
 	let confirmPlain = $state(false);
 	let fullImages = $state(false);
 	let zoom = $state<{ url: string; name: string } | null>(null);
@@ -42,7 +44,7 @@
 		urls.forEach((url) => URL.revokeObjectURL(url));
 		urls = [];
 		urlCache.clear();
-		backup = collections = null;
+		backup = collections = sealedAt = null;
 		problems = broken = [];
 		secret = email = error = fileName = '';
 		confirmPlain = false;
@@ -66,10 +68,15 @@
 		busy = true;
 		error = '';
 		try {
-			const dek = await unwrapBackupDek(backup.keyring, mode === 'password' ? email.trim() : undefined, secret.trim());
+			// Le mot de passe est pris tel quel, comme dans l'app : un espace au bord fait partie du secret.
+			const dek =
+				mode === 'password'
+					? await unwrapBackupDek(backup.keyring, email.trim(), secret)
+					: await unwrapBackupDek(backup.keyring, undefined, secret.trim());
 			const reading = await readBackup(backup, dek);
 			collections = backupView(reading);
 			problems = reading.problems;
+			sealedAt = reading.createdAt;
 			secret = '';
 		} catch (e) {
 			error = (e as Error).message;
@@ -98,11 +105,13 @@
 			img.removeAttribute('data-entry');
 		}
 		const css = [...document.querySelectorAll('style')].map((style) => style.textContent).join('\n');
-		const page = await plainPage({ title: `Stash — sauvegarde du ${formatDate(backup.createdAt)}`, body: clone.outerHTML, css });
+		const date = sealedAt ? formatDate(sealedAt) : `${formatDate(backup.createdAt)} (date non vérifiée)`;
+		const page = await plainPage({ title: `Stash — sauvegarde du ${date}`, body: clone.outerHTML, css });
 		const url = URL.createObjectURL(new Blob([page], { type: 'text/html' }));
 		const link = Object.assign(document.createElement('a'), { href: url, download: plainFileName(new Date()) });
 		link.click();
-		setTimeout(() => URL.revokeObjectURL(url), 1000);
+		// Assez longtemps pour une page lourde (images complètes), comme pour la sauvegarde.
+		setTimeout(() => URL.revokeObjectURL(url), 60_000);
 		confirmPlain = false;
 	}
 
@@ -141,7 +150,7 @@
 				{#if entry.birthYear}<span>{entry.birthYear} ({formatAge(entry.birthYear)})</span>{/if}
 				{#if entry.deletedAt}<span>À la corbeille depuis le {formatDate(entry.deletedAt)}</span>{/if}
 			</p>
-			{#each entry.tags as section (section.group ?? '')}
+			{#each entry.tags as section, i (i)}
 				<p class="text-sm">
 					{#if section.group}<span class="text-base-content/60">{section.group} :</span>{/if}
 					{section.names.join(', ')}
@@ -167,8 +176,9 @@
 	<header>
 		<h1 class="text-2xl font-bold">Lire une sauvegarde Stash</h1>
 		<p class="text-base-content/70 text-sm">
-			Hors ligne et sans Stash : cette page n'a aucun accès au réseau, rien ne quitte cet ordinateur. Il faut le fichier
-			de sauvegarde et la clé de récupération, ou le mot de passe, de l'époque de la sauvegarde.
+			Hors ligne et sans Stash : cette page n'a aucun accès au réseau, rien ne quitte cet ordinateur (sauf si vous
+			cliquez un lien de fiche, qui ouvre son site comme dans l'app). Il faut le fichier de sauvegarde et la clé de
+			récupération, ou le mot de passe, de l'époque de la sauvegarde.
 		</p>
 	</header>
 
@@ -214,7 +224,8 @@
 	{:else if backup}
 		<div id="reading" class="flex flex-col gap-4">
 			<p class="text-sm" role="status">
-				Sauvegarde du {formatDate(backup.createdAt)} : {plural(count(collections), 'fiche')} dans
+				Sauvegarde du {sealedAt ? formatDate(sealedAt) : `${formatDate(backup.createdAt)} (date non vérifiée)`} :
+				{plural(count(collections), 'fiche')} dans
 				{plural(collections.length, 'collection')}{backup.includesImages ? '' : ', sans images complètes'}.
 			</p>
 			{#if problems.length}
@@ -237,8 +248,9 @@
 					{#if confirmPlain}
 						<div class="alert alert-warning flex flex-col items-start gap-2 text-sm">
 							<p>
-								Le fichier enregistré contiendra vos fiches <strong>en clair</strong> : quiconque l'ouvre peut les lire, sans
-								mot de passe. Gardez-le en lieu sûr et supprimez-le quand il ne sert plus.
+								Le fichier enregistré contiendra vos fiches <strong>en clair</strong>, fiches et collections cachées et
+								corbeille comprises : quiconque l'ouvre peut les lire, sans mot de passe. Gardez-le en lieu sûr et
+								supprimez-le quand il ne sert plus.
 							</p>
 							<label class="flex items-center gap-2">
 								<input type="checkbox" class="checkbox checkbox-sm checkbox-primary" bind:checked={fullImages} />

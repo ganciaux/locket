@@ -227,9 +227,10 @@
 		<div class="card-body gap-3">
 			<h2 class="card-title text-lg">Lire sans Stash</h2>
 			<p class="text-base-content/70 text-sm">
-				Un outil à garder avec vos sauvegardes : un seul fichier, à ouvrir hors ligne dans Chrome, Edge ou Firefox sur
-				un ordinateur (pas sur iPhone). Il affiche le contenu d'une sauvegarde avec la clé de récupération ou le mot de
-				passe de l'époque, même si Stash ou Firebase disparaissent, et peut l'enregistrer en clair si vous le demandez.
+				Un seul fichier, à ouvrir hors ligne dans Chrome, Edge ou Firefox sur un ordinateur (pas sur iPhone). Il affiche
+				le contenu d'une sauvegarde avec la clé de récupération ou le mot de passe de l'époque, même si Stash ou Firebase
+				disparaissent, et peut l'enregistrer en clair si vous le demandez. Rangez-le à part, pas dans un dossier
+				synchronisé ou partagé : une copie remplacée pourrait capter la clé que vous y saisissez.
 			</p>
 			<a class="btn btn-outline btn-primary self-start" href="/stash-dechiffrer.html" download="stash-dechiffrer.html" rel="external">
 				<Icon name="import" class="size-4 rotate-180" /> Télécharger l'outil de lecture

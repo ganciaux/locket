@@ -28,6 +28,7 @@ describe('lecture d’une sauvegarde', () => {
 		const backup = parseBackup(text);
 		const reading = await readBackup(backup, await unwrapBackupDek(backup.keyring, undefined, RECOVERY_KEY));
 		expect(reading.problems).toEqual([]);
+		expect(reading.createdAt).toBe(backup.createdAt);
 		expect(reading.collections).toEqual([{ id: 'col-temoin', name: 'Collection témoin' }]);
 		expect(reading.tags).toEqual([{ id: 'tag-temoin', name: 'Tag témoin', collectionId: 'col-temoin' }]);
 		expect(reading.entries).toHaveLength(1);
@@ -49,6 +50,16 @@ describe('lecture d’une sauvegarde', () => {
 		expect(reading.entries[0].thumb).toBeUndefined();
 		expect(reading.entries[0].image).toHaveLength(2000);
 		expect(reading.problems).toEqual(['1 pièce illisible : fichier abîmé ou modifié.', 'Fichier modifié depuis son export.']);
+	});
+
+	it('garde la date scellée quand celle du fichier est changée', async () => {
+		const raw = JSON.parse(text);
+		const sealed = raw.createdAt;
+		raw.createdAt = '2001-01-01T00:00:00.000Z';
+		const backup = parseBackup(JSON.stringify(raw));
+		const reading = await readBackup(backup, await unwrapBackupDek(backup.keyring, undefined, RECOVERY_KEY));
+		expect(reading.createdAt).toBe(sealed);
+		expect(reading.problems).toEqual(['Fichier modifié depuis son export.']);
 	});
 
 	it('signale une fiche retirée du fichier', async () => {

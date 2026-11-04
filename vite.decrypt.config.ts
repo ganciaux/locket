@@ -47,12 +47,19 @@ function singleFile(): Plugin {
 				"form-action 'none'",
 				"object-src 'none'"
 			].join('; ');
-			const page = String(html.source)
+			const source = String(html.source);
+			// Sans ce repère, la page partirait sans CSP, sans que rien ne le montre : le build échoue plutôt.
+			if (source.split('__CSP__').length !== 2) throw new Error('Repère __CSP__ absent ou en double dans index.html.');
+			const page = source
 				.replace(/<script\b[^>]*\bsrc=[^>]*><\/script>\s*/g, '')
 				.replace(/<link\b[^>]*\brel="(?:stylesheet|modulepreload)"[^>]*>\s*/g, '')
 				.replace('__CSP__', csp)
 				.replace('</head>', () => `<style>${style}</style>\n</head>`)
 				.replace('</body>', () => `<script type="module">${script}</script>\n</body>`);
+			// Le seul script et le seul style sont ceux intégrés : une balise externe restante échapperait aux empreintes.
+			const outside = page.replace(/<script type="module">[\s\S]*<\/script>/, '').replace(/<style>[\s\S]*<\/style>/, '');
+			if (/<script\b|<link\b[^>]*rel="stylesheet"|\ssrc=/i.test(outside))
+				throw new Error('Script ou style externe resté dans la page de l’outil.');
 			delete bundle[html.fileName];
 			this.emitFile({ type: 'asset', fileName: OUTPUT, source: page });
 		}

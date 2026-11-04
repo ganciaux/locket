@@ -34,7 +34,8 @@ const reading: BackupReading = {
 		{ ...base, id: 'e', collectionId: 'c', name: 'Écho', deletedAt: 9 },
 		{ ...base, id: 'x', collectionId: 'h', name: 'Cachée' }
 	],
-	problems: []
+	problems: [],
+	createdAt: null
 };
 
 describe('vue d’une sauvegarde lue', () => {
