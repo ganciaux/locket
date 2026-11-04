@@ -13,7 +13,10 @@ vont dans [MEMORY.md](MEMORY.md).
 - [x] **Code des émulateurs retiré du build de prod** (`import.meta.env.DEV`).
 - [x] **Verrouillage automatique après inactivité** : réglable dans Paramètres, 5 min par défaut.
 - [x] **Console Firebase** (fait le 2026-10-29 ; énumération vérifiée : `INVALID_LOGIN_CREDENTIALS`) : protection contre l'énumération d'emails, domaines autorisés (voir plus bas). *Simple.*
-- [ ] **TLS du poste Windows** (en attente, signalé en priorité par la revue du 2026-10-30) : retirer
+- [~] **TLS du poste Windows** — vérification réactivée le 2026-11-04, sans `--use-system-ca` (le proxy n'intercepte
+      pas) ; `npm audit signatures` : 869 signatures de registre vérifiées, 193 attestations non lisibles par npm 10.3.0
+      (faux positif « malformed checkpoint ») ; restent : mettre npm à jour et refaire l'audit, `firebase login`,
+      `npm ci`, redéploiement. Signalé en priorité par la revue du 2026-10-30 : retirer
       `NODE_TLS_REJECT_UNAUTHORIZED=0` et `strict-ssl=false`, passer par `NODE_OPTIONS=--use-system-ca` (voir
       `CLAUDE.local.md`). Si un déploiement est parti de ce poste : `npm audit signatures`, refaire `firebase login`,
       `npm ci`, redéployer. *Simple.*
