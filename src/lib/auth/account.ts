@@ -4,6 +4,7 @@
  *   wrappedDek  : par la KEK du mot de passe (usage courant)
  *   recoveryDek : par la clé de récupération (mot de passe oublié)
  *   keyringCheck : empreinte de recoveryDek, chiffrée par la DEK ; révèle un recoveryDek remplacé
+ *   faceIdPepper : aléa sans lequel les copies Face ID des appareils (hors Firestore, voir faceId.ts) ne s'ouvrent pas
  */
 import {
 	EmailAuthProvider,
@@ -18,17 +19,20 @@ import {
 	updatePassword,
 	type User
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Bytes as FirestoreBytes, deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { FirebaseError } from 'firebase/app';
 import {
 	type Encrypted,
 	decryptJson,
 	deriveKeys,
+	derivePrfKek,
 	deriveRecoveryKek,
 	encryptJson,
+	FACE_ID_PEPPER_LENGTH,
 	generateDek,
 	generateRecoveryKey,
 	normalizeEmail,
+	randomBytes,
 	rewrapDek,
 	sha256,
 	unwrapDek,
@@ -37,6 +41,7 @@ import {
 import { toBase64 } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import { type Keyring, unwrapBackupDek } from '$lib/backup/keyring';
+import { createFaceIdCredential, evaluateFaceId, forgetFaceId, readFaceId, saveFaceId } from './faceId';
 import { session, setRecoveryDamaged, setUnlocked } from './session.svelte';
 
 export const MIN_PASSWORD_LENGTH = 12;
@@ -49,7 +54,12 @@ const KEYRING_MISMATCH =
 // ---------------------------------------------------------------------------
 // Trousseau : users/{uid}
 
-type StoredKeyring = { wrappedDek: StoredEncrypted; recoveryDek: StoredEncrypted; keyringCheck?: StoredEncrypted };
+type StoredKeyring = {
+	wrappedDek: StoredEncrypted;
+	recoveryDek: StoredEncrypted;
+	keyringCheck?: StoredEncrypted;
+	faceIdPepper?: FirestoreBytes;
+};
 export type { Keyring };
 
 const KEYRING_CHECK_CONTEXT = 'keyring/check';
@@ -97,10 +107,12 @@ const saveWrappedDek = (uid: string, wrappedDek: Encrypted) =>
 
 /**
  * Firestore puis Firebase Auth : si le second échoue, on remet l'ancienne DEK emballée
- * pour garder les deux cohérents.
+ * pour garder les deux cohérents. Nouveau mot de passe = Face ID désactivé sur tous les appareils (poivre retiré) :
+ * c'est le geste attendu après un appareil perdu ou une fuite.
  */
 async function replacePassword(user: User, previous: Encrypted, next: Encrypted, authToken: string) {
-	await saveWrappedDek(user.uid, next);
+	await updateDoc(keyringRef(user.uid), { wrappedDek: toStored(next), faceIdPepper: deleteField() });
+	forgetFaceId();
 	try {
 		await updatePassword(user, authToken);
 	} catch (error) {
@@ -177,6 +189,68 @@ export async function unlock(password: string): Promise<void> {
 	const { wrappedDek } = await readKeyring(user.uid);
 	setUnlocked(user, await orFail(unwrapDek(wrappedDek, kek), WRONG_PASSWORD));
 	await checkRecoveryKey();
+}
+
+const FACE_ID_STALE =
+	"Face ID n'ouvre plus ce compte (mot de passe changé, ou clé remplacée par une restauration) : il a été désactivé " +
+	'sur cet appareil. Déverrouillez avec le mot de passe, puis réactivez-le dans les paramètres.';
+
+/** Trousseau brut : la vérification de Face ID a besoin du poivre et du sceau, lus en une fois. */
+async function readStoredKeyring(uid: string): Promise<Partial<StoredKeyring>> {
+	return ((await getDoc(keyringRef(uid))).data() ?? {}) as Partial<StoredKeyring>;
+}
+
+/** KEK de Face ID à partir de la sortie PRF, effacée aussitôt. */
+async function faceIdKek(prf: Uint8Array<ArrayBuffer>, pepper: FirestoreBytes): Promise<CryptoKey> {
+	try {
+		return await derivePrfKek(prf, pepper.toUint8Array() as Uint8Array<ArrayBuffer>);
+	} finally {
+		prf.fill(0);
+	}
+}
+
+/**
+ * Active Face ID sur cet appareil. Le mot de passe est vérifié avant toute clé d'accès, puis déballe la DEK le temps
+ * de l'emballer sous la clé de Face ID (`rewrapDek`). Le poivre du compte est créé au premier appareil.
+ */
+export async function enableFaceId(password: string): Promise<void> {
+	const user = currentUser();
+	const { kek } = await deriveKeys(password, user.email);
+	const { wrappedDek } = await readKeyring(user.uid);
+	await orFail(unwrapDek(wrappedDek, kek), WRONG_PASSWORD);
+	let { faceIdPepper } = await readStoredKeyring(user.uid);
+	if (!faceIdPepper) {
+		faceIdPepper = FirestoreBytes.fromUint8Array(randomBytes(FACE_ID_PEPPER_LENGTH));
+		await updateDoc(keyringRef(user.uid), { faceIdPepper });
+	}
+	const { credentialId, prf } = await createFaceIdCredential(user.email);
+	const faceKek = await faceIdKek(prf, faceIdPepper);
+	saveFaceId({ uid: user.uid, credentialId, wrappedDek: await rewrapDek(wrappedDek, kek, faceKek) });
+}
+
+/**
+ * Session Firebase conservée mais DEK perdue : Face ID remplace le mot de passe. Le trousseau est lu d'abord : sans
+ * réseau, pas d'invite. Poivre retiré (nouveau mot de passe) : copie effacée. La copie peut aussi dater d'avant une
+ * adoption de clé (restauration d'une sauvegarde d'un ancien compte) : elle se déballerait encore, mais en l'ancienne
+ * DEK. Le sceau du trousseau, chiffré par la DEK actuelle, le révèle ; la copie est alors effacée.
+ */
+export async function unlockWithFaceId(): Promise<void> {
+	const user = currentUser();
+	const record = readFaceId(user.uid);
+	if (!record) throw new Error("Face ID n'est pas activé sur cet appareil.");
+	const { faceIdPepper, keyringCheck } = await readStoredKeyring(user.uid);
+	if (!faceIdPepper || !keyringCheck) return staleFaceId();
+	const faceKek = await faceIdKek(await evaluateFaceId(record.credentialId), faceIdPepper);
+	const dek = await unwrapDek(record.wrappedDek, faceKek).catch(() => null);
+	const sealed = dek && (await decryptJson(dek, fromStored(keyringCheck), KEYRING_CHECK_CONTEXT).then(() => true, () => false));
+	if (!dek || !sealed) return staleFaceId();
+	setUnlocked(user, dek);
+	await checkRecoveryKey();
+}
+
+function staleFaceId(): never {
+	forgetFaceId();
+	throw new Error(FACE_ID_STALE);
 }
 
 /** Confirme une action irréversible : lève une erreur si ce n'est pas le mot de passe du compte. */
@@ -339,7 +413,9 @@ export async function adoptBackupKeyring(
 		recoveryDek: toStored(backup.recoveryDek),
 		keyringCheck: await sealRecoveryDek(oldDek, backup.recoveryDek)
 	};
+	// Le trousseau est remplacé en entier, poivre compris : les copies Face ID de l'ancienne DEK ne s'ouvrent plus.
 	await setDoc(keyringRef(user.uid), keyring);
+	forgetFaceId();
 
 	const dek = await unwrapDek(rewrapped, current.kek);
 	setUnlocked(user, dek);

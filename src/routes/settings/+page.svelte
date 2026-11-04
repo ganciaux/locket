@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { MIN_PASSWORD_LENGTH, changePassword, checkNewPassword, rotateRecoveryKey, testRecoveryKey } from '$lib/auth/account';
+	import {
+		MIN_PASSWORD_LENGTH,
+		changePassword,
+		checkNewPassword,
+		enableFaceId,
+		rotateRecoveryKey,
+		testRecoveryKey
+	} from '$lib/auth/account';
+	import { faceIdSupported, forgetFaceId, readFaceId } from '$lib/auth/faceId';
 	import { session, signOut } from '$lib/auth/session.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
@@ -39,7 +47,30 @@
 		await changePassword(currentPassword, password);
 		currentPassword = password = confirmation = '';
 		changed = true;
+		// Un nouveau mot de passe désactive Face ID partout (voir replacePassword).
+		faceIdOn = false;
 	});
+
+	// Face ID : propre à cet appareil (voir faceId.ts).
+	let faceIdAvailable = $state(false);
+	faceIdSupported().then((supported) => (faceIdAvailable = supported));
+	let faceIdOn = $state(!!session.user && !!readFaceId(session.user.uid));
+	let faceIdOpen = $state(false);
+	let faceIdPassword = $state('');
+	let faceIdDisabled = $state(false);
+
+	const faceIdForm = formAction(async () => {
+		await enableFaceId(faceIdPassword);
+		faceIdPassword = '';
+		faceIdOpen = false;
+		faceIdOn = true;
+	});
+
+	function disableFaceId() {
+		forgetFaceId();
+		faceIdOn = false;
+		faceIdDisabled = true;
+	}
 
 	let rotateOpen = $state(false);
 	let rotatePassword = $state('');
@@ -238,10 +269,53 @@
 		</form>
 	</section>
 
+	{#if faceIdAvailable || faceIdOn}
+		<section class="card bg-base-100 shadow-sm">
+			<div class="card-body gap-3">
+				<h2 class="card-title text-lg">Face ID</h2>
+				<p class="text-base-content/60 -mt-1 text-sm">
+					Déverrouiller Stash sur cet appareil sans taper le mot de passe. Quiconque peut déverrouiller cet appareil,
+					avec Face ID ou son code, pourra aussi ouvrir Stash. Changer de mot de passe désactive Face ID sur tous les
+					appareils.
+				</p>
+				{#if faceIdOn}
+					<p role="status" class="alert alert-success alert-soft text-sm">Activé sur cet appareil.</p>
+					<button class="btn btn-outline btn-error self-start" onclick={disableFaceId}>Désactiver Face ID</button>
+				{:else if faceIdOpen}
+					<form class="flex flex-col gap-3" onsubmit={faceIdForm.submit}>
+						<input type="email" autocomplete="username" value={session.user?.email} hidden readonly />
+						<Field label="Mot de passe">
+							<input class="input w-full" type="password" autocomplete="current-password" bind:value={faceIdPassword} required />
+						</Field>
+						<ErrorAlert message={faceIdForm.error} />
+						<div class="flex gap-2">
+							<button class="btn btn-primary" disabled={faceIdForm.busy}>
+								{#if faceIdForm.busy}<span class="loading loading-spinner loading-sm"></span> Activation…{:else}Activer{/if}
+							</button>
+							<button type="button" class="btn btn-ghost" onclick={() => ((faceIdOpen = false), (faceIdPassword = ''))}>Annuler</button>
+						</div>
+					</form>
+				{:else}
+					{#if faceIdDisabled}
+						<p role="status" class="text-base-content/70 text-sm">
+							Face ID désactivé. La clé d'accès « Stash » de cet appareil ne sert plus : vous pouvez la supprimer dans
+							Réglages › Mots de passe.
+						</p>
+					{/if}
+					<button class="btn btn-outline btn-primary self-start" onclick={() => ((faceIdOpen = true), (faceIdDisabled = false))}>
+						<Icon name="face" class="size-4" /> Activer Face ID
+					</button>
+				{/if}
+			</div>
+		</section>
+	{/if}
+
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-4">
 			<h2 class="card-title text-lg">Changer de mot de passe</h2>
-			<p class="text-base-content/60 -mt-2 text-sm">Vos fiches ne sont pas rechiffrées : seule votre clé l'est.</p>
+			<p class="text-base-content/60 -mt-2 text-sm">
+				Vos fiches ne sont pas rechiffrées : seule votre clé l'est. Face ID est désactivé sur tous les appareils.
+			</p>
 			<form class="flex flex-col gap-4" onsubmit={form.submit}>
 				<input type="email" autocomplete="username" value={session.user?.email} hidden readonly />
 				<Field label="Mot de passe actuel">
@@ -341,15 +415,6 @@
 					<button class="btn btn-outline btn-primary" onclick={() => (rotateOpen = true)}>Remplacer la clé</button>
 				</div>
 			{/if}
-		</div>
-	</section>
-
-	<!-- Temporaire (chantier Face ID) : à retirer avec la route /prf-test. -->
-	<section class="card bg-base-100 shadow-sm">
-		<div class="card-body gap-3">
-			<h2 class="card-title text-lg">Test Face ID (temporaire)</h2>
-			<p class="text-base-content/60 -mt-1 text-sm">Vérifier si cet iPhone pourrait déverrouiller Stash avec Face ID.</p>
-			<a class="btn btn-outline btn-primary self-start" href="/prf-test">Lancer le test</a>
 		</div>
 	</section>
 

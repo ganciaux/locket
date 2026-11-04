@@ -6,6 +6,7 @@
 import { onAuthStateChanged, signOut as firebaseSignOut, type User } from 'firebase/auth';
 import { clearCache } from '$lib/entries/cache';
 import { auth } from '$lib/firebase';
+import { forgetFaceId } from './faceId';
 
 // La DEK est rattachée à l'uid qui l'a déballée : un changement d'utilisateur la rend caduque
 // sans dépendre de l'ordre d'arrivée des événements Firebase.
@@ -17,7 +18,10 @@ let recoveryDamaged = $state(false);
 
 onAuthStateChanged(auth, (next) => {
 	// Aussi quand la session se termine sans `signOut` : révoquée depuis un autre appareil, par exemple.
-	if (!next || (user && user.uid !== next.uid)) clearCache();
+	if (!next || (user && user.uid !== next.uid)) {
+		clearCache();
+		forgetFaceId();
+	}
 	user = next;
 	if (unlocked && unlocked.uid !== next?.uid) unlocked = null;
 });
@@ -44,6 +48,8 @@ export function setRecoveryDamaged(damaged: boolean): void {
 
 /** Appelé juste après une connexion : on n'attend pas `onAuthStateChanged` pour connaître l'utilisateur. */
 export function setUnlocked(current: User, dek: CryptoKey): void {
+	// Déconnecté pendant l'opération (invite Face ID, dérivation) : rien à déverrouiller.
+	if (auth.currentUser?.uid !== current.uid) return;
 	user = current;
 	unlocked = { uid: current.uid, dek };
 }
@@ -72,6 +78,7 @@ $effect.root(() => {
 
 export async function signOut(): Promise<void> {
 	unlocked = null;
+	forgetFaceId();
 	await clearCache();
 	await firebaseSignOut(auth);
 }
