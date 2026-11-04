@@ -3,6 +3,7 @@
 	// Barres en <progress> : la CSP interdit les largeurs en style en ligne.
 	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import { listView } from '$lib/entries/listView.svelte';
 	import { countryFlag, countryName } from '$lib/entries/model';
 	import { type Bucket, collectionStats } from '$lib/entries/stats';
@@ -45,7 +46,7 @@
 <ErrorAlert message={error} />
 
 {#if !error && !entries.activeItems}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if !entries.active}
 	<p class="text-base-content/60 py-8 text-center">
 		Les statistiques portent sur une collection. <a class="link link-primary" href="/collections">Créez d'abord une collection</a>.

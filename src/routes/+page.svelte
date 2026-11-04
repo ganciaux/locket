@@ -11,6 +11,7 @@
 	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import TagFacets from '$lib/components/TagFacets.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
@@ -248,7 +249,7 @@
 {/if}
 
 {#if !error && !entries.collections}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if entries.collections?.length === 0}
 	<form class="card bg-base-100 mx-auto max-w-md shadow-sm" onsubmit={firstCollection.submit}>
 		<div class="card-body gap-4">

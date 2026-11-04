@@ -1,5 +1,6 @@
 <script lang="ts">
 	// Catégories de tags d'une collection : ajout, renommage, ordre et suppression (ses tags restent, sans catégorie).
+	import ConfirmInline from '$lib/components/ConfirmInline.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import { FILTER_LEVELS, type FilterLevel, MAX_LABEL_LENGTH, filterLevel } from '$lib/entries/model';
@@ -161,18 +162,12 @@
 						{/each}
 					</select>
 					{#if confirmId === group.id}
-						<div class="alert alert-error alert-soft flex flex-wrap items-center gap-2">
-							<span class="flex-1 text-sm">
-								Supprimer « {group.name} » ?{count ? ` Ses ${count} tag${count > 1 ? 's' : ''} resteront, sans catégorie.` : ''}
-							</span>
-							<button
-								class="btn btn-error btn-sm"
-								onclick={() => run(() => deleteTagGroup(collectionId, group.id)).then(() => (confirmId = null))}
-							>
-								Supprimer
-							</button>
-							<button class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
-						</div>
+						<ConfirmInline
+							onconfirm={async () => (await deleteTagGroup(collectionId, group.id), (confirmId = null))}
+							oncancel={() => (confirmId = null)}
+						>
+							Supprimer « {group.name} » ?{count ? ` Ses ${count} tag${count > 1 ? 's' : ''} resteront, sans catégorie.` : ''}
+						</ConfirmInline>
 					{/if}
 				{/if}
 			</div>
@@ -180,16 +175,12 @@
 
 		{#if groups.length > 1}
 			{#if confirmAll}
-				<div class="alert alert-error alert-soft flex flex-wrap items-center gap-2">
-					<span class="flex-1 text-sm">Supprimer les {groups.length} catégories ? Leurs tags resteront, sans catégorie.</span>
-					<button
-						class="btn btn-error btn-sm"
-						onclick={() => run(() => deleteAllTagGroups(collectionId)).then(() => (confirmAll = false))}
-					>
-						Tout supprimer
-					</button>
-					<button class="btn btn-ghost btn-sm" onclick={() => (confirmAll = false)}>Annuler</button>
-				</div>
+				<ConfirmInline
+					message="Supprimer les {groups.length} catégories ? Leurs tags resteront, sans catégorie."
+					confirmLabel="Tout supprimer"
+					onconfirm={async () => (await deleteAllTagGroups(collectionId), (confirmAll = false))}
+					oncancel={() => (confirmAll = false)}
+				/>
 			{:else}
 				<button class="btn btn-ghost btn-sm text-error self-start" onclick={() => (confirmAll = true)}>
 					<Icon name="trash" class="size-4" /> Supprimer toutes les catégories

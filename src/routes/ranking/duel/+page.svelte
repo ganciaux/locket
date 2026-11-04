@@ -5,6 +5,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import FullImage from '$lib/components/FullImage.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import {
 		type Insertion,
 		chooseInsertion,
@@ -141,7 +142,7 @@
 <ErrorAlert message={error} />
 
 {#if !ready && !error}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if candidate && opponent}
 	<p class="mb-3 font-semibold">Laquelle préférez-vous ?</p>
 	<div class="grid grid-cols-2 gap-3">
@@ -181,7 +182,7 @@
 	{#if error}
 		<button class="btn btn-primary mt-4" onclick={save}>Réessayer</button>
 	{:else}
-		<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+		<PageSpinner />
 	{/if}
 {:else if ready}
 	<p class="alert alert-info alert-soft">

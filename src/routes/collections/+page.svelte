@@ -1,7 +1,9 @@
 <script lang="ts">
 	// Administration des collections : ajout, renommage, ordre d'affichage, masquage et suppression (vide uniquement).
+	import ConfirmInline from '$lib/components/ConfirmInline.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import { MAX_LABEL_LENGTH } from '$lib/entries/model';
 	import { addCollection, deleteCollection, moveCollection, renameCollection, setCollectionHidden } from '$lib/entries/collections';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
@@ -32,10 +34,10 @@
 		editId = null;
 	});
 
-	const removal = formAction(async () => {
-		if (confirmId) await deleteCollection(confirmId);
+	async function remove(id: string) {
+		await deleteCollection(id);
 		confirmId = null;
-	});
+	}
 
 	async function toggleHidden(id: string, box: HTMLInputElement) {
 		error = '';
@@ -69,7 +71,7 @@
 <ErrorAlert message={error} />
 
 {#if !error && !entries.collections}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if entries.collections}
 	{@const collections = entries.collections}
 	<div class="flex flex-col gap-4">
@@ -174,14 +176,9 @@
 							</div>
 							{#if confirmId === collection.id}
 								{@const tagCount = entries.tagsIn(collection.id).length}
-								<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removal.submit}>
-									<span class="flex-1 text-sm">
-										Supprimer « {collection.name} »{tagCount ? ` et ses ${tagCount} tag${tagCount > 1 ? 's' : ''}` : ''} ?
-									</span>
-									<button class="btn btn-error btn-sm" disabled={removal.busy}>Supprimer</button>
-									<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
-									<ErrorAlert message={removal.error} />
-								</form>
+								<ConfirmInline onconfirm={() => remove(collection.id)} oncancel={() => (confirmId = null)}>
+									Supprimer « {collection.name} »{tagCount ? ` et ses ${tagCount} tag${tagCount > 1 ? 's' : ''}` : ''} ?
+								</ConfirmInline>
 							{/if}
 						{/if}
 						</li>

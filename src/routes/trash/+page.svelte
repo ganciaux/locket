@@ -1,7 +1,9 @@
 <script lang="ts">
 	// Corbeille : les fiches supprimées restent TRASH_DAYS jours, images comprises, puis disparaissent à l'ouverture.
+	import ConfirmInline from '$lib/components/ConfirmInline.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import { TRASH_DAYS, trashDaysLeft } from '$lib/entries/model';
 	import { type ListItem, deleteForever, entries, loadEntries, restoreFromTrash } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -52,7 +54,7 @@
 {/if}
 
 {#if !error && !entries.items}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if entries.trash.length === 0}
 	<p class="text-base-content/60 py-8 text-center">La corbeille est vide.</p>
 {:else}
@@ -83,11 +85,14 @@
 		{/each}
 	</ul>
 
-	<div class="mt-4 flex flex-wrap items-center gap-2">
+	<div class="mt-4">
 		{#if confirmEmpty}
-			<span class="text-sm">Supprimer définitivement {entries.trash.length} fiche{entries.trash.length > 1 ? 's' : ''} ?</span>
-			<button class="btn btn-error btn-sm" disabled={busy} onclick={() => run(() => deleteForever(entries.trash))}>Vider</button>
-			<button class="btn btn-ghost btn-sm" onclick={() => (confirmEmpty = false)}>Annuler</button>
+			<ConfirmInline
+				confirmLabel="Vider"
+				message="Supprimer définitivement {entries.trash.length} fiche{entries.trash.length > 1 ? 's' : ''} ?"
+				onconfirm={async () => (await deleteForever(entries.trash), (confirmEmpty = false))}
+				oncancel={() => (confirmEmpty = false)}
+			/>
 		{:else}
 			<button class="btn btn-outline btn-error btn-sm" onclick={() => (confirmEmpty = true)}>Vider la corbeille</button>
 		{/if}

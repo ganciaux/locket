@@ -3,6 +3,7 @@
 	import EntryForm from '$lib/components/EntryForm.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import { entryNav } from '$lib/entries/entryNav.svelte';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -26,7 +27,7 @@
 
 <ErrorAlert message={error} />
 {#if !error && !entries.items}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if entries.items && !entry}
 	<p class="alert alert-warning alert-soft">Fiche introuvable.</p>
 {:else if entry}

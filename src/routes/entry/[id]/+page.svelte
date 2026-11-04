@@ -7,6 +7,7 @@
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { entryNav } from '$lib/entries/entryNav.svelte';
@@ -110,7 +111,7 @@
 <ErrorAlert message={error} />
 
 {#if !error && !entries.items}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if entries.items && !entry}
 	<p class="alert alert-warning alert-soft">Fiche introuvable.</p>
 {:else if entry}

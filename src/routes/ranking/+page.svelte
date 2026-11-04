@@ -3,8 +3,10 @@
 	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
+	import ConfirmInline from '$lib/components/ConfirmInline.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
 	import { isRankable } from '$lib/entries/model';
@@ -100,7 +102,7 @@
 <ErrorAlert message={error} />
 
 {#if !error && !entries.items}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if !collection}
 	<p class="alert alert-info alert-soft">Aucune collection.</p>
 {:else}
@@ -129,11 +131,13 @@
 				affiché jusqu'à la fin.
 			</p>
 			{#if confirmAction === 'abandon'}
-				<p class="text-sm">Abandonner ce nouveau classement ? Ses duels seront perdus, le classement actuel ne change pas.</p>
-				<div class="flex flex-wrap gap-2">
-					<button class="btn btn-warning btn-sm" disabled={busy} onclick={() => run(() => abandonNewRanking(collection.id))}>Abandonner</button>
-					<button class="btn btn-ghost btn-sm" onclick={() => (confirmAction = null)}>Annuler</button>
-				</div>
+				<ConfirmInline
+					tone="warning"
+					confirmLabel="Abandonner"
+					message="Abandonner ce nouveau classement ? Ses duels seront perdus, le classement actuel ne change pas."
+					onconfirm={async () => (await abandonNewRanking(collection.id), (confirmAction = null))}
+					oncancel={() => (confirmAction = null)}
+				/>
 			{:else}
 				<div class="flex flex-wrap gap-2">
 					<a class="btn btn-primary btn-sm" href="/ranking/duel"><Icon name="podium" class="size-4" /> Continuer</a>
@@ -156,11 +160,13 @@
 		{/if}
 		{#if ranked.length}
 			{#if confirmAction === 'delete'}
-				<div role="alert" class="alert alert-warning alert-soft mb-4 flex flex-wrap items-center gap-2">
-					<span class="flex-1 text-sm">Supprimer ce classement ? Toutes les fiches redeviendront non classées, il faudra refaire les duels.</span>
-					<button class="btn btn-warning btn-sm" disabled={busy} onclick={() => run(() => deleteRanking(collection.id))}>Supprimer</button>
-					<button class="btn btn-ghost btn-sm" onclick={() => (confirmAction = null)}>Annuler</button>
-				</div>
+				<ConfirmInline
+					tone="warning"
+					class="mb-4"
+					message="Supprimer ce classement ? Toutes les fiches redeviendront non classées, il faudra refaire les duels."
+					onconfirm={async () => (await deleteRanking(collection.id), (confirmAction = null))}
+					oncancel={() => (confirmAction = null)}
+				/>
 			{:else}
 				<div class="mb-4 flex flex-wrap gap-2">
 					<button

@@ -7,6 +7,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
 	import { listView } from '$lib/entries/listView.svelte';
 	import {
@@ -107,7 +108,7 @@
 <ErrorAlert message={error} />
 
 {#if !error && !entries.activeItems}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if entries.activeItems?.length === 0}
 	<p class="text-base-content/60 py-8 text-center">Aucune fiche dans cette collection.</p>
 {:else if entries.activeItems}

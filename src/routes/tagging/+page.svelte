@@ -6,6 +6,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import FullImage from '$lib/components/FullImage.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { countryFlag, countryName, formatAge, neighbours } from '$lib/entries/model';
 	import { changeEntriesTags, entries, loadEntries } from '$lib/entries/store.svelte';
@@ -165,7 +166,7 @@
 		Aucune fiche à tagger. <a class="link link-primary" href="/list">Partir de l'index</a>
 	</p>
 {:else if !error && !entries.items}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if entries.items && !entry}
 	<ErrorAlert message={error} />
 	<p class="alert alert-warning alert-soft">Fiche introuvable.</p>

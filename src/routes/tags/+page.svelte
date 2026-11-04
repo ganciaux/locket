@@ -4,8 +4,10 @@
 	// Le catalogue est chiffré comme les fiches ; les catégories vivent dans la collection.
 	import { page } from '$app/state';
 	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
+	import ConfirmInline from '$lib/components/ConfirmInline.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import TagGroupManager from '$lib/components/TagGroupManager.svelte';
 	import { FILTER_LEVELS, type FilterLevel, MAX_LABEL_LENGTH, effectiveGroupId, filterLevel, groupTags } from '$lib/entries/model';
 	import {
@@ -44,10 +46,10 @@
 
 	// Tous les tags de la collection : les fiches les perdent, comme pour une suppression un par un.
 	let confirmAll = $state(false);
-	const removeAll = formAction(async () => {
-		if (entries.active) await deleteAllTags(entries.active.id);
+	async function removeAll(collectionId: string) {
+		await deleteAllTags(collectionId);
 		confirmAll = false;
-	});
+	}
 
 	// Refusé (nom déjà pris dans la catégorie) : le menu revient sur la catégorie actuelle.
 	async function changeGroup(id: string, select: HTMLSelectElement, current: string) {
@@ -80,10 +82,10 @@
 		editId = null;
 	});
 
-	const removal = formAction(async () => {
-		if (confirmId) await deleteTag(confirmId);
+	async function remove(id: string) {
+		await deleteTag(id);
 		confirmId = null;
-	});
+	}
 </script>
 
 {#if fromSettings}
@@ -97,7 +99,7 @@
 <ErrorAlert message={error} />
 
 {#if !error && !entries.collections}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if !entries.active}
 	<p class="text-base-content/60 py-8 text-center">
 		Les tags sont propres à chaque collection. <a class="link link-primary" href="/collections">Créez d'abord une collection</a>.
@@ -226,14 +228,9 @@
 										{/if}
 									</div>
 									{#if confirmId === tag.id}
-										<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removal.submit}>
-											<span class="flex-1 text-sm">
-												Supprimer « {tag.name} »{count ? ` et le retirer de ${count} fiche${count > 1 ? 's' : ''}` : ''} ?
-											</span>
-											<button class="btn btn-error btn-sm" disabled={removal.busy}>Supprimer</button>
-											<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmId = null)}>Annuler</button>
-											<ErrorAlert message={removal.error} />
-										</form>
+										<ConfirmInline onconfirm={() => remove(tag.id)} oncancel={() => (confirmId = null)}>
+											Supprimer « {tag.name} »{count ? ` et le retirer de ${count} fiche${count > 1 ? 's' : ''}` : ''} ?
+										</ConfirmInline>
 									{/if}
 								{/if}
 							</li>
@@ -245,16 +242,12 @@
 			{#if entries.tags.length > 1}
 				{#if confirmAll}
 					{@const tagged = (entries.activeItems ?? []).filter((item) => entries.tagsOf(item).length).length}
-					<form class="alert alert-error alert-soft flex flex-wrap items-center gap-2" onsubmit={removeAll.submit}>
-						<span class="flex-1 text-sm">
-							Supprimer les {entries.tags.length} tags de « {entries.active.name} »{tagged
-								? ` et les retirer de ${tagged} fiche${tagged > 1 ? 's' : ''}`
-								: ''} ? Les catégories restent.
-						</span>
-						<button class="btn btn-error btn-sm" disabled={removeAll.busy}>Tout supprimer</button>
-						<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmAll = false)}>Annuler</button>
-						<ErrorAlert message={removeAll.error} />
-					</form>
+					{@const collectionId = entries.active.id}
+					<ConfirmInline confirmLabel="Tout supprimer" onconfirm={() => removeAll(collectionId)} oncancel={() => (confirmAll = false)}>
+						Supprimer les {entries.tags.length} tags de « {entries.active.name} »{tagged
+							? ` et les retirer de ${tagged} fiche${tagged > 1 ? 's' : ''}`
+							: ''} ? Les catégories restent.
+					</ConfirmInline>
 				{:else}
 					<button class="btn btn-ghost btn-sm text-error self-start" onclick={() => (confirmAll = true)}>
 						<Icon name="trash" class="size-4" /> Supprimer tous les tags

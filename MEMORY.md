@@ -150,7 +150,10 @@ restent les seules options compatibles avec « gratuit et Firebase ne voit rien 
 - **Produit** : commencer simple et attendre le besoin (les niveaux de filtre par catégorie et par tag en sont l'exemple).
 Chantiers retenus (2026-11-04), un commit chacun, en factorisant ce qui sert plusieurs fois sans aller à l'extrême :
 - [x] `onLock` central (`session.svelte.ts`) : store, filtres, navigation et Tagger s'y inscrivent ;
-- [ ] briques UI communes (confirmations, chargement de page) ;
+- [x] briques UI communes : `ConfirmInline` (alerte + action + Annuler, attente et erreur sur place ; collections,
+  tags, catégories, classement, retrait du classement, corbeille) et `PageSpinner` (13 pages). Laissés à part : la
+  suppression d'une fiche (deux choix) et la suppression totale (mot de passe), et les petits boutons des lignes
+  (corbeille, sites) ; `loadEntries().catch(…)` non factorisé : une ligne, et `error` sert aussi aux actions de la page ;
 - [ ] `model.ts` découpé par domaine, e2e découpés par page ;
 - [ ] CI avec émulateurs et e2e.
 Restent notés, non lancés : porte d'écriture avec version par document, classement dans son propre document, store

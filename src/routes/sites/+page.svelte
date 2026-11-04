@@ -4,6 +4,7 @@
 	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import SiteManager from '$lib/components/SiteManager.svelte';
 	import { selectCollection } from '$lib/entries/collections';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
@@ -30,7 +31,7 @@
 <ErrorAlert message={error} />
 
 {#if !error && !entries.collections}
-	<div class="flex justify-center py-12"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+	<PageSpinner />
 {:else if !entries.active}
 	<p class="text-base-content/60 py-8 text-center">
 		Les liens sont propres à chaque collection. <a class="link link-primary" href="/collections">Créez d'abord une collection</a>.

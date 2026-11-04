@@ -1002,7 +1002,8 @@ test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche
 		'Index de la collection',
 		'Gérer les liens',
 		'Gérer les tags',
-		'Gérer le classement'
+		'Gérer le classement',
+		'Statistiques'
 	]);
 	// Depuis le menu, la collection est déjà choisie : son menu en en-tête, pas de sélecteur, retour vers les fiches.
 	await page.getByRole('link', { name: 'Gérer les tags' }).click();
