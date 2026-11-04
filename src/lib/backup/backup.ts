@@ -183,11 +183,12 @@ export type RestoreResult = { restored: number; removed: number; adopted: boolea
 
 type Catalog<T> = {
 	decrypt(dek: CryptoKey, encrypted: Encrypted): Promise<T[]>;
-	save(uid: string, dek: CryptoKey, items: T[]): Promise<void>;
+	save(uid: string, dek: CryptoKey, items: T[], checked?: boolean): Promise<void>;
 };
 
+/** Sans contrôle de version : la restauration remplace tout volontairement. */
 async function replaceCatalog<T>(catalog: Catalog<T>, uid: string, dek: CryptoKey, fromFile: Encrypted | null): Promise<void> {
-	await catalog.save(uid, dek, fromFile ? await catalog.decrypt(dek, fromFile) : []);
+	await catalog.save(uid, dek, fromFile ? await catalog.decrypt(dek, fromFile) : [], false);
 }
 
 /**

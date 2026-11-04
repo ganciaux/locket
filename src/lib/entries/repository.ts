@@ -24,6 +24,7 @@ import type { Bytes } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import { type CacheChanges, type CachedEntry, applyToCache, cachedToken, clearCache, fillCache, readCache } from './cache';
 import { type Entry, type EntryData, type Link, fitsInDoc, parseBirthYear, parseCountry, parseRating } from './model';
+import { StaleDataError, guardStale } from './stale';
 
 type StoredEntry = { data: StoredEncrypted; thumb?: StoredEncrypted };
 type StoredImage = { image: StoredEncrypted };
@@ -45,29 +46,46 @@ const toCached = (id: string, stored: StoredEntry): CachedEntry => ({
 	...(stored.thumb && { thumb: fromStored(stored.thumb) })
 });
 
+const tokenOf = (version: { data(): { token?: FirestoreBytes } | undefined }) => version.data()?.token?.toBase64();
+
+/**
+ * Jeton des fiches en mémoire : lu au chargement de la liste, puis celui de nos propres écritures. S'il diffère de
+ * celui de Firestore, un autre appareil a écrit depuis : l'écriture est refusée (voir stale.ts).
+ */
+let expected: { uid: string; token: string | undefined } | null = null;
+
 /**
  * Seule porte d'écriture des fiches : le jeton change dans la même transaction, un appareil à jour ne manque donc pas
  * une modification faite par cette version de l'app (les règles Firestore ne l'imposent pas). La copie locale ne suit que si le jeton lu est le sien : sinon un autre appareil a écrit entre-temps,
  * et elle sera rechargée au prochain déverrouillage.
+ * `checked` : refusée si un autre appareil a écrit depuis le chargement ; non pour la restauration et la suppression
+ * totale, qui remplacent tout volontairement.
  * Une à la fois : en parallèle, les transactions se disputeraient le jeton jusqu'à échouer.
  */
-function commitEntries(uid: string, write: (writes: Transaction) => void, changes: CacheChanges): Promise<void> {
-	const commit = commitQueue.then(() => commitNow(uid, write, changes));
+function commitEntries(
+	uid: string,
+	write: (writes: Transaction) => void,
+	changes: CacheChanges,
+	checked = true
+): Promise<void> {
+	const commit = commitQueue.then(() => guardStale(() => commitNow(uid, write, changes, checked)));
 	commitQueue = commit.catch(() => {});
 	return commit;
 }
 
 let commitQueue: Promise<void> = Promise.resolve();
 
-async function commitNow(uid: string, write: (writes: Transaction) => void, changes: CacheChanges): Promise<void> {
+async function commitNow(uid: string, write: (writes: Transaction) => void, changes: CacheChanges, checked: boolean): Promise<void> {
 	const known = await cachedToken(uid);
 	const next = FirestoreBytes.fromUint8Array(randomBytes(16));
 	const inSync = await runTransaction(db, async (writes) => {
-		const version = await writes.get(versionRef(uid));
+		const current = tokenOf(await writes.get(versionRef(uid)));
+		if (checked && expected?.uid === uid && current !== expected.token) throw new StaleDataError();
 		write(writes);
 		writes.set(versionRef(uid), { token: next });
-		return (version.data()?.token as FirestoreBytes | undefined)?.toBase64() === known;
+		return current === known;
 	});
+	expected = { uid, token: next.toBase64() };
 	if (known && inSync) await applyToCache(uid, known, next.toBase64(), changes);
 }
 
@@ -105,8 +123,8 @@ export async function listEntries(
 	dek: CryptoKey,
 	onUnreadable?: (id: string) => void
 ): Promise<EntrySummary[]> {
-	const version = await getDoc(versionRef(uid));
-	const token = (version.data()?.token as FirestoreBytes | undefined)?.toBase64();
+	const token = tokenOf(await getDoc(versionRef(uid)));
+	expected = { uid, token };
 	const cached = token ? await readCache(uid, token) : null;
 	if (cached) {
 		let damaged = false;
@@ -274,7 +292,8 @@ export async function saveThumbs(uid: string, dek: CryptoKey, thumbs: { id: stri
 	);
 }
 
-export async function deleteEntries(uid: string, ids: string[]): Promise<void> {
+/** `checked` : voir `commitEntries` (faux pour la restauration et la suppression totale). */
+export async function deleteEntries(uid: string, ids: string[], checked = true): Promise<void> {
 	const size = MAX_BATCH_WRITES / 2; // fiche + image
 	for (let start = 0; start < ids.length; start += size) {
 		const chunk = ids.slice(start, start + size);
@@ -285,7 +304,8 @@ export async function deleteEntries(uid: string, ids: string[]): Promise<void> {
 					writes.delete(entryRef(uid, id));
 					writes.delete(imageRef(uid, id));
 				}),
-			{ remove: chunk }
+			{ remove: chunk },
+			checked
 		);
 	}
 }
@@ -345,7 +365,8 @@ export async function writeStoredEntries(
 				}
 			},
 			// Sans le champ image : le cache ne garde jamais d'image complète.
-			{ put: chunk.map(({ id, data, thumb }) => ({ id, data, ...(thumb && { thumb }) })) }
+			{ put: chunk.map(({ id, data, thumb }) => ({ id, data, ...(thumb && { thumb }) })) },
+			false
 		);
 	}
 
@@ -367,7 +388,7 @@ export async function writeStoredEntries(
 /** Supprime les fiches hors de `keep`, avec leurs images (restauration, suppression totale). Retourne leur nombre. */
 export async function deleteStoredEntriesExcept(uid: string, keep: Set<string>): Promise<number> {
 	const ids = (await getDocs(entriesRef(uid))).docs.map((d) => d.id).filter((id) => !keep.has(id));
-	await deleteEntries(uid, ids);
+	await deleteEntries(uid, ids, false);
 	return ids.length;
 }
 

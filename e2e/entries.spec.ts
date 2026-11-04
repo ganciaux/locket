@@ -1239,7 +1239,7 @@ test('import d’un tableau : modèle, aperçu, lignes en erreur laissées de c�
 	await expect(page).toHaveURL(/\/list$/);
 	await page.getByRole('button', { name: 'Âge' }).click();
 	await expect(page.getByRole('listitem').filter({ hasText: 'Naruto' })).toContainText(`${new Date().getFullYear() - 1999} ans`);
-	await page.getByRole('link', { name: 'One Piece' }).click();
+	await page.getByRole('link', { name: 'One Piece', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'One Piece' })).toBeVisible();
 	await expect(page.getByText('Japon')).toBeVisible();
 	await expect(page.getByText('Aventure', { exact: true })).toBeVisible();
@@ -1302,11 +1302,12 @@ test('tags : même nom dans deux catégories, unique dans une catégorie', async
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Gérer les tags' }).click();
 	await page.getByText('Catégories (0)').click();
-	for (const input of ['Genre = Action', 'Thème = Action']) {
+	// Une à la fois : la fin d'un ajout vide le champ, elle effacerait la suivante déjà tapée.
+	for (const [i, input] of ['Genre = Action', 'Thème = Action'].entries()) {
 		await page.getByLabel('Nouvelle catégorie').fill(input);
 		await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+		await expect(page.getByText(`Catégories (${i + 1})`)).toBeVisible();
 	}
-	await expect(page.getByText('Catégories (2)')).toBeVisible();
 	await expect(page.getByText('Action', { exact: true })).toHaveCount(2);
 
 	// Dans une même catégorie, le nom reste unique (sans casse ni accents).

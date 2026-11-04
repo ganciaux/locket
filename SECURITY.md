@@ -127,10 +127,13 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
 - **Modèle d'import en clair** : « Partir de mes fiches » (import d'un tableau) met noms, pays, années, notes et tags
   de la collection en clair dans la zone de texte, puis dans le presse-papiers ou un tableur si on les y copie, où ils
   peuvent être synchronisés. Seule sortie en clair, voulue et signalée sur la page ; rien n'est envoyé par l'app.
-- **Écrasement entre appareils** : une écriture réécrit tout le `data` d'une fiche depuis la copie en mémoire. Si un
-  autre appareil a modifié la fiche depuis le dernier chargement, ses changements sont perdus, sans message, bien que le
-  jeton `meta/version` le révèle. À corriger (voir [AUDIT.md](AUDIT.md)) ; d'ici là, recharger avant une action groupée
-  ou un import si un autre appareil a servi.
+- **Écrasement entre appareils** (corrigé le 2026-11-04, `stale.ts`) : une écriture part de la copie en mémoire. Elle
+  est refusée si un autre appareil a écrit depuis le chargement : jeton `meta/version` comparé dans la transaction de
+  chaque écriture de fiche (fiche, action groupée, import, Tagger), IV du catalogue comparé dans celle de chaque
+  réécriture des tags ou des collections. Les données sont alors relues et l'utilisateur recommence. Restauration et
+  suppression totale ne contrôlent pas : elles remplacent tout volontairement. Reste : le jeton est global, une écriture
+  sur une autre fiche suffit à refuser (faux conflit, sans perte) ; et un client qui ne change pas le jeton (ancienne
+  version de l'app, client modifié) n'est pas vu, comme pour le cache (§ 3).
 - **Aperçu iOS** : le sélecteur d'apps peut montrer une capture de l'écran déverrouillé.
 
 ## 6. Plan d'audit

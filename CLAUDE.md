@@ -46,7 +46,8 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
   `backup/manifest` pour le manifeste d'une sauvegarde, `keyring/check` pour le sceau de `recoveryDek` :
   un chiffré n'est valable qu'à son emplacement.
 - Firestore : uniquement du type `Bytes`, pas de base64 ; aucune donnée en clair hors uid et ids de documents.
-  Le jeton `meta/version` est un aléa sans contenu, changé dans la transaction de chaque écriture de fiche (`commitEntries`).
+  Le jeton `meta/version` est un aléa sans contenu, changé dans la transaction de chaque écriture de fiche (`commitEntries`),
+  qui refuse l'écriture s'il n'est plus celui lu au chargement (autre appareil, `stale.ts`) ; les catalogues font de même avec leur IV.
 - Cache local (`cache.ts`) : chiffrés uniquement, tels que dans Firestore ; jamais de clé, de donnée déchiffrée
   ni d'image complète. Effacé à la déconnexion, y compris une session terminée sans `signOut`.
   Une copie indéchiffrable entraîne une relecture de Firestore, jamais une fiche « illisible » (sa suppression agirait sur le serveur).

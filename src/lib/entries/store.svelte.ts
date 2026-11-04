@@ -7,6 +7,7 @@ import { verifyPassword } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { prefs } from '$lib/prefs.svelte';
 import { collectionCatalog, tagCatalog } from './catalog';
+import { whenStale } from './stale';
 import type { Bytes } from '$lib/crypto/encoding';
 import { bytesToUrl, isFullSizeThumb, rebuildThumb } from './images';
 import {
@@ -123,6 +124,13 @@ $effect.root(() => {
 	$effect(() => {
 		if (!session.dek) clear();
 	});
+});
+
+// Écriture refusée (un autre appareil a écrit, voir stale.ts) : tout est relu sans vider l'affichage, pour qu'un
+// formulaire ouvert garde sa saisie et puisse être réenregistré.
+whenStale(() => {
+	loading = null;
+	loadEntries().catch(() => {});
 });
 
 export const entries = {
@@ -278,6 +286,7 @@ export function loadEntries(): Promise<void> {
 			const expired = list.filter((entry) => isTrashExpired(entry.deletedAt, now));
 			if (expired.length) deleteEntries(user.uid, expired.map((entry) => entry.id)).catch(() => {});
 			const kept = list.filter((entry) => !isTrashExpired(entry.deletedAt, now));
+			data.items?.forEach(revoke); // relecture après une écriture refusée
 			data.items = kept.map(withThumbUrl).sort(byName);
 			unreadableIds = unreadable;
 			catalogDamaged = damaged;

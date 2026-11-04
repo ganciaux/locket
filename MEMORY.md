@@ -16,7 +16,7 @@ Décisions prises et avancement. À mettre à jour à chaque étape.
 | Restauration | Même DEK : remplacement complet (voir Sauvegarde). DEK différente (compte recréé, décidé le 2026-10-29) : compte **vide** obligatoire, mot de passe actuel vérifié avant toute écriture, ancienne DEK déballée par l'ancien mot de passe (même email) ou l'ancienne clé de récupération, puis adoptée ; **l'ancienne clé de récupération redevient la bonne** (choix utilisateur). Ids validés (`[A-Za-z0-9_-]{1,64}`) | Seul filet de sécurité en cas de perte du compte. Compte vide : ses fiches (autre DEK) deviendraient illisibles |
 | Image | Facultative ; WebP avec repli JPEG | Safari iOS n'encode pas toujours le WebP via canvas |
 | Hors ligne | Pas de lecture hors ligne : le jeton `meta/version` est toujours lu sur Firestore ; seule l'app est mise en cache | Simplicité |
-| Cache des fiches (2026-11-02) | Copie IndexedDB des chiffrés (`cache.ts`, sans image complète), gardée au verrouillage, effacée à la déconnexion. `commitEntries` change l'aléa `meta/version` dans la transaction de chaque écriture de fiche ; jeton identique au déverrouillage = pas de téléchargement, sinon rechargement complet ; relecture imposée après 7 jours. Catalogues hors cache (petits, relus à chaque fois) | Évite de retélécharger toutes les miniatures. Aléa plutôt que date : pas d'horloge à croire. Transaction : le jeton lu prouve qu'aucun autre appareil n'a écrit, sinon la copie ne suit pas. Copie indéchiffrable = relecture Firestore, jamais « fiche illisible » (sa suppression agirait sur le serveur). Mise à jour fiche par fiche écartée : il faudrait une date en clair et des marques de suppression |
+| Cache des fiches (2026-11-02) | Copie IndexedDB des chiffrés (`cache.ts`, sans image complète), gardée au verrouillage, effacée à la déconnexion. `commitEntries` change l'aléa `meta/version` dans la transaction de chaque écriture de fiche ; jeton identique au déverrouillage = pas de téléchargement, sinon rechargement complet ; relecture imposée après 7 jours. Le jeton lu au chargement sert aussi à refuser une écriture si un autre appareil a écrit depuis (2026-11-04, `stale.ts`). Catalogues hors cache (petits, relus à chaque fois) | Évite de retélécharger toutes les miniatures. Aléa plutôt que date : pas d'horloge à croire. Transaction : le jeton lu prouve qu'aucun autre appareil n'a écrit, sinon la copie ne suit pas. Copie indéchiffrable = relecture Firestore, jamais « fiche illisible » (sa suppression agirait sur le serveur). Mise à jour fiche par fiche écartée : il faudrait une date en clair et des marques de suppression |
 | SvelteKit | Version 2 | `@vite-pwa/sveltekit` 1.1 ne supporte pas Kit 3 |
 | Node | ≥ 24.12 | Exigé par `firebase` 13 |
 | Projet Firebase | `locket-403b5` ; émulateurs sous `demo-locket` | En local, aucun appel au vrai projet |
@@ -100,7 +100,9 @@ restauration testée seulement dans le même compte.
 
 - **Fiabilité** (retenue par l'utilisateur) :
   - [ ] e2e de restauration dans un **compte neuf** (en test : inscriptions fermées en prod) ;
-  - [ ] protection contre l'écrasement entre appareils, étendue aux tags, aux collections et aux actions groupées ;
+  - [x] protection contre l'écrasement entre appareils, étendue aux tags, aux collections et aux actions groupées
+    (fait : `stale.ts` ; fiches par le jeton `meta/version` lu au chargement, catalogues par leur IV ; refus, relecture
+    sans vider l'affichage, message « Recommencez » ; jeton global, donc faux conflits possibles, sans perte) ;
   - [ ] fichier de sauvegarde témoin dans les tests (régression du format) ;
   - [ ] taille des catalogues mesurée à 2 000 fiches.
 - **Quick wins** (lecture seule, retenus) :

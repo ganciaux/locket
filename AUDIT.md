@@ -20,7 +20,7 @@ vont dans [MEMORY.md](MEMORY.md).
 - [ ] **Email de réinitialisation externe** (en attente) : tester si un tiers peut le déclencher, et si le modèle d'email
       de la console peut porter un avertissement (voir [SECURITY.md](SECURITY.md) § 5). *Simple.*
 
-- [ ] **Écrasement entre appareils** (revue du 2026-11-03, basse) : retenir le jeton `meta/version` lu au chargement et
+- [x] **Écrasement entre appareils** — fait le 2026-11-04 (`stale.ts`, catalogues compris) (revue du 2026-11-03, basse) : retenir le jeton `meta/version` lu au chargement et
       refuser une réécriture de `data` (fiche, action groupée, import) s'il a changé, puis relire la liste et demander de
       recommencer. Voir [SECURITY.md](SECURITY.md) § 5. *Intermédiaire.*
 - [ ] **Audit de sécurité réel** : plan en 3 niveaux et journal dans [SECURITY.md](SECURITY.md) (2026-10-29).

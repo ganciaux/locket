@@ -5,10 +5,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Bytes, collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
-import { generateDek, randomBytes } from '$lib/crypto/crypto';
-import { auth, db } from '$lib/firebase';
+import { encryptJson, generateDek, randomBytes } from '$lib/crypto/crypto';
+import { auth, db, toStored } from '$lib/firebase';
 import { createEntries, deleteEntries, deleteEntry, getImage, listEntries, patchStoredEntries, saveEntry, saveThumbs } from './repository';
 import { collectionCatalog, tagCatalog } from './catalog';
+import { StaleDataError } from './stale';
 
 let uid: string;
 let dek: CryptoKey;
@@ -18,6 +19,37 @@ beforeAll(async () => {
 	const { user } = await createUserWithEmailAndPassword(auth, `t${Date.now()}@example.com`, 'jeton-de-test-1234');
 	uid = user.uid;
 	dek = await generateDek();
+});
+
+// Avant les tests qui se déconnectent : celui-ci écrit avec la session du compte de test.
+describe('écrasement entre appareils (émulateurs)', () => {
+	const input = (name: string) => ({ collectionId: 'col-1', name, links: [], tagIds: [] });
+
+	it('refuse une écriture de fiche si un autre appareil a écrit depuis le chargement, accepte après relecture', async () => {
+		const entry = await saveEntry(uid, dek, input('Partagée'));
+		const [loaded] = (await listEntries(uid, dek)).filter((e) => e.id === entry.id);
+		// L'autre appareil change le jeton, comme le fait chacune de ses écritures.
+		await setDoc(doc(db, 'users', uid, 'meta', 'version'), { token: Bytes.fromUint8Array(randomBytes(16)) });
+
+		await expect(saveEntry(uid, dek, input('Modifiée ici'), loaded)).rejects.toBeInstanceOf(StaleDataError);
+		expect((await listEntries(uid, dek)).find((e) => e.id === entry.id)?.name).toBe('Partagée');
+		// Relue : l'écriture passe, et les suivantes aussi (le jeton suit nos propres écritures).
+		await saveEntry(uid, dek, input('Modifiée ici'), loaded);
+		await saveEntry(uid, dek, input('Encore'), loaded);
+		await deleteEntry(uid, entry.id);
+	}, 60_000);
+
+	it('refuse la réécriture d’un catalogue modifié ailleurs, accepte après relecture', async () => {
+		await tagCatalog.save(uid, dek, [{ id: 'tag-a', name: 'A', collectionId: 'col-1' }]);
+		await tagCatalog.get(uid, dek);
+		const elsewhere = [{ id: 'tag-b', name: 'B', collectionId: 'col-1' }];
+		await setDoc(doc(db, 'users', uid, 'meta', 'tags'), { data: toStored(await encryptJson(dek, elsewhere, 'meta/tags')) });
+
+		await expect(tagCatalog.save(uid, dek, [])).rejects.toBeInstanceOf(StaleDataError);
+		expect(await tagCatalog.get(uid, dek)).toEqual(elsewhere);
+		await tagCatalog.save(uid, dek, []);
+		expect(await tagCatalog.get(uid, dek)).toEqual([]);
+	}, 60_000);
 });
 
 describe('fiches (émulateurs)', () => {
@@ -240,6 +272,8 @@ describe('fiches (émulateurs)', () => {
 	}, 60_000);
 
 	it('règles : hors de son espace, ni lecture, ni liste, ni écriture, ni suppression', async () => {
+		// Le test précédent a changé le jeton comme un autre appareil : relire avant d'écrire.
+		await listEntries(uid, dek);
 		const mine = await saveEntry(uid, dek, { collectionId: 'col-1', name: 'Privée', links: [], tagIds: [] });
 		const denied = { code: 'permission-denied' };
 		const paths = [
