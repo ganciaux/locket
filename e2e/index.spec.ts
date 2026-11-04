@@ -1,0 +1,248 @@
+/** Index (backoffice) : liste par initiale, « Il manque », import, comparaison, statistiques. */
+import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
+import { addTagGroups, createEntry, importTable, openIndex } from './helpers';
+
+test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	for (const name of ['Écho', 'Alpha', '2046']) await createEntry(page, name);
+	await goHome(page);
+
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	// Menu du titre : pages propres à la collection active.
+	await expect(page.locator('details.dropdown ul a')).toHaveText([
+		'Chercher des fiches',
+		'Index de la collection',
+		'Gérer les liens',
+		'Gérer les tags',
+		'Gérer le classement',
+		'Statistiques'
+	]);
+	// Depuis le menu, la collection est déjà choisie : son menu en en-tête, pas de sélecteur, retour vers les fiches.
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await expect(page.getByRole('heading', { name: 'Tags' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Manga' })).toBeVisible();
+	await expect(page.getByRole('combobox', { name: 'Collection' })).toHaveCount(0);
+	await page.getByRole('link', { name: 'Mes fiches' }).click();
+	await expect(page).toHaveURL(/\/$/);
+	await openIndex(page);
+	await expect(page).toHaveURL(/\/list$/);
+	// L'import garde l'en-tête de la collection, avec un retour à l'index.
+	await page.getByRole('link', { name: 'Importer' }).click();
+	await expect(page.getByRole('heading', { name: 'Importer des fiches' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Manga' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Mes fiches' })).toBeVisible();
+	await page.getByRole('link', { name: 'Index', exact: true }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['#', 'A', 'E']);
+	await expect(page.getByRole('status').filter({ hasText: 'fiches' })).toHaveText('3 fiches');
+
+	// Sans casse ni accents, sur le nom seulement.
+	await page.getByLabel('Rechercher un nom').fill('echo');
+	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['E']);
+	await expect(page.getByRole('status').filter({ hasText: 'fiche' })).toHaveText('1 fiche sur 3');
+
+	// Lettres de séparation affichées par défaut ; sans elles, une liste continue, toujours par nom.
+	await page.getByLabel('Rechercher un nom').fill('');
+	const initials = page.getByRole('button', { name: 'A…Z' });
+	await expect(initials).toHaveAttribute('aria-pressed', 'true');
+	await initials.click();
+	await expect(page.getByRole('heading', { level: 2 })).toHaveCount(0);
+	await expect(page.getByRole('listitem')).toHaveText([/2046/, /Alpha/, /Écho/]);
+	await initials.click();
+	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['#', 'A', 'E']);
+
+	// Les options sont mémorisées sur l'appareil.
+	await page.getByRole('button', { name: 'Tags' }).click();
+	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
+
+	await page.getByRole('link', { name: 'Écho', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Écho' })).toBeVisible();
+	// Fiche, puis modification : le retour mène toujours à l'index.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect(page.getByRole('heading', { name: 'Modifier la fiche' })).toBeVisible();
+	await page.getByRole('link', { name: 'Index', exact: true }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.getByRole('button', { name: 'Tags' })).toHaveAttribute('aria-pressed', 'true');
+
+	// Crayon de la ligne : modification directe ; Annuler et Enregistrer ramènent à l'index.
+	await page.getByRole('link', { name: 'Modifier Écho' }).click();
+	await expect(page.getByRole('heading', { name: 'Modifier la fiche' })).toBeVisible();
+	await page.getByRole('link', { name: 'Annuler' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await page.getByRole('link', { name: 'Modifier Alpha' }).click();
+	await page.getByLabel('Nom', { exact: true }).fill('Alpha bis');
+	await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.getByRole('link', { name: 'Alpha bis', exact: true })).toBeVisible();
+});
+
+test('import d’un tableau : modèle, aperçu, lignes en erreur laissées de côté, ajouts et mises à jour', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Naruto');
+
+	await addTagGroups(page, 'Genre');
+	for (const name of ['Action', 'Aventure']) {
+		await page.getByLabel('Catégorie du nouveau tag').selectOption({ label: 'Genre' });
+		await page.getByLabel('Nouveau tag', { exact: true }).fill(name);
+		await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+		await expect(page.getByText(name, { exact: true })).toBeVisible();
+	}
+
+	await goHome(page);
+	await openIndex(page);
+	await page.getByRole('link', { name: 'Importer' }).click();
+
+	// Modèle : en-têtes de la collection et fiches existantes.
+	await page.getByRole('button', { name: 'Partir de mes fiches' }).click();
+	const table = page.getByLabel('Tableau', { exact: true });
+	await expect(table).toHaveValue('Nom;Pays;Naissance;Note;Genre\nNaruto;;;;');
+
+	// Légende : la liste des codes pays ISO, repliée.
+	await page.getByText('Colonnes et valeurs acceptées').click();
+	await page.getByText(/^Voir les 249 codes$/).click();
+	await expect(page.getByRole('listitem').filter({ hasText: /^CZ Tchéquie$/ })).toBeVisible();
+	await page.getByText('Colonnes et valeurs acceptées').click();
+
+	// Une erreur d'en-tête bloque tout l'import.
+	await table.fill('Nom;Pays;Auteur\nnaruto;Japon;x');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByText('Rien ne peut être importé :')).toBeVisible();
+	await expect(page.getByRole('button', { name: /^Importer/ })).toBeDisabled();
+	await page.getByRole('button', { name: 'Modifier le tableau' }).click();
+
+	// Une ligne en erreur est laissée de côté : les autres s'importent sans elle, puis elle reste à corriger.
+	await table.fill('Nom;Pays;Naissance;Genre\nnaruto;Japon;1999;Action\nOne Piece;JP;;Aventur');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByText('Ligne 3 : tag « Aventur » inconnu dans Genre.')).toBeVisible();
+	await expect(page.getByText('Pays : — → Japon · Naissance : — → 1999 · Genre : — → Action')).toBeVisible();
+	await page.getByRole('button', { name: 'Importer sans les erreurs (1)' }).click();
+	await expect(page.getByText('1 fiche importée, 1 ligne laissée de côté :')).toBeVisible();
+	await expect(page.getByText('Ligne 3 : tag « Aventur » inconnu dans Genre.')).toBeVisible();
+	await page.getByRole('button', { name: 'Corriger les lignes ignorées' }).click();
+	await expect(table).toHaveValue('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventur');
+
+	// Rien d'autre à importer : les lignes en erreur s'isolent directement depuis l'aperçu.
+	await table.fill('Nom;Pays;Naissance;Genre\nnaruto;Japon;1999;Action\nOne Piece;JP;;Aventur');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByText('Rien d’autre à importer. Lignes en erreur :')).toBeVisible();
+	await page.getByRole('button', { name: 'Ne garder que les lignes en erreur' }).click();
+	await expect(table).toHaveValue('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventur');
+
+	await table.fill('Nom;Pays;Naissance;Genre\nOne Piece;JP;;Aventure');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await expect(page.getByRole('status')).toHaveText(/1 ajout · 0 modification ·\s+0 fiche inchangée/);
+	await page.getByRole('button', { name: 'Importer (1)' }).click();
+
+	await expect(page).toHaveURL(/\/list$/);
+	await page.getByRole('button', { name: 'Âge' }).click();
+	await expect(page.getByRole('listitem').filter({ hasText: 'Naruto' })).toContainText(`${new Date().getFullYear() - 1999} ans`);
+	await page.getByRole('link', { name: 'One Piece', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'One Piece' })).toBeVisible();
+	await expect(page.getByText('Japon')).toBeVisible();
+	await expect(page.getByText('Aventure', { exact: true })).toBeVisible();
+});
+
+test('index : comparer une liste de noms à la collection', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	for (const name of ['Naruto', 'Éric Dupont']) await createEntry(page, name);
+	await goHome(page);
+	await openIndex(page);
+	await page.getByRole('link', { name: 'Comparer une liste' }).click();
+	await expect(page.getByRole('heading', { name: 'Comparer une liste' })).toBeVisible();
+
+	await page.getByLabel('Noms à comparer').fill('Zorro\n  naruto \n\nAlpha\nzorro\neric dupont');
+	const missing = page.getByRole('region', { name: /^Absents/ });
+	const found = page.getByRole('region', { name: /^Déjà dans la collection/ });
+	await expect(missing.getByRole('heading')).toHaveText('Absents de la collection (2)');
+	await expect(missing.getByRole('listitem')).toHaveText(['Alpha', 'Zorro']);
+	await expect(found.getByRole('listitem')).toHaveText([/Éric Dupont\s*saisi « eric dupont »$/, /Naruto\s*saisi « naruto »$/]);
+	await expect(page.getByText('1 doublon retiré de la liste.')).toBeVisible();
+
+	// Sans tri : l'ordre saisi ; la liste des absents se copie d'un clic.
+	await page.getByLabel('Trier par ordre alphabétique').uncheck();
+	await expect(missing.getByRole('listitem')).toHaveText(['Zorro', 'Alpha']);
+	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+	await missing.getByRole('button', { name: 'Copier les absents' }).click();
+	// Windows rend les fins de ligne du presse-papiers en CRLF.
+	expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n')).toBe('Zorro\nAlpha');
+
+	// Une fiche déjà présente s'ouvre depuis la liste.
+	await found.getByRole('link', { name: 'Naruto' }).click();
+	await expect(page.getByRole('heading', { name: 'Naruto' })).toBeVisible();
+});
+
+test('index : « Il manque » pour compléter les fiches', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await addTagGroups(page, 'Genre = Action');
+
+	await goHome(page);
+	await openIndex(page);
+	await importTable(page, 'Nom;Pays;Naissance;Genre\nAlpha;FR;1990;Action\nBravo;;1990;\nCharlie;JP;;Action', 3);
+	await expect(page).toHaveURL(/\/list$/);
+
+	// Pastille à choix unique, comme la note de la liste.
+	const missing = page.locator('summary').filter({ hasText: 'Il manque' });
+	const choose = async (label: string) => {
+		await missing.click();
+		await page.getByRole('radio', { name: label, exact: true }).check();
+	};
+	const names = page.getByRole('listitem').getByRole('link').filter({ hasText: /\S/ }); // sans les crayons
+	await expect(names).toHaveText(['Alpha', 'Bravo', 'Charlie']);
+	await choose('Pays');
+	await expect(names).toHaveText(['Bravo']);
+	await expect(page.getByRole('listitem')).toContainText('Manque : pays, image, Genre');
+	await choose('Naissance');
+	await expect(names).toHaveText(['Charlie']);
+	await choose('Genre');
+	await expect(names).toHaveText(['Bravo']);
+	// Aucune image : toutes incomplètes.
+	await choose('Une info');
+	await expect(names).toHaveText(['Alpha', 'Bravo', 'Charlie']);
+	await expect(page.getByRole('listitem').filter({ hasText: 'Alpha' })).toContainText('Manque : image');
+
+	// Miniature (initiale sans image) et classement : affichés à la demande.
+	await page.getByRole('button', { name: 'Miniature' }).click();
+	await expect(page.getByRole('listitem').filter({ hasText: 'Alpha' }).getByText('A', { exact: true })).toBeVisible();
+	await page.getByRole('button', { name: 'Miniature' }).click();
+	await expect(page.getByRole('button', { name: 'Classement' })).toHaveAttribute('aria-pressed', 'false');
+
+	// Gardé en revenant d'une fiche.
+	await choose('Pays');
+	await names.first().click();
+	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
+	await page.goBack();
+	await expect(missing).toHaveText(/Il manque\s*: Pays/);
+	await expect(names).toHaveText(['Bravo']);
+});
+
+test('statistiques de la collection : chiffres clés, répartitions et lien vers les fiches à compléter', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await addTagGroups(page, 'Genre = Action, Drame');
+
+	await goHome(page);
+	await openIndex(page);
+	await importTable(page, 'Nom;Pays;Naissance;Note;Genre\nAlpha;FR;1985;4,5;Action\nBravo;FR;1981;;Action, Drame\nCharlie;JP;1999;1;', 3);
+	await expect(page).toHaveURL(/\/list$/);
+
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Statistiques' }).click();
+	await expect(page.getByRole('heading', { name: 'Statistiques' })).toBeVisible();
+	const tile = (label: string) => page.locator('div, a').filter({ has: page.getByText(label, { exact: true }) }).last();
+	await expect(tile('Fiches')).toContainText('3');
+	await expect(tile('Notées')).toContainText('2');
+	await expect(page.getByText('🇫🇷 France')).toBeVisible();
+	await expect(page.getByText('Années 1980')).toBeVisible();
+	await expect(page.getByText('2 / 3 fiches · 67 %')).toBeVisible();
+	await expect(page.getByText('Action · 2')).toBeVisible();
+
+	// Aucune image : les trois fiches sont à compléter, l'index s'ouvre filtré.
+	await expect(tile('À compléter')).toContainText('3');
+	await page.getByRole('link', { name: /À compléter/ }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.locator('summary').filter({ hasText: 'Il manque' })).toHaveText(/Il manque\s*: Une info/);
+});
