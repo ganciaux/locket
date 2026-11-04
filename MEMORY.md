@@ -117,7 +117,10 @@ restauration testée seulement dans le même compte.
   - [x] suggestions de tags dans le Tagger, depuis les fiches ressemblantes (`suggestTags`) : jusqu'à 6 pastilles
     « + tag » au-dessus du choix, chaque tag pondéré par la somme des scores des fiches qui le portent ; calcul local
     (`findSimilar`, image, nom, pays), rien sans image ni tag de part et d'autre ;
-  - [ ] page Statistiques ;
+  - [x] page Statistiques (`/stats`, menu de la collection, `stats.ts` pur et testé) : chiffres clés (fiches dont
+    cachées, avec image, notées, classées, à compléter → index filtré « Il manque : Une info »), répartitions par
+    étoiles, pays (12 premiers), décennie de naissance, couverture de chaque catégorie avec ses 5 tags les plus portés ;
+    barres en `<progress>` (pas de style en ligne sous la CSP) ;
   - [ ] date de dernière sauvegarde synchronisée.
 - **Chantiers** (plus tard) : Face ID par PRF (page de test jetable sur iPhone d'abord), audit section par section,
   outil autonome de déchiffrement d'une sauvegarde (sortie hors Firebase), lecture hors ligne (purge iOS d'IndexedDB

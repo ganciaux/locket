@@ -2,6 +2,7 @@
 	// Icônes au trait (24 × 24), en SVG inline : pas de dépendance, compatible CSP.
 	const PATHS = {
 		plus: 'M12 5v14M5 12h14',
+		chart: 'M4 20h16M7 16v-4M12 16V6M17 16v-7',
 		close: 'M6 6l12 12M18 6 6 18',
 		back: 'M15 18l-6-6 6-6',
 		forward: 'M9 18l6-6-6-6',

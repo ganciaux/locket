@@ -12,7 +12,8 @@
 		{ href: '/list', icon: 'list', label: 'Index de la collection' },
 		{ href: '/sites', icon: 'link', label: 'Gérer les liens' },
 		{ href: '/tags', icon: 'tag', label: 'Gérer les tags' },
-		{ href: '/ranking', icon: 'podium', label: 'Gérer le classement' }
+		{ href: '/ranking', icon: 'podium', label: 'Gérer le classement' },
+		{ href: '/stats', icon: 'chart', label: 'Statistiques' }
 	] as const;
 
 	let open = $state(false);

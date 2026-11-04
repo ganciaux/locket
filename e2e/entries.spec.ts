@@ -1587,3 +1587,42 @@ test('mode Tagger : tags suggérés par les fiches ressemblantes', async ({ page
 	await page.getByRole('button', { name: 'Tags', exact: true }).click();
 	await expect(page.getByRole('listitem').filter({ hasText: 'Bravo' })).toContainText('Action');
 });
+
+test('statistiques de la collection : chiffres clés, répartitions et lien vers les fiches à compléter', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByText('Catégories (0)').click();
+	await page.getByLabel('Nouvelle catégorie').fill('Genre = Action, Drame');
+	await page.getByRole('button', { name: 'Ajouter la catégorie' }).click();
+	await expect(page.getByText('Catégories (1)')).toBeVisible();
+
+	await goHome(page);
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await page.getByRole('link', { name: 'Importer' }).click();
+	await page
+		.getByLabel('Tableau', { exact: true })
+		.fill('Nom;Pays;Naissance;Note;Genre\nAlpha;FR;1985;4,5;Action\nBravo;FR;1981;;Action, Drame\nCharlie;JP;1999;1;');
+	await page.getByRole('button', { name: 'Vérifier' }).click();
+	await page.getByRole('button', { name: 'Importer (3)' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+
+	await page.getByRole('heading', { name: 'Manga' }).click();
+	await page.getByRole('link', { name: 'Statistiques' }).click();
+	await expect(page.getByRole('heading', { name: 'Statistiques' })).toBeVisible();
+	const tile = (label: string) => page.locator('div, a').filter({ has: page.getByText(label, { exact: true }) }).last();
+	await expect(tile('Fiches')).toContainText('3');
+	await expect(tile('Notées')).toContainText('2');
+	await expect(page.getByText('🇫🇷 France')).toBeVisible();
+	await expect(page.getByText('Années 1980')).toBeVisible();
+	await expect(page.getByText('2 / 3 fiches · 67 %')).toBeVisible();
+	await expect(page.getByText('Action · 2')).toBeVisible();
+
+	// Aucune image : les trois fiches sont à compléter, l'index s'ouvre filtré.
+	await expect(tile('À compléter')).toContainText('3');
+	await page.getByRole('link', { name: /À compléter/ }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.locator('summary').filter({ hasText: 'Il manque' })).toHaveText(/Il manque\s*: Une info/);
+});
