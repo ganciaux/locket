@@ -40,6 +40,8 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 ## Invariants de sécurité (ne jamais casser)
 - Aucun `console.*` de donnée déchiffrée, mot de passe, jeton ou clé.
 - Le vrai mot de passe ne quitte jamais le navigateur : Firebase Auth reçoit le jeton dérivé (`deriveKeys().authToken`).
+- Tout état qui garde des données déchiffrées (ou des ids qui en découlent) s'inscrit à `onLock` (`session.svelte.ts`) :
+  un seul point de remise à zéro au verrouillage, jamais un `$effect` qui surveille `session.dek`.
 - La DEK vit en mémoire uniquement, non extractible (sauf à la génération, dans `rewrapDek` et `unwrapBackupDek`, le temps de l'emballer).
 - IV aléatoire neuf à chaque chiffrement, y compris en modification.
 - AAD = `"<entryId>/<champ>"` (`data`, `thumb`, `image`), `meta/tags` ou `meta/collections` pour les catalogues, `meta/backup` pour la date de dernière sauvegarde,

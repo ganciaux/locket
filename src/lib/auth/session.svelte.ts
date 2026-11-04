@@ -52,6 +52,24 @@ export function lock(): void {
 	unlocked = null;
 }
 
+/**
+ * Seul point de remise à zéro au verrouillage (verrou, déconnexion, changement d'utilisateur) : tout état qui garde
+ * des données déchiffrées, ou des identifiants qui en découlent, s'y inscrit, plutôt que de surveiller `session.dek`.
+ * Appelé aussi au démarrage, encore verrouillé.
+ */
+const lockHandlers: (() => void)[] = [];
+
+export function onLock(reset: () => void): void {
+	lockHandlers.push(reset);
+	if (!session.dek) reset();
+}
+
+$effect.root(() => {
+	$effect(() => {
+		if (!session.dek) for (const reset of lockHandlers) reset();
+	});
+});
+
 export async function signOut(): Promise<void> {
 	unlocked = null;
 	await clearCache();

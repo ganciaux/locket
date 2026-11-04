@@ -2,7 +2,7 @@
  * Mode Tagger : file de fiches figée au démarrage (depuis l'index), fiche affichée et fiches enregistrées.
  * En mémoire seulement, vidée au verrouillage ; ne contient que des identifiants.
  */
-import { session } from '$lib/auth/session.svelte';
+import { onLock } from '$lib/auth/session.svelte';
 
 type Tagging = { ids: string[]; currentId: string; done: string[] };
 
@@ -30,8 +30,4 @@ export function stopTagging(): void {
 	state = null;
 }
 
-$effect.root(() => {
-	$effect(() => {
-		if (!session.dek) state = null;
-	});
-});
+onLock(() => (state = null));

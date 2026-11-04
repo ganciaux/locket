@@ -132,3 +132,26 @@ restauration testée seulement dans le même compte.
   créées depuis la comparaison ; niveaux de filtre par tag à réévaluer à l'usage.
 - **À surveiller** : chaîne d'approvisionnement npm (un paquet compromis lit le clair), verrou SvelteKit 2 imposé par
   `@vite-pwa`, purge du stockage des PWA sur iOS, performances à quelques milliers de fiches.
+
+## Rétrospective du 2026-11-04 : si c'était à refaire
+
+À garder : crypto (PBKDF2 → HKDF, DEK emballée deux fois, AAD par emplacement), récupération par lien + clé, cache de
+chiffrés, sauvegarde avec manifeste, CSP stricte et `cspGuard`, SPA + daisyUI ; sel = email et images dans Firestore
+restent les seules options compatibles avec « gratuit et Firebase ne voit rien ».
+À faire autrement :
+- **Méthode** : petits commits au fil de l'eau ; CI avec émulateurs et e2e dès le départ ; format de données versionné
+  et fichier témoin dès la première sauvegarde ; rôle des pages (front / backoffice) décidé tôt.
+- **Architecture** : modules par domaine plutôt qu'un `model.ts` fourre-tout ; un seul point de remise à zéro au
+  verrouillage ; une porte d'écriture unique avec détection de conflit pensée dès le début (version par document plutôt
+  qu'un jeton global) ; classement dans son propre document plutôt que dans le catalogue des collections ; store
+  séparant lecture et écriture.
+- **Interface** : briques communes dès la 2e occurrence (confirmations, chargement de page, pastilles de filtre).
+- **Tests** : logique en fonctions pures, e2e réservés aux parcours, découpés par page, avec des sélecteurs sans ambiguïté.
+- **Produit** : commencer simple et attendre le besoin (les niveaux de filtre par catégorie et par tag en sont l'exemple).
+Chantiers retenus (2026-11-04), un commit chacun, en factorisant ce qui sert plusieurs fois sans aller à l'extrême :
+- [x] `onLock` central (`session.svelte.ts`) : store, filtres, navigation et Tagger s'y inscrivent ;
+- [ ] briques UI communes (confirmations, chargement de page) ;
+- [ ] `model.ts` découpé par domaine, e2e découpés par page ;
+- [ ] CI avec émulateurs et e2e.
+Restent notés, non lancés : porte d'écriture avec version par document, classement dans son propre document, store
+séparant lecture et écriture.

@@ -4,7 +4,7 @@
  * La liste, la recherche et les tags proposés sont ceux de la collection active (préférence propre à l'appareil).
  */
 import { verifyPassword } from '$lib/auth/account';
-import { session } from '$lib/auth/session.svelte';
+import { onLock, session } from '$lib/auth/session.svelte';
 import { prefs } from '$lib/prefs.svelte';
 import { collectionCatalog, tagCatalog } from './catalog';
 import { whenStale } from './stale';
@@ -120,11 +120,7 @@ function clear() {
 	loading = null;
 }
 
-$effect.root(() => {
-	$effect(() => {
-		if (!session.dek) clear();
-	});
-});
+onLock(clear);
 
 // Écriture refusée (un autre appareil a écrit, voir stale.ts) : tout est relu sans vider l'affichage, pour qu'un
 // formulaire ouvert garde sa saisie et puisse être réenregistré.

@@ -3,7 +3,7 @@
  * par défaut à chaque déverrouillage : avec liens, toutes les notes, tous les pays, aucun tag, tri aléatoire,
  * recherche simple (catégories de tags « avancées » masquées).
  */
-import { session } from '$lib/auth/session.svelte';
+import { onLock } from '$lib/auth/session.svelte';
 import { type CountryFilter, NO_TAG_FILTER, type RatingFilter, type SortOrder, type TagFilter } from './model';
 
 type ListView = {
@@ -35,8 +35,4 @@ export function resetListView(): void {
 	Object.assign(listView, defaults());
 }
 
-$effect.root(() => {
-	$effect(() => {
-		if (!session.dek) resetListView();
-	});
-});
+onLock(resetListView);

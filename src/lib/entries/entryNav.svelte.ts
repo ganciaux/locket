@@ -3,7 +3,7 @@
  * adresse, pour les flèches précédente / suivante et le retour. Enregistré juste avant d'ouvrir une fiche ; en mémoire
  * seulement, vidé au verrouillage. Sans contexte, la fiche navigue dans sa collection par nom.
  */
-import { session } from '$lib/auth/session.svelte';
+import { onLock } from '$lib/auth/session.svelte';
 
 type EntryNav = { ids: string[]; backHref: string; backLabel: string; scrollY: number };
 
@@ -25,8 +25,4 @@ export function restoreEntryNavScroll(backHref: string): void {
 	if (nav?.backHref === backHref) window.scrollTo(0, nav.scrollY);
 }
 
-$effect.root(() => {
-	$effect(() => {
-		if (!session.dek) nav = null;
-	});
-});
+onLock(() => (nav = null));
