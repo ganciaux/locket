@@ -18,6 +18,7 @@ import {
 	facetShown,
 	filterLevel,
 	filterableTags,
+	describeFilter,
 	tagQueue,
 	hasAdvancedFilter,
 	withFilterLevel,
@@ -644,6 +645,44 @@ describe('catégories dans le filtre', () => {
 	it('niveau simple : champ retiré', () => {
 		expect(withFilterLevel({ id: 't', name: 'T', filter: 'off' as const }, 'simple')).toEqual({ id: 't', name: 'T' });
 		expect(withFilterLevel<TagGroup>({ id: 't', name: 'T' }, 'advanced')).toEqual({ id: 't', name: 'T', filter: 'advanced' });
+	});
+});
+
+describe('filtre actif en clair', () => {
+	const groups = [{ id: 'g', name: 'Genre' }, { id: 's', name: 'Statut' }];
+	const tagList = [
+		{ id: 'a', name: 'Action', collectionId: 'c', groupId: 'g' },
+		{ id: 'd', name: 'Drame', collectionId: 'c', groupId: 'g' },
+		{ id: 'f', name: 'Fini', collectionId: 'c', groupId: 's' },
+		{ id: 'x', name: 'Libre', collectionId: 'c' }
+	];
+	const base = { withLinks: false, countries: [], tags: { tagIds: [], missing: [], untagged: false }, tagList, groups };
+
+	it('rien de filtré : aucun morceau', () => {
+		expect(describeFilter(base)).toEqual([]);
+	});
+
+	it('un morceau par critère, valeurs en « ou », catégories dans leur ordre', () => {
+		expect(
+			describeFilter({
+				...base,
+				withLinks: true,
+				rating: '★ 4 et plus',
+				countries: ['France', 'Japon'],
+				tags: { tagIds: ['f', 'd', 'a', 'x'], missing: ['g'], untagged: false }
+			})
+		).toEqual([
+			'Avec liens',
+			'Note : ★ 4 et plus',
+			'Pays : France ou Japon',
+			'Genre : Action ou Drame ou Non renseigné',
+			'Statut : Fini',
+			'Autres : Libre'
+		]);
+	});
+
+	it('« Sans tag » remplace les tags cochés', () => {
+		expect(describeFilter({ ...base, tags: { tagIds: ['a'], missing: [], untagged: true } })).toEqual(['Sans tag']);
 	});
 });
 

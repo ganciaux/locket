@@ -22,6 +22,7 @@
 		UNRATED,
 		countryFlag,
 		countryName,
+		describeFilter,
 		filterableTags,
 		hasAdvancedFilter
 	} from '$lib/entries/model';
@@ -144,6 +145,17 @@
 		tagFiltering || (listView.withLinks && anyLinks) || listView.rating !== 0 || listView.country.length > 0
 	);
 	const filtering = $derived(!!listView.query.trim() || filterActive);
+	// Filtre actif en clair : avec les catégories, OU et ET ne se devinent pas toujours.
+	const filterSummary = $derived(
+		describeFilter({
+			withLinks: listView.withLinks && anyLinks,
+			rating: RATINGS.find((rating) => rating.value === String(listView.rating))?.label,
+			countries: listView.country.map((code) => (code === NO_COUNTRY ? 'Sans pays' : countryName(code))),
+			tags: tagFilter,
+			tagList: entries.tags ?? [],
+			groups: entries.tagGroups
+		})
+	);
 
 	// Tags et pays sont propres à chaque collection : leur filtre ne survit pas au changement.
 	function resetCollectionFilters() {
@@ -389,6 +401,9 @@
 					onchange={(selected) => selected.length && (listView.tags.untagged = false)}
 					before={untaggedChip}
 				/>
+			{/if}
+			{#if filterSummary.length}
+				<p class="text-base-content/60 text-xs">{filterSummary.join(' et ')}</p>
 			{/if}
 		</div>
 	{/if}

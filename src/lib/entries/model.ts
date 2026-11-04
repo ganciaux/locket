@@ -326,6 +326,32 @@ export type TagFilter = { tagIds: string[]; missing: string[]; untagged: boolean
 
 export const NO_TAG_FILTER: TagFilter = { tagIds: [], missing: [], untagged: false };
 
+/**
+ * Filtre actif en clair, un morceau par critère (les morceaux se lisent reliés par « et », les valeurs d'un critère
+ * par « ou », comme `matchesFilter`) : « Avec liens », « Note : ★ 4 et plus », « Pays : France ou Japon »,
+ * « Genre : Action ou Non renseigné », « Sans tag ». Les libellés de note et de pays sont fournis par la page.
+ */
+export function describeFilter(filter: {
+	withLinks: boolean;
+	rating?: string;
+	countries: string[];
+	tags: TagFilter;
+	tagList: Tag[];
+	groups: TagGroup[];
+}): string[] {
+	const parts: string[] = [];
+	if (filter.withLinks) parts.push('Avec liens');
+	if (filter.rating) parts.push(`Note : ${filter.rating}`);
+	if (filter.countries.length) parts.push(`Pays : ${filter.countries.join(' ou ')}`);
+	if (filter.tags.untagged) return [...parts, 'Sans tag'];
+	for (const { group, tags } of groupTags(filter.tagList, filter.groups)) {
+		const values = tags.filter((tag) => filter.tags.tagIds.includes(tag.id)).map((tag) => tag.name);
+		if (group && filter.tags.missing.includes(group.id)) values.push('Non renseigné');
+		if (values.length) parts.push(`${group?.name ?? 'Autres'} : ${values.join(' ou ')}`);
+	}
+	return parts;
+}
+
 /** Nom et catégorie (connue, '' sinon) d'un tag, pour la recherche et le filtre. */
 export type TagIndex = Map<string, { name: string; group: string }>;
 

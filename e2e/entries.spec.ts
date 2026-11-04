@@ -498,6 +498,8 @@ test('pays : saisi par nom ou par code, affiché et filtré', async ({ page }) =
 	await page.getByRole('checkbox', { name: 'Sans pays' }).check();
 	await expect(card('Inconnu')).toBeVisible();
 	await expect(card('Pelé')).toBeVisible();
+	// Filtre actif résumé en clair sous les filtres.
+	await expect(page.getByText('Pays : Brésil ou Sans pays', { exact: true })).toBeVisible();
 	await page.getByRole('checkbox', { name: /Brésil/ }).uncheck();
 	await expect(card('Pelé')).toHaveCount(0);
 	await expect(card('Inconnu')).toBeVisible();

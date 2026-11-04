@@ -112,7 +112,8 @@ restauration testée seulement dans le même compte.
     classées deux fois (classement + relance), soit ~46 octets par fiche, plafond vers 19 000 fiches ; tags ~99 Ko pour
     500 tags, ~200 octets par tag, plafond vers 4 500. Pas de risque à l'échelle visée.
 - **Quick wins** (lecture seule, retenus) :
-  - [ ] filtre actif résumé en clair ;
+  - [x] filtre actif résumé en clair (`describeFilter`) : ligne sous les filtres de « Mes fiches », un morceau par
+    critère relié par « et », valeurs en « ou » (« Pays : Brésil ou Sans pays et Genre : Action ou Non renseigné ») ;
   - [ ] suggestions de tags dans le Tagger, depuis les fiches ressemblantes ;
   - [ ] page Statistiques ;
   - [ ] date de dernière sauvegarde synchronisée.
