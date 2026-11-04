@@ -154,7 +154,9 @@ Chantiers retenus (2026-11-04), un commit chacun, en factorisant ce qui sert plu
   tags, catégories, classement, retrait du classement, corbeille) et `PageSpinner` (13 pages). Laissés à part : la
   suppression d'une fiche (deux choix) et la suppression totale (mot de passe), et les petits boutons des lignes
   (corbeille, sites) ; `loadEntries().catch(…)` non factorisé : une ligne, et `error` sert aussi aux actions de la page ;
-- [ ] `model.ts` découpé par domaine, e2e découpés par page ;
+- [x] `model.ts` découpé par domaine (788 → 165 lignes) : `types`, `text`, `sites`, `tags`, `countries`, `duels`,
+  `docSize`, feuilles sans cycle, réexportées par `model.ts` (aucun import existant modifié) ;
+- [ ] e2e découpés par page ;
 - [ ] CI avec émulateurs et e2e.
 Restent notés, non lancés : porte d'écriture avec version par document, classement dans son propre document, store
 séparant lecture et écriture.

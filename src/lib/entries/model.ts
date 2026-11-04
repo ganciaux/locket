@@ -1,39 +1,16 @@
 /** Modèle d'une fiche et règles pures (sans Firebase ni DOM), testées dans model.test.ts. */
 
-/** `hidden` : conservé sur la fiche, mais pas affiché. */
-export type Link = { url: string; label?: string; hidden?: boolean };
+import { byName, MAX_NAME_LENGTH, searchKey } from './text';
+import { type Collection } from './types';
 
-/** Contenu du champ chiffré `data` (JSON). */
-export type EntryData = {
-	/** Une fiche appartient toujours à une seule collection. */
-	collectionId: string;
-	name: string;
-	links: Link[];
-	createdAt: number;
-	updatedAt: number;
-	/** Type MIME de l'image et de la miniature, absent si la fiche n'a pas d'image. */
-	imageType?: string;
-	/** Tags de sa collection ; un identifiant inconnu (tag supprimé) est ignoré. */
-	tagIds?: string[];
-	/** Par site de la collection : terme à chercher s'il diffère du nom de la fiche. */
-	siteTerms?: Record<string, string>;
-	/** Sites de la collection qui ne donnent pas de lien sur cette fiche. */
-	hiddenSites?: string[];
-	/** Sites « sur demande » de la collection activés sur cette fiche. */
-	shownSites?: string[];
-	/** Rangée à l'écart : absente de la liste sauf avec le bouton « Cachées ». Simple filtre, pas une protection. */
-	hidden?: boolean;
-	/** Note de 1 à `MAX_RATING` : 5 étoiles par demi-étoile ; absente, la fiche n'est pas notée. */
-	rating?: number;
-	/** Pays : code ISO 3166-1 alpha-2 (`FR`, `GB`…), un seul par fiche. */
-	country?: string;
-	/** Année de naissance seulement (une date précise serait pénible à trouver) : sert à afficher l'âge. */
-	birthYear?: number;
-	/** Dans la corbeille depuis cette date ; supprimée pour de bon après `TRASH_DAYS` jours. */
-	deletedAt?: number;
-};
-
-export type Entry = EntryData & { id: string };
+// Réexporte les modules par domaine : les imports existants de `model` restent valables.
+export * from './types';
+export * from './text';
+export * from './sites';
+export * from './tags';
+export * from './duels';
+export * from './countries';
+export * from './docSize';
 
 export const TRASH_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -45,66 +22,6 @@ export const trashDaysLeft = (deletedAt: number, now: number): number =>
 export const isTrashExpired = (deletedAt: number | undefined, now: number): boolean =>
 	deletedAt !== undefined && now - deletedAt >= TRASH_DAYS * DAY_MS;
 
-/** Regroupement exclusif des fiches (Manga, Chanteurs…) ; l'ordre du catalogue est l'ordre d'affichage. */
-export type Collection = {
-	id: string;
-	name: string;
-	sites?: Site[];
-	/** Classement par duels : ids de la meilleure fiche à la moins bonne ; une fiche absente n'est pas classée. */
-	ranking?: string[];
-	/** Nouveau classement en cours : reçoit les duels, puis remplace `ranking` une fois terminé. */
-	rankingDraft?: string[];
-	/** Catégories de tags, dans l'ordre d'affichage choisi. */
-	tagGroups?: TagGroup[];
-	/** Cachée : absente des menus et sélecteurs, sauf avec la préférence `showHidden` (comme les fiches cachées). */
-	hidden?: true;
-};
-
-/** Site d'une collection : ses liens sont calculés à l'affichage, le modèle se corrige donc en un seul endroit. */
-export type Site = {
-	id: string;
-	label: string;
-	urlTemplate: string;
-	enabled: boolean;
-	/** Sur demande : le lien n'apparaît que sur les fiches qui l'activent (terme propre souvent nécessaire). */
-	optIn?: boolean;
-};
-
-/** Mode d'un site dans l'administration : inutilisé, sur toutes les fiches, ou seulement celles qui l'activent. */
-export type SiteMode = 'off' | 'all' | 'optIn';
-
-export const siteMode = (site: Site): SiteMode => (!site.enabled ? 'off' : site.optIn ? 'optIn' : 'all');
-
-export const withSiteMode = (site: Site, mode: SiteMode): Site => ({
-	...site,
-	enabled: mode !== 'off',
-	optIn: mode === 'off' ? site.optIn : mode === 'optIn' || undefined
-});
-
-type SiteChoices = Pick<EntryData, 'hiddenSites' | 'shownSites'>;
-
-/** Lien du site affiché sur la fiche : site utilisé, puis non masqué (toutes les fiches) ou activé (sur demande). */
-export const siteShown = (entry: SiteChoices, site: Site): boolean =>
-	site.enabled && (site.optIn ? !!entry.shownSites?.includes(site.id) : !entry.hiddenSites?.includes(site.id));
-
-/**
- * Affiche ou masque des sites sur une fiche : `visible` renvoie true, false, ou undefined pour ne pas y toucher.
- * Un site pour toutes les fiches passe par `hiddenSites`, un site sur demande par `shownSites` ; les deux listes
- * sont gardées, pour retrouver les choix de la fiche si le mode du site change.
- */
-export function withSiteVisibility(entry: SiteChoices, sites: Site[], visible: (siteId: string) => boolean | undefined): SiteChoices {
-	const hidden = new Set(entry.hiddenSites ?? []);
-	const shown = new Set(entry.shownSites ?? []);
-	for (const site of sites) {
-		const show = visible(site.id);
-		if (show === undefined) continue;
-		const [set, add] = site.optIn ? [shown, show] : [hidden, !show];
-		if (add) set.add(site.id);
-		else set.delete(site.id);
-	}
-	return { hiddenSites: hidden.size ? [...hidden] : undefined, shownSites: shown.size ? [...shown] : undefined };
-}
-
 /**
  * Une fiche dont la collection est inconnue (catalogue perdu ou altéré) deviendrait invisible : sa collection
  * est recréée avec un nom provisoire, à renommer. Elle n'est écrite qu'à la prochaine modification du catalogue.
@@ -113,271 +30,6 @@ export function withRecoveredCollections(collections: Collection[], entries: { c
 	const known = new Set(collections.map((c) => c.id));
 	const missing = [...new Set(entries.map((entry) => entry.collectionId))].filter((id) => !known.has(id));
 	return [...collections, ...missing.map((id, i) => ({ id, name: `Collection récupérée ${i + 1}` }))];
-}
-
-/** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
-export type Tag = {
-	id: string;
-	name: string;
-	collectionId: string;
-	groupId?: string;
-	/** Place dans le filtre de la liste, à l'intérieur de sa catégorie ; absent : recherche simple. */
-	filter?: 'advanced' | 'off';
-};
-
-/**
- * Catégorie effective d'un tag : la sienne si elle existe encore, sinon aucune (catégorie supprimée).
- * Un nom de tag est unique dans sa catégorie : « Action » peut exister dans Genre et dans Thème.
- */
-export const effectiveGroupId = (tag: Tag, groups: TagGroup[]): string | undefined =>
-	tag.groupId && groups.some((group) => group.id === tag.groupId) ? tag.groupId : undefined;
-
-/** Catégorie de tags (Genre, Statut…) : simple rangement, une fiche peut porter 0 ou n tags d'une catégorie. */
-export type TagGroup = {
-	id: string;
-	name: string;
-	/** Place dans le filtre de la liste ; absent : recherche simple. */
-	filter?: 'advanced' | 'off';
-};
-
-/** Recherche simple (toujours proposée), avancée (sur demande) ou hors filtre. */
-export type FilterLevel = 'simple' | 'advanced' | 'off';
-
-export const FILTER_LEVELS: { value: FilterLevel; label: string }[] = [
-	{ value: 'simple', label: 'Recherche simple' },
-	{ value: 'advanced', label: 'Recherche avancée' },
-	{ value: 'off', label: 'Hors filtre' }
-];
-
-/** Niveau d'une catégorie ou d'un tag ; « Autres » (tags sans catégorie) est en recherche simple. */
-export const filterLevel = (item: Tag | TagGroup | null): FilterLevel => item?.filter ?? 'simple';
-
-/** Catégorie ou tag proposé dans le filtre ; ce qui est coché reste visible, pour pouvoir le décocher. */
-export const facetShown = (level: FilterLevel, extended: boolean, active: boolean): boolean =>
-	active || level === 'simple' || (level === 'advanced' && extended);
-
-/** Tags proposés dans le filtre de la liste (voir `facetShown`) ; l'ordre est conservé. */
-export const filterableTags = (tags: Tag[], extended: boolean, selected: string[]): Tag[] =>
-	tags.filter((tag) => facetShown(filterLevel(tag), extended, selected.includes(tag.id)));
-
-/** Le bouton « Recherche avancée » n'a de sens que si une catégorie ou un tag est en recherche avancée. */
-export const hasAdvancedFilter = (tags: Tag[], groups: TagGroup[]): boolean =>
-	[...groups, ...tags].some((item) => filterLevel(item) === 'advanced');
-
-/** Copie de la catégorie ou du tag au niveau donné ; « simple » retire le champ. */
-export function withFilterLevel<T extends { filter?: 'advanced' | 'off' }>(item: T, level: FilterLevel): T {
-	const { filter: _, ...rest } = item;
-	return (level === 'simple' ? rest : { ...rest, filter: level }) as T;
-}
-
-/**
- * Tags par catégorie, dans l'ordre des catégories, sans les catégories vides ; ceux sans catégorie
- * (ou d'une catégorie supprimée) viennent en dernier, sous `group: null`. L'ordre des tags est conservé.
- */
-export function groupTags(tags: Tag[], groups: TagGroup[]): { group: TagGroup | null; tags: Tag[] }[] {
-	const known = new Set(groups.map((group) => group.id));
-	const sections: { group: TagGroup | null; tags: Tag[] }[] = groups.map((group) => ({
-		group,
-		tags: tags.filter((tag) => tag.groupId === group.id)
-	}));
-	sections.push({ group: null, tags: tags.filter((tag) => !tag.groupId || !known.has(tag.groupId)) });
-	return sections.filter((section) => section.tags.length);
-}
-
-/** Information à compléter sur une fiche : pays, naissance, image, ou une catégorie de tags (`group:<id>`). */
-export type MissingField = 'country' | 'birthYear' | 'image' | `group:${string}`;
-
-/**
- * Ce qui manque à une fiche : pays, année de naissance, image, puis chaque catégorie (ayant des tags) dont elle n'a
- * aucun tag. `tags` : ceux de sa collection. La note n'en fait pas partie : une fiche peut rester non notée.
- */
-export function missingFields(
-	entry: { country?: string; birthYear?: number; imageType?: string; tagIds?: string[] },
-	tags: Tag[],
-	groups: TagGroup[]
-): MissingField[] {
-	const fields: MissingField[] = [];
-	if (!entry.country) fields.push('country');
-	if (!entry.birthYear) fields.push('birthYear');
-	if (!entry.imageType) fields.push('image');
-	for (const { group, tags: groupTagList } of groupTags(tags, groups))
-		if (group && !groupTagList.some((tag) => entry.tagIds?.includes(tag.id))) fields.push(`group:${group.id}`);
-	return fields;
-}
-
-const MISSING_LABELS: Record<string, string> = { country: 'pays', birthYear: 'naissance', image: 'image' };
-
-export const missingLabel = (field: MissingField, groups: TagGroup[]): string =>
-	MISSING_LABELS[field] ?? groups.find((group) => `group:${group.id}` === field)?.name ?? field;
-
-/**
- * Normalise une URL saisie et refuse tout ce qui n'est pas http(s).
- * Un lien `javascript:` exécuterait du code dans l'app au clic, avec la DEK en mémoire.
- */
-export function parseLinkUrl(input: string): string | null {
-	const text = withScheme(input.trim());
-	if (!text) return null;
-	try {
-		const url = new URL(text);
-		return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
-	} catch {
-		return null;
-	}
-}
-
-const withScheme = (text: string): string => (!text || /^[a-z][a-z0-9+.-]*:/i.test(text) ? text : `https://${text}`);
-
-export const NAME_PLACEHOLDER = '{{name}}';
-/** Variante de {{name}} sans aucun espace : « my name » donne « myname ». */
-export const NOSPACE_PLACEHOLDER = '{{nospace}}';
-const PLACEHOLDER = /\{\{(name|nospace)\}\}/g;
-
-const fill = (template: string, value: (placeholder: string) => string): string =>
-	template.replace(PLACEHOLDER, (_, placeholder: string) => value(placeholder));
-
-/** Le terme est encodé (`%20` vaut partout, `+` seulement dans une querystring) : il ne peut pas sortir de sa place. */
-const fillTemplate = (template: string, term: string): string =>
-	fill(template, (placeholder) => encodeURIComponent(placeholder === 'nospace' ? term.replace(/\s+/g, '') : term));
-
-/**
- * Valide le modèle d'URL d'un site ; lève une erreur affichable. Sans {{name}} ni {{nospace}}, le terme va à la fin (préfixe).
- * Le domaine doit être fixe : le contenu d'une fiche ne doit pas décider du site contacté.
- */
-export function parseSiteTemplate(input: string): string {
-	const text = withScheme(input.trim());
-	const template = text.includes(NAME_PLACEHOLDER) || text.includes(NOSPACE_PLACEHOLDER) ? text : text + NAME_PLACEHOLDER;
-	const [a, b] = ['a', 'b'].map((term) => parseLinkUrl(fillTemplate(template, term)));
-	if (!text || !a || !b || new URL(a).host !== new URL(b).host)
-		throw new Error(`Modèle invalide : http(s), domaine fixe, ${NAME_PLACEHOLDER} après le domaine.`);
-	return template;
-}
-
-/**
- * URL d'un site ; null si le modèle n'est pas valable. Le nom de la fiche est encodé en entier (« AC/DC » reste un
- * seul mot). Un terme propre (`explicit`) peut être un chemin (« model/name », « / » gardés, « . » et « .. » retirés)
- * ou l'adresse complète d'une page de ce site ; jamais d'un autre domaine. Il est pris tel quel, même pour {{nospace}}.
- */
-export function buildSiteUrl(site: Site, term: string, explicit = false): string | null {
-	if (!explicit) return parseLinkUrl(fillTemplate(site.urlTemplate, term));
-	const direct = /^https?:\/\//i.test(term) ? parseLinkUrl(term) : null;
-	const siteUrl = parseLinkUrl(fillTemplate(site.urlTemplate, 'x'));
-	if (direct && siteUrl && new URL(direct).host === new URL(siteUrl).host) return direct;
-	const segments = term.split('/').filter((part) => part && part !== '.' && part !== '..');
-	const path = segments.map(encodeURIComponent).join('/');
-	return parseLinkUrl(fill(site.urlTemplate, () => path));
-}
-
-/**
- * Liens à afficher : sites de sa collection affichés sur la fiche (voir `siteShown`),
- * avec le nom de la fiche sauf terme propre, puis liens saisis non masqués.
- */
-export function entryLinks(
-	entry: Pick<EntryData, 'name' | 'links' | 'siteTerms' | 'hiddenSites' | 'shownSites'>,
-	sites: Site[] = []
-): Link[] {
-	const fromSites = sites
-		.filter((site) => siteShown(entry, site))
-		.flatMap((site) => {
-			const term = entry.siteTerms?.[site.id]?.trim();
-			const url = term ? buildSiteUrl(site, term, true) : buildSiteUrl(site, entry.name);
-			return url ? [{ url, label: site.label }] : [];
-		});
-	return [...fromSites, ...entry.links.filter((link) => !link.hidden)];
-}
-
-/** Texte court d'un lien : son libellé, sinon le nom de domaine (sans « www. »). */
-export function linkTitle(link: Link): string {
-	if (link.label) return link.label;
-	try {
-		return new URL(link.url).hostname.replace(/^www\./, '');
-	} catch {
-		return link.url;
-	}
-}
-
-/** Insensible à la casse et aux accents : « ecole » trouve « École ». */
-export const searchKey = (text: string): string =>
-	text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
-
-export const matchesSearch = (name: string, query: string): boolean =>
-	searchKey(name).includes(searchKey(query));
-
-/** Index : groupes par initiale sans accent, dans l'ordre reçu ; « # » pour un nom qui ne commence pas par une lettre. */
-export function groupByInitial<T extends { name: string }>(items: T[]): { initial: string; items: T[] }[] {
-	const groups = new Map<string, T[]>();
-	for (const item of items) {
-		const first = searchKey(item.name).charAt(0).toUpperCase();
-		const initial = /\p{L}/u.test(first) ? first : '#';
-		groups.set(initial, [...(groups.get(initial) ?? []), item]);
-	}
-	return [...groups].map(([initial, grouped]) => ({ initial, items: grouped }));
-}
-
-/**
- * Filtre par tags de la liste :
- *  - aucun tag sélectionné : pas de filtre ;
- *  - au moins un tag sélectionné de chaque catégorie concernée (OU dans une catégorie, ET entre catégories) ;
- *    les tags sans catégorie forment une catégorie à eux seuls ;
- *  - `missing` : catégories où « Non renseigné » est coché, comme un tag de plus de la catégorie
- *    (vrai pour une fiche qui n'a aucun tag de cette catégorie) ;
- *  - `untagged` : uniquement les fiches sans tag (exclusif des autres choix).
- */
-export type TagFilter = { tagIds: string[]; missing: string[]; untagged: boolean };
-
-export const NO_TAG_FILTER: TagFilter = { tagIds: [], missing: [], untagged: false };
-
-/**
- * Filtre actif en clair, un morceau par critère (les morceaux se lisent reliés par « et », les valeurs d'un critère
- * par « ou », comme `matchesFilter`) : « Avec liens », « Note : ★ 4 et plus », « Pays : France ou Japon »,
- * « Genre : Action ou Non renseigné », « Sans tag ». Les libellés de note et de pays sont fournis par la page.
- */
-export function describeFilter(filter: {
-	withLinks: boolean;
-	rating?: string;
-	countries: string[];
-	tags: TagFilter;
-	tagList: Tag[];
-	groups: TagGroup[];
-}): string[] {
-	const parts: string[] = [];
-	if (filter.withLinks) parts.push('Avec liens');
-	if (filter.rating) parts.push(`Note : ${filter.rating}`);
-	if (filter.countries.length) parts.push(`Pays : ${filter.countries.join(' ou ')}`);
-	if (filter.tags.untagged) return [...parts, 'Sans tag'];
-	for (const { group, tags } of groupTags(filter.tagList, filter.groups)) {
-		const values = tags.filter((tag) => filter.tags.tagIds.includes(tag.id)).map((tag) => tag.name);
-		if (group && filter.tags.missing.includes(group.id)) values.push('Non renseigné');
-		if (values.length) parts.push(`${group?.name ?? 'Autres'} : ${values.join(' ou ')}`);
-	}
-	return parts;
-}
-
-/** Nom et catégorie (connue, '' sinon) d'un tag, pour la recherche et le filtre. */
-export type TagIndex = Map<string, { name: string; group: string }>;
-
-/** Le texte doit apparaître dans le nom ou dans l'un des tags ; les tags supprimés (inconnus) sont ignorés. */
-export function matchesFilter(
-	entry: { name: string; tagIds?: string[] },
-	query: string,
-	filter: TagFilter,
-	tags: TagIndex
-): boolean {
-	const known = (entry.tagIds ?? []).filter((id) => tags.has(id));
-	if (filter.untagged) {
-		if (known.length) return false;
-	} else {
-		const wanted = Map.groupBy(
-			filter.tagIds.filter((id) => tags.has(id)),
-			(id) => tags.get(id)!.group
-		);
-		for (const group of filter.missing) if (!wanted.has(group)) wanted.set(group, []);
-		const filled = new Set(known.map((id) => tags.get(id)!.group));
-		for (const [group, ids] of wanted) {
-			const missingOk = filter.missing.includes(group) && !filled.has(group);
-			if (!missingOk && !ids.some((id) => known.includes(id))) return false;
-		}
-	}
-	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tags.get(id)!.name, query));
 }
 
 /**
@@ -401,19 +53,6 @@ export function restoredName(name: string, at: Date): string {
 	const date = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
 	const suffix = ` (${date} ${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())})`;
 	return name.slice(0, MAX_NAME_LENGTH - suffix.length) + suffix;
-}
-
-export const MAX_LABEL_LENGTH = 40;
-
-/**
- * Nettoie le nom d'un tag ou d'une collection ; lève une erreur affichable s'il est vide
- * ou déjà pris parmi `existing` (sans casse ni accents).
- */
-export function parseLabel(input: string, existing: { name: string }[]): string {
-	const name = input.trim().replace(/\s+/g, ' ').slice(0, MAX_LABEL_LENGTH);
-	if (!name) throw new Error('Le nom ne peut pas être vide.');
-	if (existing.some((item) => searchKey(item.name) === searchKey(name))) throw new Error(`« ${name} » existe déjà.`);
-	return name;
 }
 
 /**
@@ -449,79 +88,6 @@ export function compareNames<T>(
 	return { missing, found, duplicates };
 }
 
-/**
- * Saisie d'une catégorie : « Genre » seule, ou « Genre = Action, Drame » avec ses tags (vides et doublons retirés,
- * sans casse ni accents). Les libellés sont validés ensuite par `parseLabel`.
- */
-export function parseGroupInput(input: string): { name: string; tags: string[] } {
-	const at = input.indexOf('=');
-	if (at < 0) return { name: input, tags: [] };
-	const tags = input
-		.slice(at + 1)
-		.split(',')
-		.map((tag) => tag.trim())
-		.filter(Boolean);
-	const keys = tags.map(searchKey);
-	return { name: input.slice(0, at), tags: tags.filter((_, i) => keys.indexOf(keys[i]) === i) };
-}
-
-/**
- * Saisie de catégories, une par ligne (« Genre = Action, Drame ») : une catégorie inconnue est ajoutée en fin de liste,
- * une catégorie existante suivie de tags est complétée (on peut recoller une liste mise à jour). Un tag sans catégorie
- * du même nom y est rangé, un tag déjà dans la catégorie est ignoré, les autres sont créés. `tags` : ceux de la
- * collection. Lève une erreur affichable (avec le numéro de ligne s'il y en a plusieurs), avant toute écriture.
- */
-export function planTagGroups(
-	text: string,
-	groups: TagGroup[],
-	tags: Tag[],
-	collectionId: string,
-	newId: () => string
-): { groups: TagGroup[]; tags: Tag[] } {
-	const nextGroups = [...groups];
-	let nextTags = [...tags];
-	const lines = text.split(/\r?\n/);
-	const filled = lines.filter((line) => line.trim()).length;
-	if (!filled) throw new Error('Le nom ne peut pas être vide.');
-	lines.forEach((line, i) => {
-		if (!line.trim()) return;
-		try {
-			const parsed = parseGroupInput(line);
-			const key = searchKey(parsed.name.trim());
-			let group = parsed.tags.length ? nextGroups.find((g) => searchKey(g.name) === key) : undefined;
-			if (!group) {
-				group = { id: newId(), name: parseLabel(parsed.name, nextGroups) };
-				nextGroups.push(group);
-			}
-			const groupId = group.id;
-			for (const name of parsed.tags) {
-				const tagKey = searchKey(name);
-				const same = (tag: Tag, id: string | undefined) =>
-					effectiveGroupId(tag, nextGroups) === id && searchKey(tag.name) === tagKey;
-				if (nextTags.some((tag) => same(tag, groupId))) continue;
-				const loose = nextTags.find((tag) => same(tag, undefined));
-				if (loose) nextTags = nextTags.map((tag) => (tag === loose ? { ...tag, groupId } : tag));
-				else nextTags.push({ id: newId(), name: parseLabel(name, []), collectionId, groupId });
-			}
-		} catch (error) {
-			throw filled > 1 ? new Error(`Ligne ${i + 1} : ${(error as Error).message}`) : error;
-		}
-	});
-	return { groups: nextGroups, tags: nextTags };
-}
-
-/** Déplace l'élément `index` d'un cran (`-1` vers le haut, `1` vers le bas) ; inchangé aux extrémités. */
-export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
-	const target = index + delta;
-	if (index < 0 || index >= list.length || target < 0 || target >= list.length) return list;
-	const next = [...list];
-	[next[index], next[target]] = [next[target], next[index]];
-	return next;
-}
-
-export const byName = (a: { name: string }, b: { name: string }): number =>
-	a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
-
 export type SortOrder = 'name' | 'created' | 'updated' | 'random' | 'rating' | 'rank';
 type Sortable = { id: string; name: string; createdAt: number; updatedAt: number; rating?: number };
 
@@ -554,70 +120,12 @@ export const sortBy =
 	};
 
 // ---------------------------------------------------------------------------
-// Classement : la fiche à classer affronte celle du milieu de la plage encore possible (dichotomie),
-// soit environ log2(n) duels par fiche.
-
-/** Seules les fiches avec image se classent : un duel oppose deux images. */
-export const isRankable = (entry: { imageType?: string }): boolean => !!entry.imageType;
-
-/**
- * Classement effectif : l'ordre enregistré, réduit à `items` (fiches vivantes de la collection) qui ont une image.
- * Une fiche mise à la corbeille, déplacée ou sans image en sort sans rien réécrire : les suivantes remontent
- * d'un rang, et elle retrouve sa place si elle revient.
- */
-export function rankedIds(ranking: string[] | undefined, items: { id: string; imageType?: string }[]): string[] {
-	const rankable = new Set(items.filter(isRankable).map((item) => item.id));
-	return (ranking ?? []).filter((id) => rankable.has(id));
-}
-
-/** Place encore possible, entre les indices `lo` et `hi` du classement effectif (bornes comprises). */
-export type Insertion = { lo: number; hi: number };
-
-export const startInsertion = (count: number): Insertion => ({ lo: 0, hi: count });
-export const insertionDone = ({ lo, hi }: Insertion): boolean => lo >= hi;
-/** Indice de l'adversaire : le milieu de la plage. */
-export const opponentIndex = ({ lo, hi }: Insertion): number => (lo + hi) >> 1;
-/** Duels restants au plus. */
-export const duelsLeft = ({ lo, hi }: Insertion): number => Math.ceil(Math.log2(hi - lo + 1));
-
-export function chooseInsertion(insertion: Insertion, candidateWins: boolean): Insertion {
-	const mid = opponentIndex(insertion);
-	return candidateWins ? { lo: insertion.lo, hi: mid } : { lo: mid + 1, hi: insertion.hi };
-}
-
-/**
- * Classement enregistré avec `id` au rang `index` de `ranked` (classement effectif, sans `id`). Les fiches hors du
- * classement effectif (corbeille…) gardent leur place ; celles qui n'existent plus (absentes de `known`) sont retirées.
- */
-export function withRanked(
-	ranking: string[] | undefined,
-	ranked: string[],
-	id: string,
-	index: number,
-	known: Set<string>
-): string[] {
-	const rest = (ranking ?? []).filter((other) => other !== id && known.has(other));
-	const at =
-		index < ranked.length ? rest.indexOf(ranked[index]) : index > 0 ? rest.indexOf(ranked[index - 1]) + 1 : 0;
-	return [...rest.slice(0, at), id, ...rest.slice(at)];
-}
-
-// ---------------------------------------------------------------------------
 // Navigation entre fiches
 
 /** Position de `id` dans `ids` et ses voisines ; null s'il n'y figure pas. Pas de boucle : les extrémités s'arrêtent. */
 export function neighbours(ids: string[], id: string): { position: number; count: number; previous?: string; next?: string } | null {
 	const index = ids.indexOf(id);
 	return index < 0 ? null : { position: index + 1, count: ids.length, previous: ids[index - 1], next: ids[index + 1] };
-}
-
-/**
- * File du mode Tagger, parmi les fiches affichées dans l'ordre : avec le filtre « Sans <catégorie> » (`group:<id>`),
- * toutes (il leur manque déjà un tag) ; sinon celles sans aucun tag. Toutes si aucune n'en manque, pour relire.
- */
-export function tagQueue<T extends { id: string }>(items: T[], missingFilter: string, tagCount: (item: T) => number): string[] {
-	const untagged = missingFilter.startsWith('group:') ? items : items.filter((item) => tagCount(item) === 0);
-	return (untagged.length ? untagged : items).map((item) => item.id);
 }
 
 // ---------------------------------------------------------------------------
@@ -640,88 +148,6 @@ export const UNRATED = -1;
 export const matchesRatingFilter = (rating: number | undefined, filter: RatingFilter): boolean =>
 	filter === 0 || (filter === UNRATED ? rating === undefined : (rating ?? 0) >= filter);
 
-// ---------------------------------------------------------------------------
-// Pays : code ISO stocké ; drapeau et nom français calculés à l'affichage, aucune liste de noms à maintenir.
-
-/** ISO 3166-1 alpha-2 : un code hors de cette liste ne s'enregistre pas. */
-export const COUNTRY_CODES = (
-	'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ ' +
-	'CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO ' +
-	'FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE ' +
-	'JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO ' +
-	'MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW ' +
-	'PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM ' +
-	'TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'
-).split(' ');
-const COUNTRY_SET = new Set(COUNTRY_CODES);
-
-/** Proposés en premier à la saisie, avec les pays déjà utilisés. */
-export const FAVORITE_COUNTRIES = ['FR', 'ES', 'DE', 'IT', 'GB', 'UA', 'RU', 'PL', 'BR', 'CO', 'AU'];
-
-export const parseCountry = (value: unknown): string | undefined =>
-	typeof value === 'string' && COUNTRY_SET.has(value) ? value : undefined;
-
-/** Drapeau emoji : deux « lettres régionales » Unicode. Windows les affiche en lettres (FR), pas en drapeau. */
-export const countryFlag = (code: string): string =>
-	String.fromCodePoint(...[...code].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65));
-
-const regionNames = new Intl.DisplayNames(['fr'], { type: 'region' });
-export const countryName = (code: string): string => regionNames.of(code) ?? code;
-
-/** Libellé d'une suggestion de saisie : « 🇫🇷 France (FR) ». */
-export const countryLabel = (code: string): string => `${countryFlag(code)} ${countryName(code)} (${code})`;
-
-/** Noms usuels que `Intl.DisplayNames` ne donne pas (il dit « Tchéquie », « Myanmar (Birmanie) »…). */
-const COUNTRY_ALIASES: Record<string, string[]> = {
-	CZ: ['République tchèque'],
-	GB: ['Angleterre', 'Écosse', 'Pays de Galles', 'Irlande du Nord', 'Grande-Bretagne', 'UK'],
-	US: ['USA', "États-Unis d'Amérique", 'Amérique'],
-	NL: ['Hollande'],
-	MM: ['Birmanie', 'Myanmar'],
-	MK: ['Macédoine'],
-	KR: ['Corée'],
-	CD: ['République démocratique du Congo', 'RDC'],
-	CG: ['Congo', 'République du Congo'],
-	VA: ['Vatican'],
-	PS: ['Palestine'],
-	HK: ['Hong Kong'],
-	SZ: ['Swaziland'],
-	TL: ['Timor-Leste'],
-	VN: ['Vietnam'],
-	BY: ['Bélarus']
-};
-
-const regionNamesEn = new Intl.DisplayNames(['en'], { type: 'region' });
-/** Sans casse, accents ni ponctuation : « Royaume Uni » = « Royaume-Uni », « Cote d'Ivoire » = « Côte d’Ivoire ». */
-const countryKey = (text: string): string =>
-	searchKey(text)
-		.replace(/[^\p{L}\p{N}]+/gu, ' ')
-		.trim();
-let countryKeys: Map<string, string> | undefined;
-
-/** Nom → code : nom français, nom anglais, puis noms usuels ; construit à la première saisie. */
-function countryByKey(key: string): string | undefined {
-	if (!countryKeys) {
-		countryKeys = new Map();
-		for (const code of COUNTRY_CODES)
-			for (const name of [countryName(code), regionNamesEn.of(code) ?? '', ...(COUNTRY_ALIASES[code] ?? [])])
-				if (name && !countryKeys.has(countryKey(name))) countryKeys.set(countryKey(name), code);
-	}
-	return countryKeys.get(key);
-}
-
-/**
- * Saisie libre → code : « fr », « France », « france » (sans casse, accents ni ponctuation), un nom anglais
- * (« Germany ») ou usuel (« République tchèque »), ou une suggestion choisie.
- */
-export function resolveCountry(input: string): string | undefined {
-	const text = input.trim();
-	const code = /\(([A-Za-z]{2})\)$/.exec(text)?.[1] ?? (/^[A-Za-z]{2}$/.test(text) ? text : null);
-	if (code) return parseCountry(code.toUpperCase());
-	const key = countryKey(text);
-	return key ? countryByKey(key) : undefined;
-}
-
 export const MIN_BIRTH_YEAR = 1000;
 
 /** Entière, de `MIN_BIRTH_YEAR` à l'année en cours : un âge négatif n'a pas de sens. */
@@ -734,55 +160,5 @@ export function formatAge(birthYear: number, thisYear = new Date().getFullYear()
 	return `${age} an${age > 1 ? 's' : ''}`;
 }
 
-/** Codes cochés, en OU ; 'none' : sans pays ; vide : tous les pays. */
-export type CountryFilter = string[];
-
-export const NO_COUNTRY = 'none';
-
-export const matchesCountryFilter = (country: string | undefined, filter: CountryFilter): boolean =>
-	!filter.length || filter.includes(country ?? NO_COUNTRY);
-
 /** `withLinks` : seulement les fiches qui affichent au moins un lien (sites de la collection compris). */
 export const matchesLinkFilter = (linkCount: number, withLinks: boolean): boolean => !withLinks || linkCount > 0;
-
-// ---------------------------------------------------------------------------
-// Noms de fiche
-
-export const MAX_NAME_LENGTH = 200;
-
-// ---------------------------------------------------------------------------
-// Taille : un document Firestore est limité à 1 Mio ; on vise 900 Ko chiffré.
-
-export const MAX_DOC_BYTES = 900 * 1024;
-/** Tag AES-GCM + IV + noms de champs et métadonnées du document. */
-const DOC_OVERHEAD_BYTES = 1024;
-
-export const fitsInDoc = (...payloads: Uint8Array[]): boolean =>
-	payloads.reduce((total, p) => total + p.length, DOC_OVERHEAD_BYTES) <= MAX_DOC_BYTES;
-
-/** Dimensions réduites pour tenir dans un carré de `max` px, sans agrandir. */
-export function fitWithin(width: number, height: number, max: number): { width: number; height: number } {
-	const scale = Math.min(1, max / Math.max(width, height));
-	return { width: Math.round(width * scale), height: Math.round(height * scale) };
-}
-
-/** Essais successifs : la qualité baisse d'abord, puis la taille si ça ne suffit pas. */
-export const ENCODE_ATTEMPTS: { quality: number; scale: number }[] = [
-	{ quality: 0.85, scale: 1 },
-	{ quality: 0.75, scale: 1 },
-	{ quality: 0.6, scale: 1 },
-	{ quality: 0.6, scale: 0.75 },
-	{ quality: 0.5, scale: 0.5 },
-	{ quality: 0.4, scale: 0.35 }
-];
-
-/** Premier encodage qui tient dans un document ; `encode` est injecté (canvas en vrai, faux en test). */
-export async function encodeUnderLimit<T extends Uint8Array>(
-	encode: (quality: number, scale: number) => Promise<T>
-): Promise<T> {
-	for (const { quality, scale } of ENCODE_ATTEMPTS) {
-		const bytes = await encode(quality, scale);
-		if (fitsInDoc(bytes)) return bytes;
-	}
-	throw new Error('Image trop volumineuse, même compressée.');
-}
