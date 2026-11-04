@@ -50,6 +50,10 @@ test('sauvegarde : fichier altéré refusé, suppression totale, puis restaurati
 
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Sauvegarder / restaurer' }).click();
+	// L'outil de lecture se télécharge depuis la page (le fichier lui-même est testé dans decrypt-tool.spec.ts).
+	const tool = page.getByRole('link', { name: "Télécharger l'outil de lecture" });
+	await expect(tool).toHaveAttribute('href', '/stash-dechiffrer.html');
+	await expect(tool).toHaveAttribute('download', 'stash-dechiffrer.html');
 	const download = page.waitForEvent('download');
 	await page.getByRole('button', { name: 'Télécharger la sauvegarde' }).click();
 	const path = await (await download).path();
