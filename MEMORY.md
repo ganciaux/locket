@@ -108,7 +108,9 @@ restauration testée seulement dans le même compte.
   - [x] fichier de sauvegarde témoin dans les tests (régression du format) : `backup/fixtures/witness-v4.json`, vraie
     sauvegarde exportée contre les émulateurs (compte jetable), relue par `witness.test.ts` (test unitaire, donc en CI) :
     mot de passe et clé de récupération, manifeste, catalogues, fiche, miniature, image, AAD. Changer le format = nouveau témoin ;
-  - [ ] taille des catalogues mesurée à 2 000 fiches.
+  - [x] taille des catalogues mesurée à 2 000 fiches (`catalogSize.test.ts`) : collections ~96 Ko avec 2 000 fiches
+    classées deux fois (classement + relance), soit ~46 octets par fiche, plafond vers 19 000 fiches ; tags ~99 Ko pour
+    500 tags, ~200 octets par tag, plafond vers 4 500. Pas de risque à l'échelle visée.
 - **Quick wins** (lecture seule, retenus) :
   - [ ] filtre actif résumé en clair ;
   - [ ] suggestions de tags dans le Tagger, depuis les fiches ressemblantes ;
