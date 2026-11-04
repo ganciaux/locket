@@ -164,7 +164,7 @@ séparant lecture et écriture.
 ## Outil de déchiffrement d'une sauvegarde : cadré le 2026-11-04, à implémenter
 
 But : une sauvegarde reste lisible sans Stash ni Firebase (sortie hors Firebase, chantier du council).
-Plan validé, rien n'est encore codé.
+Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify.ts` (`inspectBackup` → `integrityProblems` pour l'outil, `verifyBackup` pour la restauration), `backup/reader.ts`, testés sur le témoin.
 
 - **Choix de l'utilisateur** :
   - livraison : un **fichier `.html` autonome** (JS et CSS intégrés), qui marche hors ligne sur ordinateur

@@ -7,12 +7,24 @@
  */
 import { adoptBackupKeyring, checkRecoveryKey, readCurrentKeyring, verifyPassword } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
-import { type Encrypted, decrypt, decryptJson, encryptJson, sha256 } from '$lib/crypto/crypto';
-import { type Bytes, toBase64, utf8 } from '$lib/crypto/encoding';
+import { type Encrypted, encryptJson } from '$lib/crypto/crypto';
 import { deleteStoredEntriesExcept, hasEntries, readStoredEntries, writeStoredEntries } from '$lib/entries/repository';
 import { resetEntries } from '$lib/entries/store.svelte';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
-import { type Backup, type BackupCounts, type BackupEntry, type BackupManifest, serializeBackup } from './format';
+import { type Backup, type BackupEntry, type BackupManifest, serializeBackup } from './format';
+import {
+	type BackupCheck,
+	type BackupContent,
+	MANIFEST_CONTEXT,
+	contentHash,
+	countContent,
+	encryptedParts,
+	isReadable,
+	opensWith,
+	verifyBackup
+} from './verify';
+
+export { type BackupCheck, plural } from './verify';
 
 function unlockedSession() {
 	const { user, dek } = session;
@@ -69,107 +81,10 @@ export async function createBackup(includeImages: boolean): Promise<{ text: stri
 	return { text: serializeBackup({ ...content, manifest: manifestCipher }), skipped };
 }
 
-type BackupContent = Omit<Backup, 'manifest'>;
-type EncryptedPart = { encrypted: Encrypted; context: string };
-
-const MANIFEST_CONTEXT = 'backup/manifest';
-
-/** Tous les chiffrés sous la DEK, chacun avec son AAD (hors manifeste). */
-function encryptedParts(backup: BackupContent): EncryptedPart[] {
-	const parts: EncryptedPart[] = [];
-	const add = (encrypted: Encrypted | null | undefined, context: string) => {
-		if (encrypted) parts.push({ encrypted, context });
-	};
-	for (const entry of backup.entries) {
-		add(entry.data, `${entry.id}/data`);
-		add(entry.thumb, `${entry.id}/thumb`);
-		add(entry.image, `${entry.id}/image`);
-	}
-	add(backup.collections, 'meta/collections');
-	add(backup.tags, 'meta/tags');
-	return parts;
-}
-
-async function isReadable({ encrypted, context }: EncryptedPart, dek: CryptoKey): Promise<boolean> {
-	try {
-		await decrypt(dek, encrypted, context);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-/** Empreinte du contenu, trousseau compris. Chaque pièce est hachée à part : le fichier peut peser des centaines de Mo. */
-async function contentHash(backup: BackupContent): Promise<string> {
-	const parts = [
-		...encryptedParts(backup),
-		{ encrypted: backup.keyring.wrappedDek, context: 'keyring/wrappedDek' },
-		{ encrypted: backup.keyring.recoveryDek, context: 'keyring/recoveryDek' }
-	];
-	const hashes: Bytes[] = [];
-	for (const { encrypted, context } of parts) {
-		// Longueurs comprises : sans elles, un octet déplacé de `data` vers `iv` ne changerait pas l'empreinte.
-		const { iv, data } = encrypted;
-		const lengths = new Uint8Array(new Uint32Array([context.length, iv.length, data.length]).buffer);
-		hashes.push(await sha256([lengths, utf8(context), iv, data]));
-	}
-	return toBase64(await sha256(hashes));
-}
-
-async function countContent(backup: BackupContent, dek: CryptoKey): Promise<BackupCounts> {
-	const count = async <T>(catalog: { decrypt(dek: CryptoKey, e: Encrypted): Promise<T[]> }, stored: Encrypted | null) =>
-		stored ? (await catalog.decrypt(dek, stored)).length : 0;
-	return {
-		entries: backup.entries.length,
-		collections: await count(collectionCatalog, backup.collections),
-		tags: await count(tagCatalog, backup.tags)
-	};
-}
-
-const DAMAGED = 'Sauvegarde endommagée : une partie est illisible. Rien n’a été restauré.';
-
-export const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`;
-
-/** Contenu réel du fichier ; `skipped` : pièces déjà illisibles à l'export, donc absentes. */
-export type BackupCheck = BackupCounts & { skipped: number };
-
-/** Contrôle tout le fichier, sans rien écrire. Retourne son contenu réel ; lève une erreur s'il est altéré. */
-async function verifyBackup(backup: Backup, dek: CryptoKey): Promise<BackupCheck> {
-	for (const part of encryptedParts(backup)) if (!(await isReadable(part, dek))) throw new Error(DAMAGED);
-	const counts = await countContent(backup, dek);
-
-	let manifest: BackupManifest;
-	try {
-		manifest = await decryptJson<BackupManifest>(dek, backup.manifest, MANIFEST_CONTEXT);
-	} catch {
-		throw new Error(DAMAGED);
-	}
-	const expected = manifest.counts;
-	if (counts.entries !== expected.entries || counts.collections !== expected.collections || counts.tags !== expected.tags)
-		throw new Error(
-			`Sauvegarde incomplète : ${plural(counts.entries, 'fiche')}, ${plural(counts.collections, 'collection')} et ` +
-				`${plural(counts.tags, 'tag')} au lieu de ${plural(expected.entries, 'fiche')}, ` +
-				`${plural(expected.collections, 'collection')} et ${plural(expected.tags, 'tag')}. Rien n’a été restauré.`
-		);
-	if (
-		manifest.createdAt !== backup.createdAt ||
-		manifest.includesImages !== backup.includesImages ||
-		manifest.contentHash !== (await contentHash(backup))
-	)
-		throw new Error('Sauvegarde modifiée depuis son export. Rien n’a été restauré.');
-	return { ...counts, skipped: manifest.skipped };
-}
-
 /** Contrôle à la sélection du fichier. null : autre clé, le contrôle n'est possible qu'à la restauration. */
 export async function checkBackup(backup: Backup): Promise<BackupCheck | null> {
 	const { dek } = unlockedSession();
 	return (await opensWith(backup, dek)) ? verifyBackup(backup, dek) : null;
-}
-
-async function opensWith(backup: Backup, dek: CryptoKey): Promise<boolean> {
-	const manifest = { encrypted: backup.manifest, context: MANIFEST_CONTEXT };
-	for (const part of [...encryptedParts(backup), manifest]) if (await isReadable(part, dek)) return true;
-	return false;
 }
 
 /** La sauvegarde vient d'un autre compte (ou d'un compte recréé) : il faut l'ancien mot de passe ou l'ancienne clé. */

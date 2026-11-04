@@ -36,6 +36,7 @@ import {
 } from '$lib/crypto/crypto';
 import { toBase64 } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
+import { type Keyring, unwrapBackupDek } from '$lib/backup/keyring';
 import { session, setRecoveryDamaged, setUnlocked } from './session.svelte';
 
 export const MIN_PASSWORD_LENGTH = 12;
@@ -49,7 +50,7 @@ const KEYRING_MISMATCH =
 // Trousseau : users/{uid}
 
 type StoredKeyring = { wrappedDek: StoredEncrypted; recoveryDek: StoredEncrypted; keyringCheck?: StoredEncrypted };
-export type Keyring = { wrappedDek: Encrypted; recoveryDek: Encrypted };
+export type { Keyring };
 
 const KEYRING_CHECK_CONTEXT = 'keyring/check';
 
@@ -310,21 +311,6 @@ export async function recoverWithKey(recoveryKey: string, newPassword: string): 
 /** Trousseau du compte connecté, tel que stocké (chiffré) : il accompagne les fiches dans une sauvegarde. */
 export const readCurrentKeyring = (): Promise<Keyring> => readKeyring(currentUser().uid);
 
-/** Ancienne DEK d'une sauvegarde, extractible pour être réemballée. */
-async function unwrapBackupDek(backup: Keyring, email: string, secret: string): Promise<CryptoKey> {
-	try {
-		return await unwrapDek(backup.recoveryDek, await deriveRecoveryKek(secret), true);
-	} catch {
-		// pas une clé de récupération valable pour cette sauvegarde : on essaie comme mot de passe
-	}
-	try {
-		const { kek } = await deriveKeys(secret, email);
-		return await unwrapDek(backup.wrappedDek, kek, true);
-	} catch {
-		throw new Error('Ni ce mot de passe ni cette clé de récupération n’ouvrent cette sauvegarde.');
-	}
-}
-
 /**
  * Restauration dans un compte recréé : le compte adopte la DEK de la sauvegarde.
  * `oldSecret` : mot de passe de l'époque (même email) ou clé de récupération de l'ancien compte.
@@ -344,7 +330,8 @@ export async function adoptBackupKeyring(
 	const { wrappedDek } = await readKeyring(user.uid);
 	await orFail(unwrapDek(wrappedDek, current.kek), WRONG_PASSWORD);
 
-	const oldDek = await unwrapBackupDek(backup, user.email, oldSecret);
+	// Extractible : elle est réemballée par la KEK du compte juste après.
+	const oldDek = await unwrapBackupDek(backup, user.email, oldSecret, true);
 	await verify(oldDek);
 	const rewrapped = await wrapDek(oldDek, current.kek);
 	const keyring: StoredKeyring = {
