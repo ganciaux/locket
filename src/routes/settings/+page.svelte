@@ -344,6 +344,15 @@
 		</div>
 	</section>
 
+	<!-- Temporaire (chantier Face ID) : à retirer avec la route /prf-test. -->
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-lg">Test Face ID (temporaire)</h2>
+			<p class="text-base-content/60 -mt-1 text-sm">Vérifier si cet iPhone pourrait déverrouiller Stash avec Face ID.</p>
+			<a class="btn btn-outline btn-primary self-start" href="/prf-test">Lancer le test</a>
+		</div>
+	</section>
+
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="card-title text-lg">Supprimer toutes les données</h2>

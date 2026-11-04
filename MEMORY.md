@@ -204,5 +204,9 @@ Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify
 1. ~~Outil de déchiffrement d'une sauvegarde~~ : fait le 2026-11-04 (ci-dessus).
 2. Page de test PRF jetable sur iPhone (WebAuthn, extension `prf`, dans la PWA installée) : une heure pour savoir si
    Face ID peut déverrouiller (clé dérivée par PRF qui emballe la DEK, comme la clé de récupération).
+   **En place le 2026-11-04, à déployer et faire sur l'iPhone** : route `/prf-test`, lien « Test Face ID (temporaire) »
+   dans Paramètres, identifiant de la clé de test dans `localStorage` (`locket.prfTest`, pas un secret). Rapport à
+   copier depuis la page. Validée dans Chrome avec un authentificateur virtuel PRF (32 octets, stables). **À retirer**
+   ensuite (route, lien, clé `locket.prfTest`), et supprimer la clé d'accès « Stash (test Face ID) » du trousseau.
 3. Face ID si le test est concluant ; sinon lecture hors ligne (trancher avant la purge iOS d'IndexedDB et
    l'effacement du cache à la déconnexion).
