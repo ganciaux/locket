@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Bouton flottant « Nouvelle fiche », sur la liste et sur une fiche.
+	// Bouton flottant « Nouvelle fiche », sur la liste (sur une fiche, il est dans le bandeau d'actions).
 	import Icon from '$lib/components/Icon.svelte';
 </script>
 
