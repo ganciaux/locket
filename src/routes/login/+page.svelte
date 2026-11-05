@@ -33,4 +33,8 @@
 <div class="flex flex-col gap-1 text-sm">
 	<a class="link link-primary" href="/forgot-password">Mot de passe oublié ?</a>
 	<p>Pas encore de compte ? <a class="link link-primary" href="/signup">Créer un compte</a></p>
+	<!-- Un tiers peut faire envoyer un email de réinitialisation Firebase, impossible à désactiver (SECURITY.md § 5). -->
+	<p class="text-base-content/60 text-xs">
+		Stash ne vous envoie jamais d'email « Réinitialiser votre mot de passe » : ignorez-le si vous en recevez un.
+	</p>
 </div>

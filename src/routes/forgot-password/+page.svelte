@@ -49,4 +49,10 @@
 	</form>
 {/if}
 
+<!-- Un tiers peut faire envoyer un email de réinitialisation Firebase, impossible à désactiver (SECURITY.md § 5). -->
+<p class="alert alert-warning alert-soft text-sm">
+	Stash ne vous envoie jamais d'email « Réinitialiser votre mot de passe ». Si vous en recevez un, ignorez-le : le
+	vrai lien est un lien de connexion.
+</p>
+
 <a class="link link-primary text-sm" href="/login">Retour à la connexion</a>

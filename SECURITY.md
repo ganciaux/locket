@@ -138,7 +138,7 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
   publique, un tiers déclenche un vrai email `PASSWORD_RESET` de Firebase (`accounts:sendOobCode`), que l'app n'utilise
   jamais. Y saisir son vrai mot de passe l'enverrait à Firebase, qui détient aussi `wrappedDek`. Aucune parade sur le
   plan Spark : ni le message du modèle ni l'URL d'action ne sont modifiables. **Ne jamais suivre un tel email** : passer
-  par « Mot de passe oublié » dans l'app.
+  par « Mot de passe oublié » dans l'app, qui le rappelle sur ses pages Connexion et Mot de passe oublié.
 - **Rotation limitée** : remplacer la clé de récupération protège Firestore, pas les sauvegardes ni les copies déjà
   faites, que l'ancienne clé ouvre encore. Changer de mot de passe ne change pas la DEK : un ancien `wrappedDek` copié
   reste ouvrable avec l'ancien mot de passe. Après une compromission grave, seule une recréation du compte suffit.
