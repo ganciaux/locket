@@ -200,3 +200,41 @@ test('catégories sur plusieurs lignes, puis tout supprimer : catégories, puis 
 	await page.getByRole('button', { name: 'Tout supprimer' }).click();
 	await expect(page.getByText("Aucun tag dans « Manga » pour l'instant.")).toBeVisible();
 });
+
+test('bordure des cartes : catégorie en un seul choix, couleur par tag, remplacée par la sélection', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await addTagGroups(page, 'Rareté = Or, Argent');
+	await page.getByRole('checkbox', { name: 'Bordure des cartes' }).check();
+	// Chaque choix est enregistré (pastille affichée) avant le suivant.
+	await page.getByLabel('Couleur de bordure du tag Or').selectOption({ label: 'Or' });
+	await expect(page.locator('span.bg-\\[\\#c9a227\\]')).toBeVisible();
+	await page.getByLabel('Couleur de bordure du tag Argent').selectOption({ label: 'Argent' });
+	await expect(page.locator('span.bg-\\[\\#a7adb7\\]')).toBeVisible();
+
+	// Un seul tag de la catégorie sur la fiche : cocher Argent décoche Or.
+	await goHome(page);
+	await page.locator('a[href="/entry/new"]').first().click();
+	await page.getByLabel('Nom', { exact: true }).fill('Akira');
+	const picker = page.getByRole('group', { name: 'Tags de la fiche' });
+	await picker.getByRole('button', { name: 'Or' }).click();
+	await picker.getByRole('button', { name: 'Argent' }).click();
+	await expect(picker.getByRole('button', { name: 'Or' })).toHaveAttribute('aria-pressed', 'false');
+	await expect(picker.getByRole('button', { name: 'Argent' })).toHaveAttribute('aria-pressed', 'true');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Akira' })).toBeVisible();
+
+	await goHome(page);
+	const card = page.locator('li.card').filter({ hasText: 'Akira' });
+	await expect(card).toHaveClass(/ring-\[#a7adb7\]/);
+
+	// Sélection : ajouter Or remplace Argent.
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
+	await card.getByRole('heading').click();
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await page.getByRole('toolbar').getByRole('button', { name: 'Or' }).click();
+	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+	await expect(card).toHaveClass(/ring-\[#c9a227\]/);
+	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
+	await expect(card.getByText('Argent')).toHaveCount(0);
+});

@@ -87,6 +87,7 @@
 			groups={entries.tagGroups}
 			bind:selected={tagIds}
 			label="Tags à ajouter, retirer ou définir"
+			single
 		/>
 		<div class="flex flex-wrap gap-2">
 			<button

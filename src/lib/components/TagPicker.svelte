@@ -2,7 +2,7 @@
 	// Pastilles de tags à cocher : choix des tags d'une fiche, ou filtre de la liste.
 	// Avec des catégories, une ligne par catégorie (titre puis pastilles) ; sinon une seule ligne.
 	import type { Snippet } from 'svelte';
-	import { type Tag, type TagGroup, groupTags } from '$lib/entries/model';
+	import { type Tag, type TagGroup, borderColor, borderTags, groupTags } from '$lib/entries/model';
 
 	let {
 		tags,
@@ -10,7 +10,8 @@
 		selected = $bindable([]),
 		label,
 		onchange,
-		before
+		before,
+		single = false
 	}: {
 		tags: Tag[];
 		groups?: TagGroup[];
@@ -19,12 +20,19 @@
 		onchange?: (selected: string[]) => void;
 		/** Pastilles supplémentaires affichées en tête (ex. « Sans tag »). */
 		before?: Snippet;
+		/** Choix des tags d'une fiche : un seul tag de la catégorie de bordure (cocher l'un décoche l'autre). Pas pour un filtre. */
+		single?: boolean;
 	} = $props();
 
 	const sections = $derived(groupTags(tags, groups));
+	const bordered = $derived(borderTags(tags, groups));
+	const exclusive = $derived(single ? bordered.map((tag) => tag.id) : []);
+	// Pastille de couleur devant les tags de la catégorie de bordure.
+	const swatches = $derived(new Map(bordered.map((tag) => [tag.id, borderColor(tag.color)?.swatch])));
 
 	function toggle(id: string) {
-		selected = selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
+		if (selected.includes(id)) selected = selected.filter((s) => s !== id);
+		else selected = [...selected.filter((s) => !exclusive.includes(id) || !exclusive.includes(s)), id];
 		onchange?.(selected);
 	}
 </script>
@@ -38,6 +46,7 @@
 			aria-pressed={active}
 			onclick={() => toggle(tag.id)}
 		>
+			{#if swatches.get(tag.id)}<span class="size-2.5 rounded-full {swatches.get(tag.id)}" aria-hidden="true"></span>{/if}
 			{tag.name}
 		</button>
 	{/each}

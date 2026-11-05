@@ -34,7 +34,7 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - `src/lib/crypto/` : **tout** le code crypto (Web Crypto), testé. Aucun autre module n'appelle `crypto.subtle`.
 - `firestore.rules` : accès limité au propriétaire, emplacements et champs fixes, chiffrés `Bytes` uniquement, trousseau non supprimable.
   Tout nouveau champ d'un document Firestore doit y être ajouté.
-- `src/lib/entries/` : règles pures par domaine (`types`, `text`, `sites`, `tags`, `countries`, `duels`, `docSize`, `framing`, `crop`),
+- `src/lib/entries/` : règles pures par domaine (`types`, `text`, `sites`, `tags`, `countries`, `duels`, `docSize`, `framing`, `crop`, `borders`),
   qui ne dépendent que de `types` et `text` ; `model.ts` garde le reste (corbeille, note, tri…) et les réexporte toutes.
 - `src/lib/entries/cache.ts` : copie IndexedDB des fiches chiffrées, valide tant que le jeton `meta/version` n'a pas changé.
 - `firebase.json` : Hosting (cache, en-têtes de sécurité dont `frame-ancestors`), émulateurs.

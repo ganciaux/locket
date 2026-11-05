@@ -9,13 +9,23 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import TagGroupManager from '$lib/components/TagGroupManager.svelte';
-	import { FILTER_LEVELS, type FilterLevel, MAX_LABEL_LENGTH, effectiveGroupId, filterLevel, groupTags } from '$lib/entries/model';
+	import {
+		BORDER_COLORS,
+		FILTER_LEVELS,
+		type FilterLevel,
+		MAX_LABEL_LENGTH,
+		borderColor,
+		effectiveGroupId,
+		filterLevel,
+		groupTags
+	} from '$lib/entries/model';
 	import {
 		addTag,
 		deleteAllTags,
 		deleteTag,
 		renameTag,
 		selectCollection,
+		setTagColor,
 		setTagFilter,
 		setTagGroup
 	} from '$lib/entries/collections';
@@ -58,6 +68,15 @@
 			await setTagGroup(id, select.value || undefined);
 		} catch (e) {
 			select.value = current;
+			error = errorMessage(e);
+		}
+	}
+
+	async function changeColor(id: string, value: string) {
+		error = '';
+		try {
+			await setTagColor(id, borderColor(value)?.value);
+		} catch (e) {
 			error = errorMessage(e);
 		}
 	}
@@ -161,6 +180,7 @@
 					<ul class="card bg-base-100 divide-base-200 divide-y shadow-sm">
 						{#each section.tags as tag (tag.id)}
 							{@const count = entries.countWithTag(tag.id)}
+							{@const color = section.group?.border ? borderColor(tag.color) : undefined}
 							<li class="flex flex-col gap-2 p-4">
 								{#if editId === tag.id}
 									<form class="flex flex-col gap-2" onsubmit={rename.submit}>
@@ -181,8 +201,26 @@
 									</form>
 								{:else}
 									<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-										<Icon name="tag" class="text-primary size-4" />
+										{#if color}
+											<span class="size-4 shrink-0 rounded-full {color.swatch}" aria-hidden="true"></span>
+										{:else}
+											<Icon name="tag" class="text-primary size-4" />
+										{/if}
 										<span class="flex-1 font-medium break-all">{tag.name}</span>
+										{#if section.group?.border}
+											<!-- Catégorie de bordure : la couleur qui entoure les cartes portant ce tag. -->
+											<select
+												class="select select-xs order-last w-full sm:order-none sm:w-28"
+												aria-label="Couleur de bordure du tag {tag.name}"
+												value={tag.color ?? ''}
+												onchange={(e) => changeColor(tag.id, e.currentTarget.value)}
+											>
+												<option value="">Sans bordure</option>
+												{#each BORDER_COLORS as option (option.value)}
+													<option value={option.value}>{option.label}</option>
+												{/each}
+											</select>
+										{/if}
 										<!-- Sous le nom sur mobile, à côté dès que la place le permet. -->
 										<select
 											class="select select-xs order-last w-full sm:order-none sm:w-40"

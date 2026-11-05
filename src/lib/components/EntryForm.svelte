@@ -368,7 +368,7 @@
 				</p>
 			{/if}
 			{#if collectionTags.length}
-				<TagPicker tags={collectionTags} groups={entries.tagGroupsIn(collectionId)} bind:selected={tagIds} label="Tags de la fiche" />
+				<TagPicker tags={collectionTags} groups={entries.tagGroupsIn(collectionId)} bind:selected={tagIds} label="Tags de la fiche" single />
 			{:else if entries.tags}
 				<p class="text-base-content/60 text-sm">
 					Aucun tag dans cette collection. <a class="link link-primary" href="/tags">Créer des tags</a>

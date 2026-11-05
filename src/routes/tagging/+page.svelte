@@ -223,6 +223,7 @@
 					groups={entries.tagGroupsIn(entry.collectionId)}
 					bind:selected
 					label="Tags de la fiche"
+					single
 				/>
 			{:else}
 				<p class="text-base-content/60 text-sm">

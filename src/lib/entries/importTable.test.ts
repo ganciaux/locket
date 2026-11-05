@@ -20,6 +20,13 @@ const items = [
 const plan = (text: string) => planImport(text, items, tags, groups);
 
 describe('planImport', () => {
+	it('catégorie de bordure : un seul tag par ligne', () => {
+		const borderGroups: TagGroup[] = [groups[0], { ...groups[1], border: true }];
+		const result = planImport('Nom;Statut\nOne Piece;Terminé, En cours\nBleach;En cours', items, tags, borderGroups);
+		expect(result.errors).toEqual(['Ligne 2 : un seul tag dans Statut (bordure des cartes).']);
+		expect(result.added.map((row) => row.name)).toEqual(['Bleach']);
+	});
+
 	it('laisse une fiche validée intacte : ligne en erreur, sauf si rien ne change', () => {
 		const validated = [...items, { id: 'monster', name: 'Monster', rating: 10, validatedAt: 1 }];
 		const result = planImport('Nom;Note\nMonster;3\nAkira;3', validated, tags, groups);

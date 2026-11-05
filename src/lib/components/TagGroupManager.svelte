@@ -10,6 +10,7 @@
 		deleteTagGroup,
 		moveTagGroup,
 		renameTagGroup,
+		setTagGroupBorder,
 		setTagGroupFilter
 	} from '$lib/entries/collections';
 	import { entries } from '$lib/entries/store.svelte';
@@ -151,6 +152,16 @@
 							</button>
 						{/if}
 					</div>
+					<!-- Une seule par collection : la cocher décoche l'autre. Un seul tag par fiche, couleurs dans la liste des tags. -->
+					<label class="flex cursor-pointer items-center gap-2 self-end text-xs" title="Un seul tag de cette catégorie par fiche ; sa couleur entoure la carte">
+						<input
+							type="checkbox"
+							class="toggle toggle-primary toggle-xs"
+							checked={!!group.border}
+							onchange={(e) => run(() => setTagGroupBorder(collectionId, group.id, e.currentTarget.checked))}
+						/>
+						Bordure des cartes
+					</label>
 					<select
 						class="select select-xs w-auto self-end"
 						aria-label="Filtre de la catégorie {group.name}"

@@ -127,12 +127,15 @@ Dans l'ordre de réalisation prévu.
       (`framing.ts`, curseur Haut/Bas ou Gauche/Droite sous l'aperçu, carte, index, classement, similaires, outil de lecture) : une
       position de 0 à 100 sur l'axe qui dépasse, dans `data`, rendue par des classes fixes (CSP : pas de style en
       ligne) ; image et miniature intactes, le zoom montre toujours l'image entière. *Intermédiaire.*
-- [ ] **Bordure des cartes par une catégorie de tags** (validé le 2026-11-05, option A) : une catégorie par
-      collection marquée « donne la bordure » (ex. « Rareté »), en « un seul choix » (0 ou 1 tag, imposé par le Tagger
-      et le formulaire) ; chaque tag de la catégorie reçoit une couleur d'une palette fixe (or, argent, bronze, bleu,
-      rouge, vert, noir) ; si une fiche en porte deux (avant le passage en un seul choix), le premier dans l'ordre de la
-      catégorie gagne. Filtre, Tagger, actions groupées et stats sans rien de plus. L'appréciation reste aux étoiles.
-      *Intermédiaire.*
+- [x] **Bordure des cartes par une catégorie de tags** — fait le 2026-11-05 (`borders.ts`) : interrupteur « Bordure des
+      cartes » sur une catégorie (une seule par collection), couleur par tag dans la liste des tags (or, argent, bronze,
+      bleu, rouge, vert, noir ; le noir suit la couleur du texte pour rester visible en thème sombre), anneau autour de la
+      carte (hors de sa taille). Un seul tag de la catégorie par fiche : formulaire, Tagger et sélection (« Ajouter »
+      remplace l'ancien), import (ligne en erreur) ; une fiche qui en porte deux prend le premier de la catégorie.
+      Filtre, stats sans rien de plus. *Intermédiaire.*
+      Constaté en test : deux choix de couleur à moins d'une seconde d'intervalle, la seconde écriture du catalogue est
+      refusée (protection contre l'écrasement) ; erreur affichée, rien de perdu en dehors de ce choix. Idem pour les
+      autres réglages des tags, à traiter si ça gêne à l'usage (file d'écritures du catalogue).
 
 ## À décider ou plus tard
 

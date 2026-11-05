@@ -12,6 +12,7 @@ export * from './duels';
 export * from './countries';
 export * from './docSize';
 export * from './framing';
+export * from './borders';
 
 export const TRASH_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;

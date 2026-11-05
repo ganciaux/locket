@@ -29,7 +29,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 | Contenu des fiches (nom, liens, dates, tags associés, note, pays, remarques, validation, cadrage) | Firestore `users/{uid}/entries/{id}.data` | AES-GCM-256 avec la DEK |
 | Images et miniatures | `users/{uid}/images/{id}.image`, `entries/{id}.thumb` | AES-GCM-256 avec la DEK |
 | Noms et ordre des collections, modèles d'URL de leurs sites, classement de leurs fiches (ids) | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
-| Noms des tags | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |
+| Noms des tags (et couleur de bordure) | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |
 | Date de la dernière sauvegarde (2026-11-04) | `users/{uid}/meta/backup.data` | AES-GCM-256 avec la DEK |
 | DEK (clé de données) | Firestore, sous forme emballée (2 copies) ; une 3e sur l'appareil si Face ID est activé ; en clair seulement en mémoire, non extractible | Emballée par la KEK (mot de passe), par la clé de récupération, et par la clé de Face ID |
 | Mot de passe | Jamais stocké ni transmis | Seul un jeton dérivé est envoyé à Firebase Auth |

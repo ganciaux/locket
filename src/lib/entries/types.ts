@@ -69,6 +69,9 @@ export type Site = {
 	optIn?: boolean;
 };
 
+/** Couleur de bordure des cartes (palette fixe : voir borders.ts). */
+export type BorderColor = 'gold' | 'silver' | 'bronze' | 'blue' | 'red' | 'green' | 'black';
+
 /** Tag libre, propre à une collection : l'app ne connaît que son identifiant aléatoire et son libellé. */
 export type Tag = {
 	id: string;
@@ -77,6 +80,8 @@ export type Tag = {
 	groupId?: string;
 	/** Place dans le filtre de la liste, à l'intérieur de sa catégorie ; absent : recherche simple. */
 	filter?: 'advanced' | 'off';
+	/** Couleur de la bordure des cartes, pour un tag de la catégorie de bordure (voir borders.ts). */
+	color?: BorderColor;
 };
 
 /** Catégorie de tags (Genre, Statut…) : simple rangement, une fiche peut porter 0 ou n tags d'une catégorie. */
@@ -85,4 +90,6 @@ export type TagGroup = {
 	name: string;
 	/** Place dans le filtre de la liste ; absent : recherche simple. */
 	filter?: 'advanced' | 'off';
+	/** Donne la bordure des cartes : un seul tag par fiche, sa couleur entoure la carte. Une seule par collection. */
+	border?: true;
 };

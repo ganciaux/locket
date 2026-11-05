@@ -5,6 +5,7 @@
 import { prefs } from '$lib/prefs.svelte';
 import { collectionCatalog, tagCatalog } from './catalog';
 import {
+	type BorderColor,
 	type Collection,
 	type Site,
 	type SiteMode,
@@ -133,6 +134,29 @@ export async function setTagGroupFilter(collectionId: string, id: string, level:
 	await replaceTagGroups(
 		collectionId,
 		groups.map((group) => (group.id === id ? withFilterLevel(group, level) : group))
+	);
+}
+
+/** Catégorie qui donne la bordure des cartes ; une seule par collection, cocher l'une décoche l'autre. */
+export async function setTagGroupBorder(collectionId: string, id: string, border: boolean): Promise<void> {
+	const groups = entries.tagGroupsIn(collectionId);
+	await replaceTagGroups(
+		collectionId,
+		groups.map((group) => {
+			const { border: _, ...rest } = group;
+			return border && group.id === id ? { ...rest, border: true } : rest;
+		})
+	);
+}
+
+/** Couleur de bordure d'un tag ; undefined la retire. */
+export async function setTagColor(id: string, color: BorderColor | undefined): Promise<void> {
+	await replaceTags(
+		loaded(data.tags).map((tag) => {
+			if (tag.id !== id) return tag;
+			const { color: _, ...rest } = tag;
+			return color ? { ...rest, color } : rest;
+		})
 	);
 }
 

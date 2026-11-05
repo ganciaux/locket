@@ -39,14 +39,18 @@ export const OTHER_TAGS = 'Autres tags';
 const FIXED = ['Nom', 'Pays', 'Naissance', 'Note'] as const;
 const NONE = '—';
 
-/** Tags d'une colonne : ceux d'une catégorie, ou ceux sans catégorie (« Autres tags »). */
-type Scope = { label: string; tags: Tag[] };
+/** Tags d'une colonne : ceux d'une catégorie, ou ceux sans catégorie (« Autres tags ») ; `single` : catégorie de bordure. */
+type Scope = { label: string; tags: Tag[]; single?: boolean };
 type Column = { kind: (typeof FIXED)[number] } | { kind: 'tags'; scope: Scope };
 
 function scopesOf(tags: Tag[], groups: TagGroup[]): Scope[] {
 	const known = new Set(groups.map((group) => group.id));
 	return [
-		...groups.map((group) => ({ label: group.name, tags: tags.filter((tag) => tag.groupId === group.id) })),
+		...groups.map((group) => ({
+			label: group.name,
+			tags: tags.filter((tag) => tag.groupId === group.id),
+			single: !!group.border
+		})),
 		{ label: OTHER_TAGS, tags: tags.filter((tag) => !tag.groupId || !known.has(tag.groupId)) }
 	];
 }
@@ -170,6 +174,7 @@ export function planImport(text: string, items: ImportTarget[], tags: Tag[], gro
 					if (tag) chosen.push(tag.id);
 					else rowErrors.push(`tag « ${tagName} » inconnu dans ${scope.label}.`);
 				}
+				if (scope.single && new Set(chosen).size > 1) rowErrors.push(`un seul tag dans ${scope.label} (bordure des cartes).`);
 				const others = (after.tagIds ?? []).filter((id) => !scope.tags.some((tag) => tag.id === id));
 				const next = [...others, ...new Set(chosen)];
 				after.tagIds = next.length ? next : undefined;

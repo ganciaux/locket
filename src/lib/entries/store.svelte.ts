@@ -37,6 +37,7 @@ import {
 	matchesLinkFilter,
 	matchesRatingFilter,
 	matchesValidatedFilter,
+	keepOneBorderTag,
 	type ValidatedFilter,
 	parseRating,
 	sortBy,
@@ -422,16 +423,20 @@ export function changeEntriesSites(targets: ListItem[], siteIds: string[], mode:
 export const rateEntry = (entry: ListItem, rating: number | undefined): Promise<void> =>
 	patchEntries([entry], () => ({ rating: parseRating(rating), updatedAt: Date.now() }));
 
-/** Ajoute ou retire ces tags, sans toucher aux autres tags des fiches ; `set` : les fiches ont exactement ces tags. */
+/**
+ * Ajoute ou retire ces tags, sans toucher aux autres tags des fiches ; `set` : les fiches ont exactement ces tags.
+ * Un tag de bordure ajouté remplace celui que la fiche avait (un seul par fiche).
+ */
 export function changeEntriesTags(targets: ListItem[], tagIds: string[], mode: 'add' | 'remove' | 'set'): Promise<void> {
 	return patchEntries(targets, (entry) => {
 		const current = entry.tagIds ?? [];
-		const next =
+		const merged =
 			mode === 'set'
 				? [...tagIds]
 				: mode === 'add'
 					? [...new Set([...current, ...tagIds])]
 					: current.filter((id) => !tagIds.includes(id));
+		const next = keepOneBorderTag(merged, entries.tagsIn(entry.collectionId), entries.tagGroupsIn(entry.collectionId), tagIds);
 		return { tagIds: next.length ? next : undefined, updatedAt: Date.now() };
 	});
 }
