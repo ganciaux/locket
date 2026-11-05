@@ -106,7 +106,8 @@ Dans l'ordre de réalisation prévu.
       dans les règles ni le format de sauvegarde ; recherche de la liste dans ce texte en option. *Simple.*
 - [ ] **Une fiche au hasard** : bouton avec une icône de dé, ouvre une fiche tirée parmi la liste filtrée. *Simple.*
 - [ ] **Fiche vérifiée** : statut posé quand une fiche est finie, pour ne plus y revenir et la protéger des modifications.
-      Un seul statut proposé (vérifiée = protégée) plutôt que « vérifiée » et « verrouillée » séparés, à confirmer.
+      Un seul statut (vérifiée = protégée), validé le 2026-11-05 avec les comportements ci-dessous ; nom (« Validée » ?)
+      et icône (rosette avec coche) à confirmer.
       Modifier une fiche vérifiée demande une confirmation ; les actions groupées la laissent de côté ou préviennent ;
       repère sur la carte et filtre « à vérifier / vérifiées ». Garde-fou contre l'erreur, pas une protection de
       sécurité (comme « Cachée »). *Simple à intermédiaire.*
@@ -116,7 +117,8 @@ Dans l'ordre de réalisation prévu.
       couvrir son comportement dans les actions groupées. *Intermédiaire.*
 - [ ] **Recadrer et pivoter l'image** avant l'enregistrement : cadre à déplacer (tactile), rotation par quart de tour,
       sur le canvas déjà utilisé pour le redimensionnement, sans bibliothèque. Choix du cadrage de la miniature à
-      étudier en même temps (images « coupées » sur les cartes). *Intermédiaire.*
+      étudier en même temps. Images « coupées » sur les cartes (2026-11-05) : la miniature garde ses proportions
+      (640 px de grand côté), c'est la carte carrée (`object-cover`, centré) qui rogne à l'affichage. *Intermédiaire.*
 
 ## À décider ou plus tard
 
