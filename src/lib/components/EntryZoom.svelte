@@ -7,6 +7,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import Rating from '$lib/components/Rating.svelte';
+	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
 	import { countryFlag, countryName, formatAge, neighbours } from '$lib/entries/model';
 	import { type Criterion, type Similarity, findSimilar } from '$lib/entries/similar';
 	import { type ListItem, entries, rateEntry } from '$lib/entries/store.svelte';
@@ -159,6 +160,7 @@
 				{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
 				<h2 class="min-w-0 flex-1 text-lg font-bold break-words">{entry.name}</h2>
 				{#if entry.birthYear}<span class="text-base-content/60 shrink-0 text-sm" title="Année de naissance : {entry.birthYear}">{formatAge(entry.birthYear)}</span>{/if}
+				{#if entry.validatedAt}<ValidatedMark />{/if}
 				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
 				<button class="btn btn-ghost btn-sm btn-square shrink-0" aria-label="Fermer" onclick={close}>
 					<Icon name="close" class="size-4" />
@@ -201,11 +203,6 @@
 				<div class="flex items-center gap-2">
 					<!-- Validée : note figée, comme le reste de la fiche. -->
 					<Rating value={entry.rating} onchange={rate} disabled={savingRating || !!entry.validatedAt} />
-					{#if entry.validatedAt}
-						<span class="badge badge-primary badge-soft gap-1" role="img" aria-label="Validée">
-							<Icon name="validated" class="size-4" /> Validée
-						</span>
-					{/if}
 					{#if rank}<span class="badge badge-neutral ml-auto" title="Rang dans le classement">#{rank}</span>{/if}
 				</div>
 				{#if tags.length}

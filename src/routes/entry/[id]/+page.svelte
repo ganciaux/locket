@@ -10,6 +10,7 @@
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
+	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
 	import { entryNav } from '$lib/entries/entryNav.svelte';
 	import { TRASH_DAYS, countryFlag, countryName, formatAge, formatRating, groupTags, neighbours } from '$lib/entries/model';
 	import { deleteForever, entries, loadEntries, rateEntry, setEntriesValidated, trashEntries } from '$lib/entries/store.svelte';
@@ -139,6 +140,7 @@
 		<header class="flex flex-col gap-1 p-4 sm:px-6">
 			<div class="flex items-start gap-2">
 				<h1 class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
+				{#if entry.validatedAt}<ValidatedMark class="h-8" />{/if}
 				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
 			</div>
 			{#if entry.validatedAt}
