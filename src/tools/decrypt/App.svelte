@@ -133,7 +133,7 @@
 					alt=""
 					loading="lazy"
 					data-entry={entry.id}
-					class="size-full object-cover"
+					class="size-full object-cover {entry.framing}"
 					onerror={() => (broken = [...broken, entry.id])}
 				/>
 			</figure>

@@ -3,7 +3,7 @@
  * fiches par nom puis corbeille à part. Rang, tags par catégorie et liens calculés comme dans l'app. Fonction pure.
  */
 import type { Bytes } from '$lib/crypto/encoding';
-import { type Link, byName, entryLinks, groupTags, parseLinkUrl, rankedIds } from '$lib/entries/model';
+import { type Link, byName, entryLinks, framingClass, groupTags, parseLinkUrl, rankedIds } from '$lib/entries/model';
 import type { BackupReading, ReadEntry } from './reader';
 
 export type ViewEntry = {
@@ -22,6 +22,8 @@ export type ViewEntry = {
 	links: Link[];
 	/** Types d'image connus seulement : le fichier ne choisit pas ce que le navigateur interprète. */
 	imageType?: string;
+	/** Classe de cadrage de la miniature (voir framing.ts), calculée ici : la valeur lue n'atteint pas le DOM. */
+	framing: string;
 	thumb?: Bytes;
 	image?: Bytes;
 };
@@ -68,6 +70,7 @@ export function backupView(reading: BackupReading): ViewCollection[] {
 					return url ? [{ ...link, url }] : [];
 				}),
 				...(imageType && { imageType }),
+				framing: framingClass(entry.framing),
 				...(imageType && entry.thumb && { thumb: entry.thumb }),
 				...(imageType && entry.image && { image: entry.image })
 			};

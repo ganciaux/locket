@@ -121,7 +121,8 @@ Dans l'ordre de réalisation prévu.
 - [ ] **Recadrer et pivoter l'image** avant l'enregistrement : cadre à déplacer (tactile), rotation par quart de tour,
       sur le canvas déjà utilisé pour le redimensionnement, sans bibliothèque ; remplace l'image (complète et miniature).
       Images « coupées » sur les cartes (2026-11-05) : la miniature garde ses proportions (640 px de grand côté), c'est
-      la carte carrée (`object-cover`, centré) qui rogne à l'affichage. Proposé : **cadrage de la carte** à part, une
+      la carte carrée (`object-cover`, centré) qui rogne à l'affichage. **Cadrage de la carte fait le 2026-11-05**
+      (`framing.ts`, curseur Haut/Bas ou Gauche/Droite sous l'aperçu, carte, index, classement, similaires, outil de lecture) : une
       position de 0 à 100 sur l'axe qui dépasse, dans `data`, rendue par des classes fixes (CSP : pas de style en
       ligne) ; image et miniature intactes, le zoom montre toujours l'image entière. *Intermédiaire.*
 - [ ] **Bordure des cartes par une catégorie de tags** (validé le 2026-11-05, option A) : une catégorie par

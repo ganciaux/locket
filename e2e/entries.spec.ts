@@ -356,3 +356,42 @@ test('fiche validée : confirmation avant de modifier, note figée, filtre, lais
 	await page.getByRole('button', { name: 'Dévalider' }).click();
 	await expect(card('Akira').getByRole('img', { name: 'Validée' })).toHaveCount(0);
 });
+
+test('cadrage de la carte : seulement pour une image non carrée, appliqué à la miniature', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await page.locator('a[href="/entry/new"]').first().click();
+	await page.getByLabel('Nom', { exact: true }).fill('Portrait');
+	const paste = (width: number, height: number) =>
+		page.evaluate(
+			async ([width, height]) => {
+				const canvas = Object.assign(document.createElement('canvas'), { width, height });
+				const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+				const data = new DataTransfer();
+				data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
+				window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+			},
+			[width, height]
+		);
+
+	// Carrée : rien à cadrer.
+	await paste(300, 300);
+	await expect(page.getByAltText('Aperçu', { exact: true })).toBeVisible();
+	await expect(page.getByLabel('Cadrage de la carte')).toHaveCount(0);
+
+	// En hauteur : de haut en bas.
+	await paste(300, 600);
+	const framing = page.getByLabel('Cadrage de la carte');
+	await expect(framing).toHaveValue('50');
+	await expect(page.getByText('Haut', { exact: true })).toBeVisible();
+	await framing.fill('0');
+	await expect(page.getByAltText('Aperçu de la carte')).toHaveClass(/object-\[0%_0%\]/);
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Portrait' })).toBeVisible();
+
+	await goHome(page);
+	await expect(page.locator('li.card img')).toHaveClass(/object-\[0%_0%\]/);
+	await page.locator('li.card').getByRole('heading').click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Modifier la fiche' }).click();
+	await expect(page.getByLabel('Cadrage de la carte')).toHaveValue('0');
+});

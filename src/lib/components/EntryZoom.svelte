@@ -8,7 +8,7 @@
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
-	import { countryFlag, countryName, formatAge, neighbours } from '$lib/entries/model';
+	import { countryFlag, countryName, formatAge, framingClass, neighbours } from '$lib/entries/model';
 	import { type Criterion, type Similarity, findSimilar } from '$lib/entries/similar';
 	import { type ListItem, entries, rateEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -248,7 +248,7 @@
 										onclick={() => onchange(item.id)}
 									>
 										{#if item.thumbUrl}
-											<img src={item.thumbUrl} alt="" class="size-full object-cover" />
+											<img src={item.thumbUrl} alt="" class="size-full object-cover {framingClass(item.framing)}" />
 										{:else}
 											<span class="text-primary font-bold" aria-hidden="true">{item.name.charAt(0).toUpperCase()}</span>
 										{/if}

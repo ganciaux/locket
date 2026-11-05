@@ -1,5 +1,7 @@
 /* Seuls les fichiers de l'outil sont analysés : le CSS de l'app n'y entre pas, le fichier reste léger. */
 @import 'tailwindcss' source('./');
+/* Plus les classes de cadrage des miniatures, calculées hors de l'outil (readerView). */
+@source '../../lib/entries/framing.ts';
 
 @plugin 'daisyui' {
 	themes:

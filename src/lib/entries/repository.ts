@@ -23,7 +23,7 @@ import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson, randomBytes
 import type { Bytes } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import { type CacheChanges, type CachedEntry, applyToCache, cachedToken, clearCache, fillCache, readCache } from './cache';
-import { type Entry, type EntryData, type Link, fitsInDoc, parseBirthYear, parseCountry, parseRating, parseRemarks } from './model';
+import { type Entry, type EntryData, type Link, fitsInDoc, parseBirthYear, parseCountry, parseFraming, parseRating, parseRemarks } from './model';
 import { StaleDataError, guardStale } from './stale';
 
 type StoredEntry = { data: StoredEncrypted; thumb?: StoredEncrypted };
@@ -166,6 +166,8 @@ export type EntryInput = {
 	country?: string;
 	birthYear?: number;
 	remarks?: string;
+	/** Cadrage de la carte (0 à 100), sans effet sans image. */
+	framing?: number;
 	/** undefined : image inchangée ; null : supprimée ; sinon : remplacée. */
 	image?: PreparedImage | null;
 };
@@ -199,6 +201,7 @@ export async function saveEntry(
 		...(parseCountry(input.country) && { country: input.country }),
 		...(parseBirthYear(input.birthYear) && { birthYear: input.birthYear }),
 		...(parseRemarks(input.remarks) && { remarks: parseRemarks(input.remarks) }),
+		...(imageType && parseFraming(input.framing) !== undefined && { framing: input.framing }),
 		...(input.hidden && { hidden: true }),
 		// Le formulaire ne change pas la validation : une fiche validée modifiée (après confirmation) le reste.
 		...(existing?.validatedAt && { validatedAt: existing.validatedAt })

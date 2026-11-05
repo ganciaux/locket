@@ -4,7 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
-	import { countryFlag, countryName, formatRating } from '$lib/entries/model';
+	import { countryFlag, countryName, formatRating, framingClass } from '$lib/entries/model';
 	import { type ListItem, entries } from '$lib/entries/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 
@@ -90,7 +90,7 @@
 		</h2>
 		<figure class="bg-primary/10 relative aspect-square">
 			{#if entry.thumbUrl}
-				<img src={entry.thumbUrl} alt="" class="size-full object-cover" />
+				<img src={entry.thumbUrl} alt="" class="size-full object-cover {framingClass(entry.framing)}" />
 			{:else}
 				<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
 					{entry.name.charAt(0).toUpperCase()}

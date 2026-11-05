@@ -26,6 +26,8 @@ export type EntryData = {
 	 * la laissent de côté). Simple garde-fou, pas une protection : les règles Firestore n'en savent rien.
 	 */
 	validatedAt?: number;
+	/** Cadrage de la carte, de 0 à 100 (voir framing.ts) ; absent : centré. */
+	framing?: number;
 	/** Rangée à l'écart : absente de la liste sauf avec le bouton « Cachées ». Simple filtre, pas une protection. */
 	hidden?: boolean;
 	/** Note de 1 à `MAX_RATING` : 5 étoiles par demi-étoile ; absente, la fiche n'est pas notée. */

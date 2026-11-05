@@ -9,7 +9,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
-	import { type Link, MAX_NAME_LENGTH, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
+	import { FRAMING_CENTER, FRAMING_STEP, type Link, MAX_NAME_LENGTH, framingClass, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -54,6 +54,14 @@
 	let birthYear = $state<number | null | undefined>(entry?.birthYear);
 	// svelte-ignore state_referenced_locally
 	let remarks = $state(entry?.remarks ?? '');
+	// svelte-ignore state_referenced_locally
+	let framing = $state(entry?.framing ?? FRAMING_CENTER);
+	// Sens de l'aperçu, lu à son chargement : le cadrage n'a de sens que pour une image non carrée.
+	let shape = $state<'tall' | 'wide' | 'square' | null>(null);
+	function readShape(event: Event) {
+		const { naturalWidth: width, naturalHeight: height } = event.currentTarget as HTMLImageElement;
+		shape = height > width ? 'tall' : width > height ? 'wide' : 'square';
+	}
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
 	let chosenCollectionId = $state(entry?.collectionId ?? initialCollectionId);
@@ -89,6 +97,7 @@
 		const input = event.currentTarget as HTMLInputElement;
 		file = input.files?.[0] ?? null;
 		imageRemoved = false;
+		framing = FRAMING_CENTER;
 	}
 
 	/** Coller une image (capture d'écran, image copiée) ; un collage de texte suit son cours normal. */
@@ -99,6 +108,7 @@
 		fileInput.value = '';
 		file = image;
 		imageRemoved = false;
+		framing = FRAMING_CENTER;
 	}
 
 	function removeImage() {
@@ -169,6 +179,7 @@
 				country,
 				birthYear: birthYear ?? undefined,
 				remarks,
+				framing,
 				image
 			},
 			entry
@@ -267,7 +278,7 @@
 			<h2 class="card-title text-base"><Icon name="image" /> Image</h2>
 			{#if preview}
 				<div class="relative self-start">
-					<img class="rounded-box max-h-56 w-auto" src={preview} alt="Aperçu" />
+					<img class="rounded-box max-h-56 w-auto" src={preview} alt="Aperçu" onload={readShape} />
 					<button
 						type="button"
 						class="btn btn-circle btn-sm absolute top-2 right-2"
@@ -277,6 +288,31 @@
 					>
 						<Icon name="close" class="size-4" />
 					</button>
+				</div>
+			{/if}
+			{#if preview && (shape === 'tall' || shape === 'wide')}
+				<!-- Cadrage : la carte carrée ne montre qu'une partie de l'image ; on choisit laquelle. -->
+				<div class="flex items-center gap-4">
+					<img
+						class="rounded-box size-24 shrink-0 object-cover shadow-sm {framingClass(framing)}"
+						src={preview}
+						alt="Aperçu de la carte"
+					/>
+					<label class="flex min-w-0 flex-1 flex-col gap-1">
+						<span class="text-sm font-medium">Cadrage de la carte</span>
+						<input
+							type="range"
+							class="range range-primary range-sm"
+							min="0"
+							max="100"
+							step={FRAMING_STEP}
+							bind:value={framing}
+						/>
+						<span class="text-base-content/60 flex justify-between text-xs" aria-hidden="true">
+							<span>{shape === 'tall' ? 'Haut' : 'Gauche'}</span>
+							<span>{shape === 'tall' ? 'Bas' : 'Droite'}</span>
+						</span>
+					</label>
 				</div>
 			{/if}
 			<input type="file" accept="image/*" class="file-input w-full" bind:this={fileInput} onchange={onFileChange} />

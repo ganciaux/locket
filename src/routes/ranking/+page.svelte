@@ -9,7 +9,7 @@
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
-	import { isRankable } from '$lib/entries/model';
+	import { framingClass, isRankable } from '$lib/entries/model';
 	import { selectCollection } from '$lib/entries/collections';
 	import { abandonNewRanking, deleteRanking, finishNewRanking, startNewRanking } from '$lib/entries/ranking';
 	import { type ListItem, entries, loadEntries } from '$lib/entries/store.svelte';
@@ -62,7 +62,7 @@
 	<li class="bg-base-100 rounded-box flex flex-col gap-2 p-2 shadow-sm">
 		<div class="flex items-center gap-2">
 			{#if rank}<span class="badge badge-sm badge-neutral shrink-0">#{rank}</span>{/if}
-			<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover" />
+			<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}" />
 			<a class="link-hover min-w-0 flex-1 truncate text-sm font-semibold" href="/entry/{item.id}">{item.name}</a>
 			{#if !draft}
 				<a

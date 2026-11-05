@@ -16,6 +16,7 @@
 		countryFlag,
 		countryName,
 		formatAge,
+		framingClass,
 		groupByInitial,
 		groupTags,
 		matchesSearch,
@@ -208,7 +209,7 @@
 							{/if}
 							{#if prefs.indexThumb}
 								{#if item.thumbUrl}
-									<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover" />
+									<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}" />
 								{:else}
 									<span class="bg-primary/10 text-primary rounded-box flex size-10 shrink-0 items-center justify-center font-bold" aria-hidden="true">
 										{item.name.charAt(0).toUpperCase()}
