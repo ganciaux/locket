@@ -226,7 +226,7 @@ test('bordure des cartes : catégorie en un seul choix, couleur par tag, remplac
 
 	await goHome(page);
 	const card = page.locator('li.card').filter({ hasText: 'Akira' });
-	await expect(card).toHaveClass(/ring-\[#a7adb7\]/);
+	await expect(card).toHaveAttribute('data-border', 'silver');
 
 	// Sélection : ajouter Or remplace Argent.
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
@@ -234,7 +234,7 @@ test('bordure des cartes : catégorie en un seul choix, couleur par tag, remplac
 	await page.getByRole('button', { name: 'Tags', exact: true }).click();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Or' }).click();
 	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
-	await expect(card).toHaveClass(/ring-\[#c9a227\]/);
+	await expect(card).toHaveAttribute('data-border', 'gold');
 	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
 	await expect(card.getByText('Argent')).toHaveCount(0);
 });

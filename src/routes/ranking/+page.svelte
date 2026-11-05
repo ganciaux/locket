@@ -62,7 +62,12 @@
 	<li class="bg-base-100 rounded-box flex flex-col gap-2 p-2 shadow-sm">
 		<div class="flex items-center gap-2">
 			{#if rank}<span class="badge badge-sm badge-neutral shrink-0">#{rank}</span>{/if}
-			<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}" />
+			<img
+				src={item.thumbUrl}
+				alt=""
+				data-border={entries.borderOf(item)}
+				class="frame-thin rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}"
+			/>
 			<a class="link-hover min-w-0 flex-1 truncate text-sm font-semibold" href="/entry/{item.id}">{item.name}</a>
 			{#if !draft}
 				<a

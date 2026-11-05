@@ -143,3 +143,91 @@
 		border-color: transparent;
 	}
 }
+
+/*
+ * Bordure des fiches (catégorie de tags de bordure, voir borders.ts) : un cadre de carte de collection. Or, argent et
+ * bronze en dégradé à reflet, les couleurs en émail, avec un halo de la même teinte. Posé par `data-border` sur la
+ * carte, le duel, l'image du zoom et de la fiche, et les miniatures (index, classement, similaires : `frame-thin`).
+ * Bordure intérieure, fond en border-box : la taille de l'élément ne change pas, la grille ne bouge pas.
+ * Hors couche pour passer devant daisyUI et les ombres de Tailwind.
+ */
+[data-border] {
+	--frame-width: 3px;
+	--frame-fill: var(--color-base-100);
+	border: var(--frame-width) solid transparent;
+	background:
+		linear-gradient(var(--frame-fill), var(--frame-fill)) padding-box,
+		linear-gradient(
+				135deg,
+				var(--frame-light) 0%,
+				var(--frame-color) 28%,
+				var(--frame-dark) 50%,
+				var(--frame-color) 72%,
+				var(--frame-light) 100%
+			)
+			border-box;
+	box-shadow:
+		0 0 0 1px color-mix(in oklab, var(--frame-dark) 40%, transparent),
+		0 6px 16px -6px color-mix(in oklab, var(--frame-color) 70%, transparent),
+		0 0 12px -3px color-mix(in oklab, var(--frame-color) 45%, transparent);
+}
+
+[data-border].frame-thin {
+	--frame-width: 2px;
+	box-shadow:
+		0 0 0 1px color-mix(in oklab, var(--frame-dark) 35%, transparent),
+		0 2px 6px -2px color-mix(in oklab, var(--frame-color) 70%, transparent);
+}
+
+/* Cartes et duels : le halo s'intensifie au survol, comme l'ombre des cartes sans bordure. */
+@media (hover: hover) {
+	.card[data-border]:hover {
+		box-shadow:
+			0 0 0 1px color-mix(in oklab, var(--frame-dark) 45%, transparent),
+			0 10px 22px -8px color-mix(in oklab, var(--frame-color) 80%, transparent),
+			0 0 18px -2px color-mix(in oklab, var(--frame-color) 55%, transparent);
+	}
+}
+
+[data-border='gold'] {
+	--frame-light: #f8e8a6;
+	--frame-color: #c9a227;
+	--frame-dark: #7a5c10;
+}
+
+[data-border='silver'] {
+	--frame-light: #f5f7f9;
+	--frame-color: #a7adb7;
+	--frame-dark: #5c636e;
+}
+
+[data-border='bronze'] {
+	--frame-light: #efbb8a;
+	--frame-color: #b0703a;
+	--frame-dark: #5e3412;
+}
+
+[data-border='blue'] {
+	--frame-light: #93c5fd;
+	--frame-color: #2563eb;
+	--frame-dark: #1e3a8a;
+}
+
+[data-border='red'] {
+	--frame-light: #fca5a5;
+	--frame-color: #dc2626;
+	--frame-dark: #7f1d1d;
+}
+
+[data-border='green'] {
+	--frame-light: #86efac;
+	--frame-color: #16a34a;
+	--frame-dark: #14532d;
+}
+
+/* Couleur du texte : noire en thème clair, claire en sombre (une bordure noire y disparaîtrait). */
+[data-border='black'] {
+	--frame-light: color-mix(in oklab, var(--color-base-content) 45%, var(--color-base-100));
+	--frame-color: var(--color-base-content);
+	--frame-dark: var(--color-base-content);
+}

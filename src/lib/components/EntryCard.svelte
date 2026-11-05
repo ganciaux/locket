@@ -4,7 +4,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
-	import { borderRing, countryFlag, countryName, formatRating, framingClass } from '$lib/entries/model';
+	import { countryFlag, countryName, formatRating, framingClass } from '$lib/entries/model';
 	import { type ListItem, entries } from '$lib/entries/store.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 
@@ -29,10 +29,8 @@
 	const rank = $derived(entries.rankOf(entry));
 	// Barre « Détails » : seulement s'il reste des tags ou des liens que la carte n'affiche pas.
 	const hasMore = $derived((entryTags.length > 0 && !prefs.cardTags) || (links.length > 0 && !prefs.cardLinks));
-	// Bordure : couleur du tag de la catégorie de bordure (anneau autour de la carte, hors de sa taille).
-	const ring = $derived(
-		borderRing(entry.tagIds, entries.tagsIn(entry.collectionId), entries.tagGroupsIn(entry.collectionId))
-	);
+	// Bordure : couleur du tag de la catégorie de bordure (cadre `data-border`, app.css).
+	const border = $derived(entries.borderOf(entry));
 </script>
 
 {#snippet cardName()}
@@ -42,7 +40,8 @@
 
 <li
 	id="card-{entry.id}"
-	class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {ring} {entry.hidden
+	data-border={border}
+	class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
 		? 'opacity-50 hover:opacity-100'
 		: ''} {selected
 		? 'after:border-primary after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border-2'

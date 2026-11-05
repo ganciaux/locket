@@ -149,6 +149,7 @@
 		{#each swap ? [opponent, candidate] : [candidate, opponent] as item (item.id)}
 			<button
 				type="button"
+				data-border={entries.borderOf(item)}
 				class="card bg-base-100 cursor-pointer overflow-hidden text-left shadow-sm transition hover:shadow-md disabled:opacity-60"
 				disabled={saving}
 				aria-label="Préférer {item.name}"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { borderGroup, borderRing, borderTags, keepOneBorderTag } from './borders';
+import { borderGroup, borderOf, borderTags, keepOneBorderTag } from './borders';
 import type { Tag, TagGroup } from './types';
 
 const groups: TagGroup[] = [
@@ -20,14 +20,14 @@ describe('bordure des cartes', () => {
 		expect(borderTags(tags, [{ id: 'genre', name: 'Genre' }])).toEqual([]);
 	});
 
-	it('anneau de la couleur du tag ; rien sans tag coloré ni hors de la catégorie', () => {
-		expect(borderRing(['or'], tags, groups)).toBe('ring-2 ring-[#c9a227]');
-		expect(borderRing(['commun'], tags, groups)).toBe('');
+	it('couleur du tag ; rien sans tag coloré ni hors de la catégorie', () => {
+		expect(borderOf(['or'], tags, groups)).toBe('gold');
+		expect(borderOf(['commun'], tags, groups)).toBeUndefined();
 		// Couleur d'un tag hors de la catégorie de bordure : ignorée.
-		expect(borderRing(['action'], tags, groups)).toBe('');
-		expect(borderRing(undefined, tags, groups)).toBe('');
+		expect(borderOf(['action'], tags, groups)).toBeUndefined();
+		expect(borderOf(undefined, tags, groups)).toBeUndefined();
 		// Fiche ancienne avec deux tags : le premier dans l'ordre de la catégorie.
-		expect(borderRing(['or', 'argent'], tags, groups)).toBe('ring-2 ring-[#a7adb7]');
+		expect(borderOf(['or', 'argent'], tags, groups)).toBe('silver');
 	});
 
 	it('un seul tag de bordure par fiche : celui qu’on vient d’ajouter, sinon le premier', () => {

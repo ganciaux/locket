@@ -209,9 +209,18 @@
 							{/if}
 							{#if prefs.indexThumb}
 								{#if item.thumbUrl}
-									<img src={item.thumbUrl} alt="" class="rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}" />
+									<img
+										src={item.thumbUrl}
+										alt=""
+										data-border={entries.borderOf(item)}
+										class="frame-thin rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}"
+									/>
 								{:else}
-									<span class="bg-primary/10 text-primary rounded-box flex size-10 shrink-0 items-center justify-center font-bold" aria-hidden="true">
+									<span
+										data-border={entries.borderOf(item)}
+										class="frame-thin bg-primary/10 text-primary rounded-box flex size-10 shrink-0 items-center justify-center font-bold"
+										aria-hidden="true"
+									>
 										{item.name.charAt(0).toUpperCase()}
 									</span>
 								{/if}

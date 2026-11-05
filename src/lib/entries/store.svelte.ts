@@ -38,6 +38,8 @@ import {
 	matchesRatingFilter,
 	matchesValidatedFilter,
 	keepOneBorderTag,
+	borderOf,
+	type BorderColor,
 	type ValidatedFilter,
 	parseRating,
 	sortBy,
@@ -249,6 +251,10 @@ export const entries = {
 	tagsOf(entry: { collectionId: string; tagIds?: string[] }): Tag[] {
 		const own = entries.tagsIn(entry.collectionId).filter((tag) => entry.tagIds?.includes(tag.id));
 		return groupTags(own, entries.tagGroupsIn(entry.collectionId)).flatMap((section) => section.tags);
+	},
+	/** Couleur de bordure d'une fiche (catégorie de bordure de sa collection), pour `data-border`. */
+	borderOf(entry: { collectionId: string; tagIds?: string[] }): BorderColor | undefined {
+		return borderOf(entry.tagIds, entries.tagsIn(entry.collectionId), entries.tagGroupsIn(entry.collectionId));
 	},
 	sitesIn(collectionId: string): Site[] {
 		return data.collections?.find((c) => c.id === collectionId)?.sites ?? [];

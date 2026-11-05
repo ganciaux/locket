@@ -142,6 +142,7 @@
 		{@const links = entries.linksOf(entry)}
 		{@const tags = entries.tagsOf(entry)}
 		{@const rank = entries.rankOf(entry)}
+		{@const border = entries.borderOf(entry)}
 		<div
 			bind:this={box}
 			class="modal-box flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-y-auto overscroll-contain p-0 outline-none"
@@ -169,9 +170,15 @@
 
 			<!-- shrink-0 : sinon, quand les similaires allongent la boîte, la figure rétrécit jusqu'à min-h-40 et
 			     l'image centrée déborde sur le titre ; la boîte doit défiler à la place. -->
-			<figure class="bg-base-200 relative flex min-h-40 shrink-0 items-center justify-center">
+			<!-- Avec bordure, le cadre épouse l'image, posée sur le fond avec une marge pour son halo. -->
+			<figure class="bg-base-200 relative flex min-h-40 shrink-0 items-center justify-center {border && entry.thumbUrl ? 'p-4' : ''}">
 				{#if entry.thumbUrl}
-					<img src={entry.thumbUrl} alt="" class="max-h-[45dvh] w-full object-contain" />
+					<img
+						src={entry.thumbUrl}
+						alt=""
+						data-border={border}
+						class="object-contain {border ? 'rounded-box max-h-[calc(45dvh-2rem)] max-w-full' : 'max-h-[45dvh] w-full'}"
+					/>
 				{:else}
 					<span class="text-primary text-7xl font-bold" aria-hidden="true">{entry.name.charAt(0).toUpperCase()}</span>
 				{/if}
@@ -240,7 +247,8 @@
 							{#each similar.items as { item, score } (item.id)}
 								<li class="shrink-0">
 									<button
-										class="bg-primary/10 rounded-box relative flex size-16 cursor-pointer items-center justify-center overflow-hidden {item.id === id
+										data-border={entries.borderOf(item)}
+										class="frame-thin bg-primary/10 rounded-box relative flex size-16 cursor-pointer items-center justify-center overflow-hidden {item.id === id
 											? 'outline-primary outline-2'
 											: ''}"
 										aria-label="Voir {item.name}, ressemblance {percent(score)}"

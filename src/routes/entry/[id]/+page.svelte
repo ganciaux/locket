@@ -157,14 +157,17 @@
 			{/if}
 		</header>
 		{#if entry.imageType}
-			<figure class="bg-base-200 relative">
+			<!-- Avec bordure, le cadre épouse l'image, posée sur le fond avec une marge pour son halo. -->
+			{@const border = entries.borderOf(entry)}
+			<figure class="bg-base-200 relative {border ? 'flex justify-center p-4' : ''}">
 				{#key id}
 					<FullImage
 						{id}
 						type={entry.imageType}
 						thumbUrl={entry.thumbUrl}
 						alt={entry.name}
-						class="max-h-[60vh] w-full object-contain"
+						{border}
+						class="object-contain {border ? 'rounded-box max-h-[calc(60vh-2rem)] max-w-full' : 'max-h-[60vh] w-full'}"
 						onfail={(e) => (error = errorMessage(e))}
 					/>
 				{/key}

@@ -4,6 +4,7 @@
 	import { session } from '$lib/auth/session.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
 	import { getImage } from '$lib/entries/repository';
+	import type { BorderColor } from '$lib/entries/types';
 
 	let {
 		id,
@@ -11,8 +12,18 @@
 		thumbUrl,
 		alt,
 		class: className,
+		border,
 		onfail
-	}: { id: string; type?: string; thumbUrl?: string; alt: string; class: string; onfail: (error: unknown) => void } = $props();
+	}: {
+		id: string;
+		type?: string;
+		thumbUrl?: string;
+		alt: string;
+		class: string;
+		/** Couleur de bordure de la fiche (`data-border`, app.css). */
+		border?: BorderColor;
+		onfail: (error: unknown) => void;
+	} = $props();
 
 	let url = $state<string | null>(null);
 	let loading = $state(false);
@@ -44,7 +55,7 @@
 	});
 </script>
 
-<img class={className} src={url ?? thumbUrl} {alt} />
+<img class={className} src={url ?? thumbUrl} {alt} data-border={border} />
 {#if loading}
 	<span class="loading loading-spinner text-primary absolute top-3 right-3"></span>
 {/if}
