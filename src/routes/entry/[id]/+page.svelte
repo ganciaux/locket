@@ -12,7 +12,7 @@
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { entryNav } from '$lib/entries/entryNav.svelte';
 	import { TRASH_DAYS, countryFlag, countryName, formatAge, formatRating, groupTags, neighbours } from '$lib/entries/model';
-	import { deleteForever, entries, loadEntries, rateEntry, trashEntries } from '$lib/entries/store.svelte';
+	import { deleteForever, entries, loadEntries, rateEntry, setEntriesValidated, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
 	import { swipe } from '$lib/swipe';
@@ -75,6 +75,21 @@
 		}
 	}
 
+	// Validée : enregistrée aussitôt, comme la note.
+	let savingValidation = $state(false);
+	async function toggleValidated() {
+		if (!entry || savingValidation) return;
+		savingValidation = true;
+		error = '';
+		try {
+			await setEntriesValidated([entry], !entry.validatedAt);
+		} catch (e) {
+			error = errorMessage(e);
+		} finally {
+			savingValidation = false;
+		}
+	}
+
 	const formatDate = (time: number) =>
 		new Date(time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 </script>
@@ -126,6 +141,11 @@
 				<h1 class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
 				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
 			</div>
+			{#if entry.validatedAt}
+				<p class="text-primary flex items-center gap-1 text-sm font-medium">
+					<Icon name="validated" class="size-4" /> Validée le {formatDate(entry.validatedAt)}
+				</p>
+			{/if}
 			{#if collection}
 				<p class="text-base-content/60 flex items-center gap-1 text-xs">
 					<Icon name="folder" class="size-3" />{collection.name}
@@ -150,7 +170,7 @@
 		{/if}
 		<div class="card-body gap-4">
 			<div class="flex items-center gap-2">
-				<Rating value={entry.rating} onchange={rate} disabled={savingRating} />
+				<Rating value={entry.rating} onchange={rate} disabled={savingRating || !!entry.validatedAt} />
 				<span class="text-base-content/60 text-sm">
 					{entry.rating ? `${formatRating(entry.rating)} / 5` : 'Pas encore notée'}
 				</span>
@@ -214,6 +234,7 @@
 			{#if confirmDelete}
 				<form class="alert alert-error alert-soft flex flex-col items-stretch gap-3" onsubmit={removal.submit}>
 					<p>
+						{#if entry.validatedAt}<strong>Cette fiche est validée.</strong>{/if}
 						Supprimer « {entry.name} » ? La corbeille la garde {TRASH_DAYS} jours ; la suppression définitive est
 						irréversible.
 					</p>
@@ -233,6 +254,15 @@
 			{:else}
 				<div class="card-actions">
 					<a class="btn btn-primary" href="/entry/{entry.id}/edit"><Icon name="edit" class="size-4" /> Modifier</a>
+					<button
+						class="btn {entry.validatedAt ? 'btn-ghost' : 'btn-outline btn-primary'}"
+						disabled={savingValidation}
+						title={entry.validatedAt ? 'Elle redevient modifiable sans confirmation' : 'Fiche finie : la protéger des modifications'}
+						onclick={toggleValidated}
+					>
+						<Icon name="validated" class="size-4" />
+						{entry.validatedAt ? 'Retirer la validation' : 'Valider'}
+					</button>
 					<button class="btn btn-outline btn-error" onclick={() => (confirmDelete = true)}>
 						<Icon name="trash" class="size-4" /> Supprimer
 					</button>

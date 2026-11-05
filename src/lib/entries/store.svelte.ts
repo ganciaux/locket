@@ -36,6 +36,8 @@ import {
 	matchesFilter,
 	matchesLinkFilter,
 	matchesRatingFilter,
+	matchesValidatedFilter,
+	type ValidatedFilter,
 	parseRating,
 	sortBy,
 	withRecoveredCollections
@@ -187,8 +189,16 @@ export const entries = {
 			withLinks = false,
 			rating = 0,
 			country = [],
+			validated = '',
 			order = 'name'
-		}: { tags?: TagFilter; withLinks?: boolean; rating?: RatingFilter; country?: CountryFilter; order?: SortOrder } = {}
+		}: {
+			tags?: TagFilter;
+			withLinks?: boolean;
+			rating?: RatingFilter;
+			country?: CountryFilter;
+			validated?: ValidatedFilter;
+			order?: SortOrder;
+		} = {}
 	): ListItem[] {
 		const found = (activeItems ?? []).filter(
 			(item) =>
@@ -196,7 +206,8 @@ export const entries = {
 				matchesFilter(item, query, tags, tagIndex) &&
 				matchesLinkFilter(entries.linksOf(item).length, withLinks) &&
 				matchesRatingFilter(item.rating, rating) &&
-				matchesCountryFilter(item.country, country)
+				matchesCountryFilter(item.country, country) &&
+				matchesValidatedFilter(item.validatedAt, validated)
 		);
 		return order === 'name' ? found : found.sort(sortBy(order, shuffleSeed, (id) => activeRanks.get(id)));
 	},
@@ -388,6 +399,10 @@ export async function restoreFromTrash(targets: ListItem[]): Promise<string[]> {
 	});
 	return [...renamed.values()];
 }
+
+/** Valide (date du jour) ou retire la validation ; ne compte pas comme une modification du contenu. */
+export const setEntriesValidated = (targets: ListItem[], validated: boolean): Promise<void> =>
+	patchEntries(targets, () => ({ validatedAt: validated ? Date.now() : undefined }));
 
 export const setEntriesHidden = (targets: ListItem[], hidden: boolean): Promise<void> =>
 	patchEntries(targets, () => ({ hidden: hidden || undefined }));

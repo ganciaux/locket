@@ -21,6 +21,11 @@ export type EntryData = {
 	hiddenSites?: string[];
 	/** Sites « sur demande » de la collection activés sur cette fiche. */
 	shownSites?: string[];
+	/**
+	 * Validée (date) : fiche finie, protégée des modifications par l'app (confirmation, actions groupées et import qui
+	 * la laissent de côté). Simple garde-fou, pas une protection : les règles Firestore n'en savent rien.
+	 */
+	validatedAt?: number;
 	/** Rangée à l'écart : absente de la liste sauf avec le bouton « Cachées ». Simple filtre, pas une protection. */
 	hidden?: boolean;
 	/** Note de 1 à `MAX_RATING` : 5 étoiles par demi-étoile ; absente, la fiche n'est pas notée. */

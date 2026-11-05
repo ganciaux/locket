@@ -143,6 +143,7 @@
 				{#if entry.rank}<span class="badge badge-neutral badge-sm">#{entry.rank}</span>{/if}
 				{entry.name}
 				{#if entry.hidden}<span class="badge badge-ghost badge-sm">cachée</span>{/if}
+				{#if entry.validated}<span class="badge badge-primary badge-soft badge-sm">validée</span>{/if}
 			</h3>
 			<p class="text-base-content/70 flex flex-wrap gap-x-3 text-sm">
 				{#if entry.rating}<span>★ {formatRating(entry.rating)} / 5</span>{/if}

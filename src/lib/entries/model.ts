@@ -135,6 +135,18 @@ export function pickRandom(ids: string[], avoid?: string, random = Math.random):
 }
 
 // ---------------------------------------------------------------------------
+// Validée
+
+/** '' : toutes ; 'todo' : à valider ; 'done' : validées. */
+export type ValidatedFilter = '' | 'todo' | 'done';
+
+export const matchesValidatedFilter = (validatedAt: number | undefined, filter: ValidatedFilter): boolean =>
+	filter === '' || (filter === 'done') === !!validatedAt;
+
+/** Fiches modifiables par une action groupée : les validées sont laissées de côté. */
+export const notValidated = <T extends { validatedAt?: number }>(items: T[]): T[] => items.filter((item) => !item.validatedAt);
+
+// ---------------------------------------------------------------------------
 // Note
 
 export const MAX_RATING = 10;

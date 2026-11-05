@@ -20,6 +20,7 @@
 		matchesSearch,
 		missingFields,
 		missingLabel,
+		notValidated,
 		tagQueue
 	} from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
@@ -77,9 +78,10 @@
 		if (from?.route.id?.startsWith('/entry/[id]')) restoreEntryNavScroll('/list');
 	});
 
-	// Mode Tagger : la file part de l'index affiché (recherche et « Il manque » compris), figée au départ.
+	// Mode Tagger : la file part de l'index affiché (recherche et « Il manque » compris), figée au départ ;
+	// les fiches validées n'y entrent pas.
 	function startTaggingMode() {
-		startTagging(tagQueue(results, listView.indexMissing, (item) => entries.tagsOf(item).length));
+		startTagging(tagQueue(notValidated(results), listView.indexMissing, (item) => entries.tagsOf(item).length));
 		goto('/tagging');
 	}
 </script>

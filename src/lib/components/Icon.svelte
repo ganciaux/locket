@@ -9,6 +9,9 @@
 		chevronDown: 'M6 9l6 6 6-6',
 		chevronRight: 'M9 6l6 6-6 6',
 		chevronUp: 'M6 15l6-6 6 6',
+		// Rosette avec une coche : fiche validée.
+		validated:
+			'M8.6 3.9a4 4 0 0 1 6.8 0 4 4 0 0 1 4.7 4.7 4 4 0 0 1 0 6.8 4 4 0 0 1-4.7 4.7 4 4 0 0 1-6.8 0 4 4 0 0 1-4.7-4.7 4 4 0 0 1 0-6.8 4 4 0 0 1 4.7-4.7zM9 12l2 2 4-4',
 		dice: 'M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM8 8h.01M16 8h.01M12 12h.01M8 16h.01M16 16h.01',
 		shuffle: 'M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
 		search: 'M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM20 20l-4-4',

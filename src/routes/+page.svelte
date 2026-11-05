@@ -22,6 +22,7 @@
 		NO_TAG_FILTER,
 		type SortOrder,
 		UNRATED,
+		type ValidatedFilter,
 		countryFlag,
 		countryName,
 		describeFilter,
@@ -111,6 +112,11 @@
 
 	const anyLinks = $derived((entries.activeItems ?? []).some((item) => entries.linksOf(item).length > 0));
 	const anyRated = $derived((entries.activeItems ?? []).some((item) => item.rating));
+	const anyValidated = $derived((entries.activeItems ?? []).some((item) => item.validatedAt));
+	const VALIDATED: FacetOption[] = [
+		{ value: 'todo', label: 'À valider' },
+		{ value: 'done', label: 'Validées' }
+	];
 	const results = $derived(
 		entries.search(listView.query, {
 			tags: listView.tags,
@@ -118,6 +124,7 @@
 			withLinks: listView.withLinks && anyLinks,
 			rating: listView.rating,
 			country: listView.country,
+			validated: listView.validated,
 			order: listView.sort
 		})
 	);
@@ -164,13 +171,18 @@
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0 || tagFilter.missing.length > 0);
 	const filterActive = $derived(
-		tagFiltering || (listView.withLinks && anyLinks) || listView.rating !== 0 || listView.country.length > 0
+		tagFiltering ||
+			(listView.withLinks && anyLinks) ||
+			listView.rating !== 0 ||
+			listView.country.length > 0 ||
+			listView.validated !== ''
 	);
 	const filtering = $derived(!!listView.query.trim() || filterActive);
 	// Filtre actif en clair : avec les catégories, OU et ET ne se devinent pas toujours.
 	const filterSummary = $derived(
 		describeFilter({
 			withLinks: listView.withLinks && anyLinks,
+			validated: VALIDATED.find((option) => option.value === listView.validated)?.label,
 			rating: RATINGS.find((rating) => rating.value === String(listView.rating))?.label,
 			countries: listView.country.map((code) => (code === NO_COUNTRY ? 'Sans pays' : countryName(code))),
 			tags: tagFilter,
@@ -190,6 +202,7 @@
 		resetCollectionFilters();
 		listView.withLinks = false;
 		listView.rating = 0;
+		listView.validated = '';
 	}
 
 	let collectionName = $state('');
@@ -336,7 +349,7 @@
 		Filtres : liens, note et pays sur une ligne, puis les tags (OU dans une catégorie, ET entre catégories).
 		Valeurs par défaut à chaque déverrouillage : avec liens, toutes les notes, tous les pays, aucun tag.
 	-->
-	{#if entries.tags?.length || anyLinks || anyRated || countries.length}
+	{#if entries.tags?.length || anyLinks || anyRated || countries.length || anyValidated}
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex min-h-6 items-center gap-2">
 				<span class="text-base-content/60 text-xs">Filtrer</span>
@@ -354,7 +367,7 @@
 					<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
 				{/if}
 			</div>
-			{#if anyLinks || anyRated || countries.length}
+			{#if anyLinks || anyRated || countries.length || anyValidated}
 				<div class="flex flex-wrap items-center gap-2">
 					{#if anyLinks}
 						<button
@@ -375,6 +388,15 @@
 							options={RATINGS}
 							selected={listView.rating ? [String(listView.rating)] : []}
 							onchange={(next) => (listView.rating = Number(next[0] ?? 0))}
+						/>
+					{/if}
+					{#if anyValidated}
+						<FacetDropdown
+							name="Statut"
+							single
+							options={VALIDATED}
+							selected={listView.validated ? [listView.validated] : []}
+							onchange={(next) => (listView.validated = (next[0] ?? '') as ValidatedFilter)}
 						/>
 					{/if}
 					{#if countries.length}

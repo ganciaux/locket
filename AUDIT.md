@@ -107,12 +107,12 @@ Dans l'ordre de réalisation prévu.
       (pas par l'index, qui cherche un nom). Règles et format de sauvegarde inchangés. *Simple.*
 - [x] **Une fiche au hasard** — fait le 2026-11-05 : bouton dé dans la barre de « Mes fiches » (dès 2 résultats), tire
       parmi la liste filtrée, jamais deux fois la même de suite, ouvre comme un clic sur une carte (agrandie ou fiche). *Simple.*
-- [ ] **Fiche vérifiée** : statut posé quand une fiche est finie, pour ne plus y revenir et la protéger des modifications.
-      Un seul statut (vérifiée = protégée), validé le 2026-11-05 avec les comportements ci-dessous : nom **« Validée »**,
-      icône rosette avec une coche.
-      Modifier une fiche vérifiée demande une confirmation ; les actions groupées la laissent de côté ou préviennent ;
-      repère sur la carte et filtre « à vérifier / vérifiées ». Garde-fou contre l'erreur, pas une protection de
-      sécurité (comme « Cachée »). *Simple à intermédiaire.*
+- [x] **Fiche « Validée »** — fait le 2026-11-05 : `validatedAt` dans `data` chiffré, rosette cochée (carte, zoom,
+      fiche « Validée le … »), bouton Valider / Retirer la validation sur la fiche et dans la sélection. Protégée :
+      confirmation avant le formulaire (qui garde la validation), note figée, actions groupées (tags, liens, cacher,
+      supprimer) qui la laissent de côté en le signalant, Tagger qui la saute, import qui met sa ligne en erreur ;
+      suppression depuis la fiche toujours possible, avec rappel. Filtre « Statut : À valider / Validées ». Garde-fou de
+      l'app, pas une protection (les règles Firestore n'en savent rien). *Simple à intermédiaire.*
 - [ ] **Annuler la dernière action groupée** (tags, corbeille, collection…) : bandeau « Annuler » une dizaine de
       secondes, état précédent des fiches touchées en mémoire, effacé au verrouillage (`onLock`), réécrit par
       `commitEntries` (conflit d'un autre appareil : refus et message, comme `stale.ts`). Après « Fiche vérifiée », pour

@@ -10,6 +10,7 @@ export type ViewEntry = {
 	id: string;
 	name: string;
 	hidden: boolean;
+	validated: boolean;
 	deletedAt?: number;
 	/** Rang au classement de la collection (1 = la meilleure), fiches vivantes seulement. */
 	rank?: number;
@@ -50,6 +51,7 @@ export function backupView(reading: BackupReading): ViewCollection[] {
 				id: entry.id,
 				name: entry.name,
 				hidden: !!entry.hidden,
+				validated: !!entry.validatedAt,
 				...(entry.deletedAt && { deletedAt: entry.deletedAt }),
 				...(!entry.deletedAt && ranks.has(entry.id) && { rank: ranks.get(entry.id) }),
 				...(entry.rating && { rating: entry.rating }),

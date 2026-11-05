@@ -19,7 +19,7 @@ import {
 	searchKey
 } from './model';
 
-export type ImportTarget = Pick<Entry, 'id' | 'name' | 'country' | 'birthYear' | 'rating' | 'tagIds'>;
+export type ImportTarget = Pick<Entry, 'id' | 'name' | 'country' | 'birthYear' | 'rating' | 'tagIds' | 'validatedAt'>;
 export type ImportFields = Pick<EntryData, 'country' | 'birthYear' | 'rating' | 'tagIds'>;
 /** Une ligne retenue : ses champs complets après fusion, et les changements lisibles pour l'aperçu. */
 export type ImportRow = { line: number; name: string; fields: ImportFields; changes: string[] };
@@ -182,6 +182,7 @@ export function planImport(text: string, items: ImportTarget[], tags: Tag[], gro
 
 		const changes = describeChanges(before, after, scopes);
 		if (!existing) plan.added.push({ line, name, fields: after, changes });
+		else if (changes.length && existing.validatedAt) fail(`« ${existing.name} » est validée : retirez la validation pour la modifier.`);
 		else if (changes.length) plan.updated.push({ line, name: existing.name, fields: after, changes, id: existing.id });
 		else plan.unchanged++;
 	}

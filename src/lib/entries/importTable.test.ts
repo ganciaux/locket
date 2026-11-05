@@ -20,6 +20,15 @@ const items = [
 const plan = (text: string) => planImport(text, items, tags, groups);
 
 describe('planImport', () => {
+	it('laisse une fiche validée intacte : ligne en erreur, sauf si rien ne change', () => {
+		const validated = [...items, { id: 'monster', name: 'Monster', rating: 10, validatedAt: 1 }];
+		const result = planImport('Nom;Note\nMonster;3\nAkira;3', validated, tags, groups);
+		expect(result.errors).toEqual(['Ligne 2 : « Monster » est validée : retirez la validation pour la modifier.']);
+		expect(result.failed).toEqual([2]);
+		expect(result.updated.map((row) => row.id)).toEqual(['akira']);
+		expect(planImport('Nom;Note\nMonster;5', validated, tags, groups)).toMatchObject({ errors: [], unchanged: 1 });
+	});
+
 	it('crée les noms inconnus avec leurs champs', () => {
 		const result = plan('Nom;Pays;Naissance;Note;Genre;Autres tags\nOne Piece;Japon;1997;4,5;Aventure, action;favori');
 		expect(result.errors).toEqual([]);

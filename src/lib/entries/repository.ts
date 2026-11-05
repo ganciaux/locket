@@ -199,7 +199,9 @@ export async function saveEntry(
 		...(parseCountry(input.country) && { country: input.country }),
 		...(parseBirthYear(input.birthYear) && { birthYear: input.birthYear }),
 		...(parseRemarks(input.remarks) && { remarks: parseRemarks(input.remarks) }),
-		...(input.hidden && { hidden: true })
+		...(input.hidden && { hidden: true }),
+		// Le formulaire ne change pas la validation : une fiche validée modifiée (après confirmation) le reste.
+		...(existing?.validatedAt && { validatedAt: existing.validatedAt })
 	};
 
 	const stored: StoredEntry = { data: toStored(await encryptJson(dek, data, `${id}/data`)) };

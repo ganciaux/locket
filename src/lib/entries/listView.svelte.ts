@@ -1,10 +1,10 @@
 /**
  * Filtres et tri de la liste : gardés pendant la session (revenir d'une fiche ne les perd pas), remis aux valeurs
- * par défaut à chaque déverrouillage : avec liens, toutes les notes, tous les pays, aucun tag, tri aléatoire,
+ * par défaut à chaque déverrouillage : avec liens, toutes les notes, tous les pays, validées ou non, aucun tag, tri aléatoire,
  * recherche simple (catégories de tags « avancées » masquées).
  */
 import { onLock } from '$lib/auth/session.svelte';
-import { type CountryFilter, NO_TAG_FILTER, type RatingFilter, type SortOrder, type TagFilter } from './model';
+import { type CountryFilter, NO_TAG_FILTER, type RatingFilter, type SortOrder, type TagFilter, type ValidatedFilter } from './model';
 
 type ListView = {
 	query: string;
@@ -12,6 +12,7 @@ type ListView = {
 	withLinks: boolean;
 	rating: RatingFilter;
 	country: CountryFilter;
+	validated: ValidatedFilter;
 	sort: SortOrder;
 	extended: boolean;
 	/** Index : '' (toutes), 'any' (il manque une information) ou un `MissingField`. */
@@ -24,6 +25,7 @@ const defaults = (): ListView => ({
 	withLinks: true,
 	rating: 0,
 	country: [],
+	validated: '',
 	sort: 'random',
 	extended: false,
 	indexMissing: ''

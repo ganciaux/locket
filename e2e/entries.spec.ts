@@ -293,3 +293,50 @@ test('remarques : saisies, affichées, gardées par une note, trouvées par la r
 	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
 	await expect(remarks).toBeVisible();
 });
+
+test('fiche validée : confirmation avant de modifier, note figée, filtre, laissée de côté par la sélection', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Monster');
+	await createEntry(page, 'Akira');
+
+	await page.getByRole('button', { name: 'Valider', exact: true }).click();
+	await expect(page.getByText(/Validée le [0-9]/)).toBeVisible();
+	await expect(page.getByRole('radio', { name: '4 sur 5' })).toBeDisabled();
+
+	// Modifier demande confirmation ; la fiche reste validée après l'enregistrement.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect(page.getByText('« Akira » est validée. La modifier quand même ?')).toBeVisible();
+	await expect(page.getByLabel('Nom', { exact: true })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Modifier quand même' }).click();
+	await page.getByLabel('Remarques').fill('Relue');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByText('Relue')).toBeVisible();
+	await expect(page.getByText(/Validée le [0-9]/)).toBeVisible();
+
+	await goHome(page);
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await expect(card('Akira').getByRole('img', { name: 'Validée' })).toBeVisible();
+	await expect(card('Monster').getByRole('img', { name: 'Validée' })).toHaveCount(0);
+	await page.locator('summary').filter({ hasText: 'Statut' }).click();
+	await page.getByRole('radio', { name: 'À valider' }).check();
+	await expect(card('Akira')).toHaveCount(0);
+	await expect(card('Monster')).toBeVisible();
+	await page.locator('summary').filter({ hasText: 'Statut' }).click();
+	await page.getByRole('radio', { name: 'Validées' }).check();
+	await expect(card('Monster')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Effacer' }).click();
+
+	// Sélection : « Cacher » laisse la validée de côté.
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
+	await page.getByRole('button', { name: 'Tout', exact: true }).click();
+	await expect(page.getByText('1 validée laissée de côté')).toBeVisible();
+	await page.getByRole('button', { name: 'Cacher', exact: true }).click();
+	await expect(card('Monster')).toHaveCount(0);
+	await expect(card('Akira')).toBeVisible();
+
+	// Akira reste cochée (seule affichée) : retirer la validation depuis la sélection.
+	await expect(page.getByText('1 sélectionnée')).toBeVisible();
+	await page.getByRole('button', { name: 'Dévalider' }).click();
+	await expect(card('Akira').getByRole('img', { name: 'Validée' })).toHaveCount(0);
+});

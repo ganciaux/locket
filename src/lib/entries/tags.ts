@@ -99,6 +99,8 @@ export const NO_TAG_FILTER: TagFilter = { tagIds: [], missing: [], untagged: fal
  */
 export function describeFilter(filter: {
 	withLinks: boolean;
+	/** « À valider » ou « Validées », fourni par la page. */
+	validated?: string;
 	rating?: string;
 	countries: string[];
 	tags: TagFilter;
@@ -107,6 +109,7 @@ export function describeFilter(filter: {
 }): string[] {
 	const parts: string[] = [];
 	if (filter.withLinks) parts.push('Avec liens');
+	if (filter.validated) parts.push(filter.validated);
 	if (filter.rating) parts.push(`Note : ${filter.rating}`);
 	if (filter.countries.length) parts.push(`Pays : ${filter.countries.join(' ou ')}`);
 	if (filter.tags.untagged) return [...parts, 'Sans tag'];

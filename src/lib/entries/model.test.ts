@@ -42,6 +42,8 @@ import {
 	matchesSearch,
 	parseRemarks,
 	pickRandom,
+	matchesValidatedFilter,
+	notValidated,
 	MAX_REMARKS_LENGTH,
 	moveItem,
 	neighbours,
@@ -676,12 +678,14 @@ describe('filtre actif en clair', () => {
 			describeFilter({
 				...base,
 				withLinks: true,
+				validated: 'À valider',
 				rating: '★ 4 et plus',
 				countries: ['France', 'Japon'],
 				tags: { tagIds: ['f', 'd', 'a', 'x'], missing: ['g'], untagged: false }
 			})
 		).toEqual([
 			'Avec liens',
+			'À valider',
 			'Note : ★ 4 et plus',
 			'Pays : France ou Japon',
 			'Genre : Action ou Drame ou Non renseigné',
@@ -836,5 +840,20 @@ describe('pickRandom', () => {
 	it('une seule fiche : toujours elle ; aucune : rien', () => {
 		expect(pickRandom(['a'], 'a')).toBe('a');
 		expect(pickRandom([])).toBeUndefined();
+	});
+});
+
+describe('fiches validées', () => {
+	it('filtre : toutes, à valider, validées', () => {
+		expect(matchesValidatedFilter(undefined, '')).toBe(true);
+		expect(matchesValidatedFilter(5, '')).toBe(true);
+		expect(matchesValidatedFilter(undefined, 'todo')).toBe(true);
+		expect(matchesValidatedFilter(5, 'todo')).toBe(false);
+		expect(matchesValidatedFilter(5, 'done')).toBe(true);
+		expect(matchesValidatedFilter(undefined, 'done')).toBe(false);
+	});
+
+	it('les actions groupées laissent les validées de côté', () => {
+		expect(notValidated([{ id: 'a' }, { id: 'b', validatedAt: 1 }]).map((item) => item.id)).toEqual(['a']);
 	});
 });

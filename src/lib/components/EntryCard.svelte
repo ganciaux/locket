@@ -33,6 +33,9 @@
 {#snippet cardName()}
 	{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
 	<span class="min-w-0 flex-1 truncate">{entry.name}</span>
+	{#if entry.validatedAt}
+		<span class="text-primary shrink-0" role="img" aria-label="Validée" title="Validée"><Icon name="validated" class="size-4" /></span>
+	{/if}
 {/snippet}
 
 <li
