@@ -2,6 +2,7 @@
 	// Création et modification d'une fiche. L'image est préparée (redimensionnée) puis chiffrée à l'enregistrement.
 	import { goto } from '$app/navigation';
 	import { session } from '$lib/auth/session.svelte';
+	import ActionBar from '$lib/components/ActionBar.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -465,22 +466,25 @@
 	</section>
 
 	<ErrorAlert message={loadError} />
-	<ErrorAlert message={form.error} />
-	<div class="flex gap-2">
-		<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy} onclick={() => (thenNext = false)}>
-			{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Enregistrement…{:else}<Icon name="save" class="size-4" /> Enregistrer{/if}
-		</button>
-		{#if onnext}
-			<button
-				class="btn btn-outline btn-primary"
-				disabled={form.busy}
-				aria-label="Et une autre fiche"
-				title="Enregistrer et créer une autre fiche"
-				onclick={() => (thenNext = true)}
-			>
-				<Icon name="saveMore" class="size-4" /> <span class="hidden sm:inline">Et une autre</span>
+	<!-- Dans le formulaire : ses boutons restent des boutons d'envoi. L'erreur s'affiche au-dessus d'eux, à portée. -->
+	<ActionBar label="Actions de la fiche">
+		<ErrorAlert message={form.error} />
+		<div class="flex gap-2">
+			<button class="btn btn-primary flex-1 sm:flex-none" disabled={form.busy} onclick={() => (thenNext = false)}>
+				{#if form.busy}<span class="loading loading-spinner loading-sm"></span> Enregistrement…{:else}<Icon name="save" class="size-4" /> Enregistrer{/if}
 			</button>
-		{/if}
-		<a class="btn btn-ghost" href={cancelHref}>Annuler</a>
-	</div>
+			{#if onnext}
+				<button
+					class="btn btn-outline btn-primary"
+					disabled={form.busy}
+					aria-label="Et une autre fiche"
+					title="Enregistrer et créer une autre fiche"
+					onclick={() => (thenNext = true)}
+				>
+					<Icon name="saveMore" class="size-4" /> <span class="hidden sm:inline">Et une autre</span>
+				</button>
+			{/if}
+			<a class="btn btn-ghost" href={cancelHref}>Annuler</a>
+		</div>
+	</ActionBar>
 </form>

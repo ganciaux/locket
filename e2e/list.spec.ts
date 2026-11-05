@@ -9,7 +9,7 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await createEntry(page, 'Jane Roe');
 	await createEntry(page, 'John Doe');
 
-	await page.getByRole('link', { name: 'Retour', exact: true }).click();
+	await page.getByRole('main').getByRole('link', { name: 'Mes fiches', exact: true }).click();
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	const animeOf = (name: string) => card(name).getByRole('link', { name: 'anime', exact: true });
 	// Copier le nom depuis la liste, sans agrandir ni ouvrir la carte.
@@ -45,7 +45,7 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await card('Jane Roe').getByRole('heading').click();
 	await zoom.getByRole('link', { name: 'Ouvrir la fiche' }).click();
 	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
-	await page.getByRole('link', { name: 'Retour', exact: true }).click();
+	await page.getByRole('main').getByRole('link', { name: 'Mes fiches', exact: true }).click();
 
 	// Bascule de la liste : les liens sur toutes les cartes, puis de nouveau compactes.
 	const linksToggle = page.getByRole('button', { name: 'Liens sur les cartes' });

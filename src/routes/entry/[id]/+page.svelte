@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import ActionBar from '$lib/components/ActionBar.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import FullImage from '$lib/components/FullImage.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
@@ -235,46 +235,49 @@
 			{/if}
 
 			<p class="text-base-content/50 text-xs">Modifiée le {formatDate(entry.updatedAt)}</p>
-
-			{#if confirmDelete}
-				<form class="alert alert-error alert-soft flex flex-col items-stretch gap-3" onsubmit={removal.submit}>
-					<p>
-						{#if entry.validatedAt}<strong>Cette fiche est validée.</strong>{/if}
-						Supprimer « {entry.name} » ? La corbeille la garde {TRASH_DAYS} jours ; la suppression définitive est
-						irréversible.
-					</p>
-					<ErrorAlert message={removal.error} />
-					<div class="flex flex-wrap gap-2">
-						<button class="btn btn-error btn-sm" disabled={removal.busy} onclick={() => (removeMode = 'trash')}>
-							{#if removal.busy && removeMode === 'trash'}<span class="loading loading-spinner loading-xs"></span>{/if}
-							Mettre à la corbeille
-						</button>
-						<button class="btn btn-error btn-outline btn-sm" disabled={removal.busy} onclick={() => (removeMode = 'forever')}>
-							{#if removal.busy && removeMode === 'forever'}<span class="loading loading-spinner loading-xs"></span>{/if}
-							Supprimer définitivement
-						</button>
-						<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmDelete = false)}>Annuler</button>
-					</div>
-				</form>
-			{:else}
-				<div class="card-actions">
-					<a class="btn btn-primary" href="/entry/{entry.id}/edit"><Icon name="edit" class="size-4" /> Modifier</a>
-					<button
-						class="btn {entry.validatedAt ? 'btn-ghost' : 'btn-outline btn-primary'}"
-						disabled={savingValidation}
-						title={entry.validatedAt ? 'Elle redevient modifiable sans confirmation' : 'Fiche finie : la protéger des modifications'}
-						onclick={toggleValidated}
-					>
-						<Icon name="validated" class="size-4" />
-						{entry.validatedAt ? 'Retirer la validation' : 'Valider'}
-					</button>
-					<button class="btn btn-outline btn-error" onclick={() => (confirmDelete = true)}>
-						<Icon name="trash" class="size-4" /> Supprimer
-					</button>
-					<a class="btn btn-ghost" href={backHref}><Icon name="back" class="size-4" /> Retour</a>
-				</div>
-			{/if}
 		</div>
 	</article>
-	<NewEntryButton />
+	<ActionBar label="Actions de la fiche">
+		{#if confirmDelete}
+			<form class="alert alert-error alert-soft flex flex-col items-stretch gap-3" onsubmit={removal.submit}>
+				<p>
+					{#if entry.validatedAt}<strong>Cette fiche est validée.</strong>{/if}
+					Supprimer « {entry.name} » ? La corbeille la garde {TRASH_DAYS} jours ; la suppression définitive est
+					irréversible.
+				</p>
+				<ErrorAlert message={removal.error} />
+				<div class="flex flex-wrap gap-2">
+					<button class="btn btn-error btn-sm" disabled={removal.busy} onclick={() => (removeMode = 'trash')}>
+						{#if removal.busy && removeMode === 'trash'}<span class="loading loading-spinner loading-xs"></span>{/if}
+						Mettre à la corbeille
+					</button>
+					<button class="btn btn-error btn-outline btn-sm" disabled={removal.busy} onclick={() => (removeMode = 'forever')}>
+						{#if removal.busy && removeMode === 'forever'}<span class="loading loading-spinner loading-xs"></span>{/if}
+						Supprimer définitivement
+					</button>
+					<button type="button" class="btn btn-ghost btn-sm" onclick={() => (confirmDelete = false)}>Annuler</button>
+				</div>
+			</form>
+		{:else}
+			<!-- Retour : déjà en haut de la page. Le « + » remplace le bouton flottant, qui couvrirait le bandeau. -->
+			<div class="flex items-center gap-2">
+				<a class="btn btn-primary flex-1 sm:flex-none" href="/entry/{entry.id}/edit"><Icon name="edit" class="size-4" /> Modifier</a>
+				<button
+					class="btn {entry.validatedAt ? 'btn-ghost' : 'btn-outline btn-primary'}"
+					disabled={savingValidation}
+					title={entry.validatedAt ? 'Elle redevient modifiable sans confirmation' : 'Fiche finie : la protéger des modifications'}
+					onclick={toggleValidated}
+				>
+					<Icon name="validated" class="size-4" />
+					{#if entry.validatedAt}<span class="sm:hidden">Dévalider</span><span class="hidden sm:inline">Retirer la validation</span>{:else}Valider{/if}
+				</button>
+				<button class="btn btn-outline btn-error" aria-label="Supprimer" title="Supprimer" onclick={() => (confirmDelete = true)}>
+					<Icon name="trash" class="size-4" /> <span class="hidden sm:inline">Supprimer</span>
+				</button>
+				<a class="btn btn-primary btn-circle ml-auto" href="/entry/new" aria-label="Nouvelle fiche" title="Nouvelle fiche">
+					<Icon name="plus" class="size-6" />
+				</a>
+			</div>
+		{/if}
+	</ActionBar>
 {/if}
