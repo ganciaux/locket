@@ -26,6 +26,8 @@ export type Prefs = {
 	indexRank: boolean;
 	indexCountry: boolean;
 	indexAge: boolean;
+	/** Coche des fiches validées, en bout de ligne. */
+	indexStatus: boolean;
 	indexTags: boolean;
 	indexLinks: boolean;
 };
@@ -46,6 +48,7 @@ export const DEFAULTS: Prefs = {
 	indexRank: false,
 	indexCountry: true,
 	indexAge: false,
+	indexStatus: true,
 	indexTags: false,
 	indexLinks: false
 };

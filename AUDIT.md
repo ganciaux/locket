@@ -112,7 +112,7 @@ Dans l'ordre de réalisation prévu.
       fiche seulement, bouton Valider / Retirer la validation sur la fiche et dans la sélection. Protégée :
       confirmation avant le formulaire (qui garde la validation), note figée, actions groupées (tags, liens, cacher,
       supprimer) qui la laissent de côté en le signalant, Tagger qui la saute, import qui met sa ligne en erreur ;
-      suppression depuis la fiche toujours possible, avec rappel. Filtre « Statut : À valider / Validées » sur « Mes fiches » et sur l'index (chacun le sien). Garde-fou de
+      suppression depuis la fiche toujours possible, avec rappel. Filtre « Statut : À valider / Validées » sur « Mes fiches » et sur l'index (chacun le sien). Index : coche en bout de ligne, option d'affichage « Validées » (préférence, active par défaut). Garde-fou de
       l'app, pas une protection (les règles Firestore n'en savent rien). *Simple à intermédiaire.*
 - [ ] **Annuler la dernière action groupée** (tags, corbeille, collection…) : bandeau « Annuler » une dizaine de
       secondes, état précédent des fiches touchées en mémoire, effacé au verrouillage (`onLock`), réécrit par

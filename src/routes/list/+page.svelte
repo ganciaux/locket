@@ -6,6 +6,7 @@
 	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
@@ -37,6 +38,7 @@
 		{ key: 'indexRank', label: 'Classement', title: 'Rang au classement' },
 		{ key: 'indexCountry', label: 'Pays' },
 		{ key: 'indexAge', label: 'Âge' },
+		{ key: 'indexStatus', label: 'Validées', title: 'Coche des fiches validées' },
 		{ key: 'indexTags', label: 'Tags' },
 		{ key: 'indexLinks', label: 'Liens' }
 	] as const;
@@ -234,6 +236,7 @@
 							{#if prefs.indexAge && item.birthYear}
 								<span class="text-base-content/60 shrink-0 text-xs" title="Année de naissance : {item.birthYear}">{formatAge(item.birthYear)}</span>
 							{/if}
+							{#if prefs.indexStatus && item.validatedAt}<ValidatedMark />{/if}
 						</div>
 						{#if listView.indexMissing}
 							{@const missing = missingOf(item)}

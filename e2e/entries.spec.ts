@@ -334,6 +334,13 @@ test('fiche validée : confirmation avant de modifier, note figée, filtre, lais
 	await page.getByRole('radio', { name: 'À valider' }).check();
 	await expect(page.getByRole('link', { name: 'Monster', exact: true })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Akira', exact: true })).toHaveCount(0);
+	// Coche en bout de ligne (affichée par défaut), masquable par « Validées ».
+	await page.locator('summary').filter({ hasText: 'Statut' }).click();
+	await page.getByRole('radio', { name: 'Validées' }).check();
+	const row = page.getByRole('listitem').filter({ hasText: 'Akira' });
+	await expect(row.getByRole('img', { name: 'Validée' })).toBeVisible();
+	await page.getByRole('button', { name: 'Validées', exact: true }).click();
+	await expect(row.getByRole('img', { name: 'Validée' })).toHaveCount(0);
 	await goHome(page);
 
 	// Sélection : « Cacher » laisse la validée de côté.
