@@ -17,6 +17,8 @@ type ListView = {
 	extended: boolean;
 	/** Index : '' (toutes), 'any' (il manque une information) ou un `MissingField`. */
 	indexMissing: string;
+	/** Index : statut, à part de celui de « Mes fiches » comme « Il manque ». */
+	indexValidated: ValidatedFilter;
 };
 
 const defaults = (): ListView => ({
@@ -28,7 +30,8 @@ const defaults = (): ListView => ({
 	validated: '',
 	sort: 'random',
 	extended: false,
-	indexMissing: ''
+	indexMissing: '',
+	indexValidated: ''
 });
 
 export const listView = $state<ListView>(defaults());

@@ -22,6 +22,7 @@
 		NO_TAG_FILTER,
 		type SortOrder,
 		UNRATED,
+		VALIDATED_CHOICES,
 		type ValidatedFilter,
 		countryFlag,
 		countryName,
@@ -113,10 +114,6 @@
 	const anyLinks = $derived((entries.activeItems ?? []).some((item) => entries.linksOf(item).length > 0));
 	const anyRated = $derived((entries.activeItems ?? []).some((item) => item.rating));
 	const anyValidated = $derived((entries.activeItems ?? []).some((item) => item.validatedAt));
-	const VALIDATED: FacetOption[] = [
-		{ value: 'todo', label: 'À valider' },
-		{ value: 'done', label: 'Validées' }
-	];
 	const results = $derived(
 		entries.search(listView.query, {
 			tags: listView.tags,
@@ -182,7 +179,7 @@
 	const filterSummary = $derived(
 		describeFilter({
 			withLinks: listView.withLinks && anyLinks,
-			validated: VALIDATED.find((option) => option.value === listView.validated)?.label,
+			validated: VALIDATED_CHOICES.find((option) => option.value === listView.validated)?.label,
 			rating: RATINGS.find((rating) => rating.value === String(listView.rating))?.label,
 			countries: listView.country.map((code) => (code === NO_COUNTRY ? 'Sans pays' : countryName(code))),
 			tags: tagFilter,
@@ -394,7 +391,7 @@
 						<FacetDropdown
 							name="Statut"
 							single
-							options={VALIDATED}
+							options={VALIDATED_CHOICES}
 							selected={listView.validated ? [listView.validated] : []}
 							onchange={(next) => (listView.validated = (next[0] ?? '') as ValidatedFilter)}
 						/>

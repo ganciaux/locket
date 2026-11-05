@@ -327,6 +327,15 @@ test('fiche validée : confirmation avant de modifier, note figée, filtre, lais
 	await expect(card('Monster')).toHaveCount(0);
 	await page.getByRole('button', { name: 'Effacer' }).click();
 
+	// Même filtre dans l'index, à part de celui de « Mes fiches ».
+	await openIndex(page);
+	await expect(page).toHaveURL(/\/list$/);
+	await page.locator('summary').filter({ hasText: 'Statut' }).click();
+	await page.getByRole('radio', { name: 'À valider' }).check();
+	await expect(page.getByRole('link', { name: 'Monster', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Akira', exact: true })).toHaveCount(0);
+	await goHome(page);
+
 	// Sélection : « Cacher » laisse la validée de côté.
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await page.getByRole('button', { name: 'Tout', exact: true }).click();

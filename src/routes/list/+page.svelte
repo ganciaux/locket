@@ -21,7 +21,10 @@
 		missingFields,
 		missingLabel,
 		notValidated,
-		tagQueue
+		matchesValidatedFilter,
+		tagQueue,
+		VALIDATED_CHOICES,
+		type ValidatedFilter
 	} from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { startTagging } from '$lib/entries/tagging.svelte';
@@ -65,7 +68,12 @@
 		return filter === 'any' ? missing.length > 0 : missing.includes(filter as MissingField);
 	};
 	const results = $derived(
-		visible.filter((item) => (!query.trim() || matchesSearch(item.name, query)) && incomplete(item))
+		visible.filter(
+			(item) =>
+				(!query.trim() || matchesSearch(item.name, query)) &&
+				incomplete(item) &&
+				matchesValidatedFilter(item.validatedAt, listView.indexValidated)
+		)
 	);
 	// Sans les lettres de séparation : une seule section, sans titre.
 	const groups = $derived(prefs.indexInitials ? groupByInitial(results) : [{ initial: '', items: results }]);
@@ -152,6 +160,15 @@
 			selected={listView.indexMissing ? [listView.indexMissing] : []}
 			onchange={(next) => (listView.indexMissing = next[0] ?? '')}
 		/>
+		{#if visible.some((item) => item.validatedAt)}
+			<FacetDropdown
+				name="Statut"
+				single
+				options={VALIDATED_CHOICES}
+				selected={listView.indexValidated ? [listView.indexValidated] : []}
+				onchange={(next) => (listView.indexValidated = (next[0] ?? '') as ValidatedFilter)}
+			/>
+		{/if}
 		<span class="text-base-content/60 ml-auto text-xs" role="status">
 			{results.length} fiche{results.length > 1 ? 's' : ''}{results.length < visible.length ? ` sur ${visible.length}` : ''}
 		</span>
@@ -159,7 +176,13 @@
 
 	{#if results.length === 0}
 		<p class="text-base-content/60 py-8 text-center">
-			{query ? 'Aucun nom ne correspond.' : listView.indexMissing ? 'Aucune fiche à compléter.' : 'Toutes les fiches sont cachées.'}
+			{query
+				? 'Aucun nom ne correspond.'
+				: listView.indexMissing
+					? 'Aucune fiche à compléter.'
+					: listView.indexValidated
+						? 'Aucune fiche avec ce statut.'
+						: 'Toutes les fiches sont cachées.'}
 		</p>
 	{/if}
 

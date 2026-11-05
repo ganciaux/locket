@@ -140,6 +140,12 @@ export function pickRandom(ids: string[], avoid?: string, random = Math.random):
 /** '' : toutes ; 'todo' : à valider ; 'done' : validées. */
 export type ValidatedFilter = '' | 'todo' | 'done';
 
+/** Choix du filtre « Statut », sur « Mes fiches » et l'index. */
+export const VALIDATED_CHOICES: { value: Exclude<ValidatedFilter, ''>; label: string }[] = [
+	{ value: 'todo', label: 'À valider' },
+	{ value: 'done', label: 'Validées' }
+];
+
 export const matchesValidatedFilter = (validatedAt: number | undefined, filter: ValidatedFilter): boolean =>
 	filter === '' || (filter === 'done') === !!validatedAt;
 
