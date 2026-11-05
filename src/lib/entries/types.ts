@@ -27,6 +27,8 @@ export type EntryData = {
 	rating?: number;
 	/** Pays : code ISO 3166-1 alpha-2 (`FR`, `GB`…), un seul par fiche. */
 	country?: string;
+	/** Remarques libres (« vu en 2024, tome 12 manquant… »), au plus `MAX_REMARKS_LENGTH` caractères. */
+	remarks?: string;
 	/** Année de naissance seulement (une date précise serait pénible à trouver) : sert à afficher l'âge. */
 	birthYear?: number;
 	/** Dans la corbeille depuis cette date ; supprimée pour de bon après `TRASH_DAYS` jours. */

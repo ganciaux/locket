@@ -47,3 +47,12 @@ export const byName = (a: { name: string }, b: { name: string }): number =>
 // Noms de fiche
 
 export const MAX_NAME_LENGTH = 200;
+
+/** Remarques d'une fiche : de quoi écrire quelques paragraphes, loin de la limite d'un document Firestore. */
+export const MAX_REMARKS_LENGTH = 2000;
+
+/** Remarques nettoyées : bords et lignes vides en trop retirés, longueur bornée ; vide → `undefined`. */
+export function parseRemarks(text: string | undefined): string | undefined {
+	const cleaned = (text ?? '').trim().replace(/\n{3,}/g, '\n\n').slice(0, MAX_REMARKS_LENGTH).trim();
+	return cleaned || undefined;
+}

@@ -189,6 +189,10 @@
 				</div>
 			{/if}
 
+			{#if entry.remarks}
+				<p class="bg-base-200 rounded-box p-3 text-sm break-words whitespace-pre-line">{entry.remarks}</p>
+			{/if}
+
 			{#if links.length}
 				<ul class="flex flex-col gap-2">
 					{#each links as link, i (i)}

@@ -16,6 +16,7 @@ export type ViewEntry = {
 	rating?: number;
 	country?: string;
 	birthYear?: number;
+	remarks?: string;
 	tags: { group: string | null; names: string[] }[];
 	links: Link[];
 	/** Types d'image connus seulement : le fichier ne choisit pas ce que le navigateur interprète. */
@@ -54,6 +55,7 @@ export function backupView(reading: BackupReading): ViewCollection[] {
 				...(entry.rating && { rating: entry.rating }),
 				...(entry.country && { country: entry.country }),
 				...(entry.birthYear && { birthYear: entry.birthYear }),
+				...(typeof entry.remarks === 'string' && entry.remarks && { remarks: entry.remarks }),
 				tags: groupTags(entryTags, collection.tagGroups ?? []).map((section) => ({
 					group: section.group?.name ?? null,
 					names: section.tags.map((tag) => tag.name)

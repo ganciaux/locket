@@ -121,9 +121,12 @@ export function describeFilter(filter: {
 /** Nom et catégorie (connue, '' sinon) d'un tag, pour la recherche et le filtre. */
 export type TagIndex = Map<string, { name: string; group: string }>;
 
-/** Le texte doit apparaître dans le nom ou dans l'un des tags ; les tags supprimés (inconnus) sont ignorés. */
+/**
+ * Le texte doit apparaître dans le nom, dans l'un des tags ou dans les remarques ; les tags supprimés (inconnus) sont
+ * ignorés.
+ */
 export function matchesFilter(
-	entry: { name: string; tagIds?: string[] },
+	entry: { name: string; tagIds?: string[]; remarks?: string },
 	query: string,
 	filter: TagFilter,
 	tags: TagIndex
@@ -143,7 +146,11 @@ export function matchesFilter(
 			if (!missingOk && !ids.some((id) => known.includes(id))) return false;
 		}
 	}
-	return matchesSearch(entry.name, query) || known.some((id) => matchesSearch(tags.get(id)!.name, query));
+	return (
+		matchesSearch(entry.name, query) ||
+		known.some((id) => matchesSearch(tags.get(id)!.name, query)) ||
+		(!!entry.remarks && matchesSearch(entry.remarks, query))
+	);
 }
 
 /**

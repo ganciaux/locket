@@ -1,6 +1,6 @@
 /** Fiches : formulaire, image, liens, sites, nom unique, note, pays, naissance. */
 import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
-import { addSite, createEntry, openIndex, swipeOn } from './helpers';
+import { addSite, createEntry, lockAndUnlock, openIndex, swipeOn } from './helpers';
 
 test('site de collection : lien calculé, nom custom, masquage', async ({ page }) => {
 	await signUp(page);
@@ -269,4 +269,27 @@ test('année de naissance : âge sur la fiche, le zoom et l’index, effaçable'
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'Akira' })).toBeVisible();
 	await expect(page.getByText(age)).toHaveCount(0);
+});
+
+test('remarques : saisies, affichées, gardées par une note, trouvées par la recherche', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Monster');
+	await createEntry(page, 'Akira');
+
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByLabel('Remarques').fill('  Vu en 2024\n\n\n\nConseillé par Élodie  ');
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	const remarks = page.getByText(/^Vu en 2024\s+Conseillé par Élodie$/);
+	await expect(remarks).toBeVisible();
+
+	// Une écriture partielle (la note) réécrit la fiche sans perdre les remarques.
+	await page.getByRole('radio', { name: '4 sur 5' }).check({ force: true });
+	await expect(page.getByText('4 / 5')).toBeVisible();
+	await lockAndUnlock(page);
+	await page.getByLabel('Rechercher').fill('elodie');
+	await expect(page.locator('li.card')).toHaveCount(1);
+	await page.locator('li.card').getByRole('heading', { name: 'Akira' }).click();
+	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await expect(remarks).toBeVisible();
 });

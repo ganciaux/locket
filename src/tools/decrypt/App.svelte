@@ -150,6 +150,7 @@
 				{#if entry.birthYear}<span>{entry.birthYear} ({formatAge(entry.birthYear)})</span>{/if}
 				{#if entry.deletedAt}<span>À la corbeille depuis le {formatDate(entry.deletedAt)}</span>{/if}
 			</p>
+			{#if entry.remarks}<p class="text-sm break-words whitespace-pre-line">{entry.remarks}</p>{/if}
 			{#each entry.tags as section, i (i)}
 				<p class="text-sm">
 					{#if section.group}<span class="text-base-content/60">{section.group} :</span>{/if}

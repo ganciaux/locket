@@ -9,7 +9,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
-	import { type Link, MAX_NAME_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
+	import { type Link, MAX_NAME_LENGTH, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
 	import { saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -52,6 +52,8 @@
 	let country = $state(entry?.country);
 	// svelte-ignore state_referenced_locally
 	let birthYear = $state<number | null | undefined>(entry?.birthYear);
+	// svelte-ignore state_referenced_locally
+	let remarks = $state(entry?.remarks ?? '');
 	// Nouvelle fiche : la collection active (connue une fois le catalogue chargé), sauf choix explicite.
 	// svelte-ignore state_referenced_locally
 	let chosenCollectionId = $state(entry?.collectionId ?? initialCollectionId);
@@ -166,6 +168,7 @@
 				rating,
 				country,
 				birthYear: birthYear ?? undefined,
+				remarks,
 				image
 			},
 			entry
@@ -240,6 +243,15 @@
 					{/if}
 				</div>
 			</div>
+			<Field label="Remarques" hint="Facultatives : ce que vous voulez retenir. Trouvées par la recherche.">
+				<textarea
+					class="textarea w-full"
+					rows="3"
+					maxlength={MAX_REMARKS_LENGTH}
+					placeholder="Vu en 2024, tome 12 manquant…"
+					bind:value={remarks}
+				></textarea>
+			</Field>
 			<label class="flex cursor-pointer items-start justify-between gap-4">
 				<span class="flex flex-col">
 					<span class="text-sm font-medium">Cacher cette fiche</span>

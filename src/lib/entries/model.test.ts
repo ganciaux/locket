@@ -40,6 +40,8 @@ import {
 	linkTitle,
 	matchesFilter,
 	matchesSearch,
+	parseRemarks,
+	MAX_REMARKS_LENGTH,
 	moveItem,
 	neighbours,
 	findSameName,
@@ -227,6 +229,12 @@ describe('tags', () => {
 	it('sans tag sélectionné : pas de filtre', () => {
 		expect(matchesFilter(banque, '', NO_TAG_FILTER, tags)).toBe(true);
 		expect(matchesFilter({ name: 'Notes' }, '', NO_TAG_FILTER, tags)).toBe(true);
+	});
+
+	it('la recherche trouve aussi le texte des remarques', () => {
+		const vu = { name: 'Monster', remarks: 'Conseillé par Élodie' };
+		expect(matchesFilter(vu, 'elodie', NO_TAG_FILTER, tags)).toBe(true);
+		expect(matchesFilter(vu, 'paul', NO_TAG_FILTER, tags)).toBe(false);
 	});
 
 	it('OU dans une catégorie (les tags sans catégorie en forment une)', () => {
@@ -802,5 +810,17 @@ describe('fiches incomplètes', () => {
 	it('libellés lisibles', () => {
 		expect(missingLabel('birthYear', groups)).toBe('naissance');
 		expect(missingLabel('group:g', groups)).toBe('Genre');
+	});
+});
+
+describe('parseRemarks', () => {
+	it('retire les bords et les lignes vides en trop, vide → undefined', () => {
+		expect(parseRemarks('  Vu en 2024\n\n\n\nTome 12 manquant  ')).toBe('Vu en 2024\n\nTome 12 manquant');
+		expect(parseRemarks('   \n ')).toBeUndefined();
+		expect(parseRemarks(undefined)).toBeUndefined();
+	});
+
+	it('borne la longueur', () => {
+		expect(parseRemarks('a'.repeat(MAX_REMARKS_LENGTH + 50))).toHaveLength(MAX_REMARKS_LENGTH);
 	});
 });
