@@ -20,8 +20,8 @@ vont dans [MEMORY.md](MEMORY.md).
       `NODE_TLS_REJECT_UNAUTHORIZED=0` et `strict-ssl=false`, passer par `NODE_OPTIONS=--use-system-ca` (voir
       `CLAUDE.local.md`). Si un déploiement est parti de ce poste : `npm audit signatures`, refaire `firebase login`,
       `npm ci`, redéployer. *Simple.*
-- [ ] **Email de réinitialisation externe** (en attente) : tester si un tiers peut le déclencher, et si le modèle d'email
-      de la console peut porter un avertissement (voir [SECURITY.md](SECURITY.md) § 5). *Simple.*
+- [x] **Email de réinitialisation externe** — testé le 2026-11-05 : un tiers peut le déclencher, et le plan Spark ne
+      permet de changer ni le message ni l'URL d'action. Risque connu et accepté (voir [SECURITY.md](SECURITY.md) § 5). *Simple.*
 
 - [x] **Écrasement entre appareils** — fait le 2026-11-04 (`stale.ts`, catalogues compris) (revue du 2026-11-03, basse) : retenir le jeton `meta/version` lu au chargement et
       refuser une réécriture de `data` (fiche, action groupée, import) s'il a changé, puis relire la liste et demander de

@@ -134,9 +134,11 @@ sceau keyringCheck : SHA-256 de recoveryDek chiffré par la DEK, AAD "keyring/ch
 - **Actions destructrices** (suppression totale, restauration, purge des fiches illisibles) : le mot de passe est
   contrôlé par l'app, pas par les règles Firestore. Il protège d'une fausse manœuvre ou d'un PC laissé ouvert, pas d'un
   client modifié disposant d'une session Firebase. Irréversible sans sauvegarde : le plan Spark n'en garde aucune.
-- **Email de réinitialisation externe (à traiter, non testé)** : avec notre adresse et la clé API publique, un tiers
-  pourrait déclencher un vrai email `PASSWORD_RESET` de Firebase, que l'app n'utilise jamais. Y saisir son vrai mot de
-  passe l'enverrait à Firebase. **Ne jamais suivre un tel email** : passer par « Mot de passe oublié » dans l'app.
+- **Email de réinitialisation externe (confirmé le 2026-11-05, risque accepté)** : avec notre adresse et la clé API
+  publique, un tiers déclenche un vrai email `PASSWORD_RESET` de Firebase (`accounts:sendOobCode`), que l'app n'utilise
+  jamais. Y saisir son vrai mot de passe l'enverrait à Firebase, qui détient aussi `wrappedDek`. Aucune parade sur le
+  plan Spark : ni le message du modèle ni l'URL d'action ne sont modifiables. **Ne jamais suivre un tel email** : passer
+  par « Mot de passe oublié » dans l'app.
 - **Rotation limitée** : remplacer la clé de récupération protège Firestore, pas les sauvegardes ni les copies déjà
   faites, que l'ancienne clé ouvre encore. Changer de mot de passe ne change pas la DEK : un ancien `wrappedDek` copié
   reste ouvrable avec l'ancien mot de passe. Après une compromission grave, seule une recréation du compte suffit.
