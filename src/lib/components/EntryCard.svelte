@@ -9,14 +9,12 @@
 
 	let {
 		entry,
-		detailed,
 		selecting,
 		selected,
 		onzoom,
 		ontoggle
 	}: {
 		entry: ListItem;
-		detailed: boolean;
 		selecting: boolean;
 		selected: boolean;
 		onzoom: () => void;
@@ -28,6 +26,8 @@
 	const links = $derived(entries.linksOf(entry));
 	const entryTags = $derived(entries.tagsOf(entry));
 	const rank = $derived(entries.rankOf(entry));
+	// Barre « Détails » : seulement s'il reste des tags ou des liens que la carte n'affiche pas.
+	const hasMore = $derived((entryTags.length > 0 && !prefs.cardTags) || (links.length > 0 && !prefs.cardLinks));
 </script>
 
 {#snippet cardName()}
@@ -116,7 +116,7 @@
 			{/if}
 		</figure>
 	</div>
-	{#if (!clickZooms || selecting) && !detailed && (entryTags.length || links.length)}
+	{#if (!clickZooms || selecting) && hasMore}
 		<button
 			type="button"
 			class="text-base-content/60 hover:bg-base-200 border-base-200 mt-auto flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
@@ -132,18 +132,16 @@
 		Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>.
 		Cartes d'une même ligne à la même hauteur (grille étirée) : les liens et « Détails » se calent en bas (mt-auto).
 	-->
-	{#if detailed}
-		{#if entryTags.length}
-			<div class="flex flex-wrap gap-1 px-3 py-2">
-				{#each entryTags as tag (tag.id)}
-					<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
-				{/each}
-			</div>
-		{/if}
-		{#if links.length}
-			<div class="border-base-200 mt-auto border-t px-3 py-2">
-				<LinkChips {links} small />
-			</div>
-		{/if}
+	{#if prefs.cardTags && entryTags.length}
+		<div class="flex flex-wrap gap-1 px-3 py-2">
+			{#each entryTags as tag (tag.id)}
+				<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
+			{/each}
+		</div>
+	{/if}
+	{#if prefs.cardLinks && links.length}
+		<div class="border-base-200 mt-auto border-t px-3 py-2">
+			<LinkChips {links} small />
+		</div>
 	{/if}
 </li>

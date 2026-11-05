@@ -158,14 +158,6 @@
 				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.linksInNewTab} />
 			</label>
 
-			<label class="flex cursor-pointer items-start justify-between gap-4">
-				<span class="flex flex-col">
-					<span class="text-sm font-medium">Cartes détaillées</span>
-					<span class="text-base-content/60 text-xs">Tags et liens affichés sur toutes les cartes. Sinon, cartes compactes : une seule se déplie à la fois.</span>
-				</span>
-				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.detailedCards} />
-			</label>
-
 			<div class="flex flex-col gap-2">
 				<span class="flex flex-col">
 					<span class="text-sm font-medium">Clic sur une carte</span>

@@ -72,8 +72,10 @@
 
 	// Filtres et tri : gardés pendant la session, valeurs par défaut à chaque déverrouillage (voir listView).
 	const tagFilter = $derived(listView.tags);
-	// Valeur de départ : la préférence de Paramètres ; la bascule de la liste ne vaut que pour la visite.
-	let detailed = $state(prefs.detailedCards);
+	const CARD_DETAILS = [
+		{ key: 'cardTags', label: 'Tags', icon: 'tag' },
+		{ key: 'cardLinks', label: 'Liens', icon: 'link' }
+	] as const;
 	// Fiche agrandie, avec les résultats du moment : noter une fiche ne doit pas changer la suite si le filtre l'exclut.
 	let zoom = $state<{ id: string; ids: string[] } | null>(null);
 	const openZoom = (id: string) => (zoom = { id, ids: results.map((item) => item.id) });
@@ -454,15 +456,19 @@
 					Cachées ({hiddenCount})
 				</button>
 			{/if}
-			<button
-				class="btn btn-xs {detailed ? 'btn-primary' : 'btn-ghost'}"
-				aria-pressed={detailed}
-				title={detailed ? 'Cartes compactes' : 'Afficher tags et liens sur toutes les cartes'}
-				onclick={() => (detailed = !detailed)}
-			>
-				Détails
-				<Icon name="chevronDown" class="size-3 transition {detailed ? 'rotate-180' : ''}" />
-			</button>
+			<!-- Chacun à part : aucun, tags, liens ou les deux sur toutes les cartes (préférence retenue). -->
+			{#each CARD_DETAILS as detail (detail.key)}
+				<button
+					class="btn btn-xs {prefs[detail.key] ? 'btn-primary' : 'btn-ghost'}"
+					aria-pressed={prefs[detail.key]}
+					aria-label="{detail.label} sur les cartes"
+					title="{prefs[detail.key] ? 'Masquer' : 'Afficher'} les {detail.label.toLowerCase()} sur toutes les cartes"
+					onclick={() => (prefs[detail.key] = !prefs[detail.key])}
+				>
+					<Icon name={detail.icon} class="size-3" />
+					{detail.label}
+				</button>
+			{/each}
 			<button
 				class="btn btn-xs {selecting ? 'btn-primary' : 'btn-ghost'}"
 				aria-pressed={selecting}
@@ -498,7 +504,6 @@
 		{#each results as entry (entry.id)}
 			<EntryCard
 				{entry}
-				{detailed}
 				{selecting}
 				selected={selected.includes(entry.id)}
 				onzoom={() => openZoom(entry.id)}

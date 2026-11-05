@@ -47,10 +47,13 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
 	await page.getByRole('link', { name: 'Retour', exact: true }).click();
 
-	// Bascule de la liste : tout détailler pour la visite, Paramètres reste la valeur par défaut.
-	await page.getByRole('button', { name: 'Détails', exact: true }).click();
+	// Bascule de la liste : les liens sur toutes les cartes, puis de nouveau compactes.
+	const linksToggle = page.getByRole('button', { name: 'Liens sur les cartes' });
+	await linksToggle.click();
 	await expect(animeOf('John Doe')).toBeVisible();
 	await expect(animeOf('Jane Roe')).toBeVisible();
+	await linksToggle.click();
+	await expect(animeOf('John Doe')).toHaveCount(0);
 
 	// Clic = ouvrir la fiche : la barre « Détails » de la carte l'agrandit.
 	await goSettings(page);
@@ -64,11 +67,14 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await card('John Doe').getByRole('heading').click();
 	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
 
-	// Cartes détaillées par défaut pour la suite.
-	await goSettings(page);
-	await page.getByLabel(/Cartes détaillées/).check();
+	// Liens sur les cartes pour la suite : réglage retenu, et plus de barre « Détails » sans tag à montrer.
 	await goHome(page);
+	await linksToggle.click();
+	await goSettings(page);
+	await goHome(page);
+	await expect(linksToggle).toHaveAttribute('aria-pressed', 'true');
 	await expect(animeOf('John Doe')).toBeVisible();
+	await expect(card('John Doe').getByRole('button', { name: 'Détails' })).toHaveCount(0);
 
 	// Filtre sur la présence de liens.
 	await createEntry(page, 'Sans site');
@@ -91,7 +97,7 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
 	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
 	await page.getByRole('button', { name: 'Masquer', exact: true }).click();
-	// Cartes détaillées : on regarde le lien lui-même.
+	// Liens sur les cartes : on regarde le lien lui-même.
 	const anime = animeOf('John Doe');
 	await expect(anime).toHaveCount(0);
 	await expect(page.getByText('1 sélectionnée')).toBeVisible();
@@ -148,7 +154,7 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await goHome(page);
 
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
-	await page.getByRole('button', { name: 'Détails', exact: true }).click(); // tags visibles sur les cartes
+	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await card('Fiche A').getByRole('heading').click(); // coche sans ouvrir la fiche
 	await card('Fiche B').getByLabel('Sélectionner Fiche B').check();
