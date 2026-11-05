@@ -264,6 +264,50 @@
 
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
+			<h2 class="card-title text-base"><Icon name="image" /> Image</h2>
+			{#if preview}
+				<div class="relative self-start">
+					<img class="rounded-box max-h-56 w-auto" src={preview} alt="Aperçu" />
+					<button
+						type="button"
+						class="btn btn-circle btn-sm absolute top-2 right-2"
+						onclick={removeImage}
+						aria-label="Retirer l'image"
+						title="Retirer l'image"
+					>
+						<Icon name="close" class="size-4" />
+					</button>
+				</div>
+			{/if}
+			<input type="file" accept="image/*" class="file-input w-full" bind:this={fileInput} onchange={onFileChange} />
+			<p class="text-base-content/60 text-xs">
+				Choisissez un fichier, glissez-le ici ou collez une image. Redimensionnée et chiffrée sur cet appareil avant l'envoi.
+			</p>
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-base"><Icon name="tag" /> Tags</h2>
+			{#if tagsDropped}
+				<p role="status" class="text-base-content/70 text-xs">
+					Les tags de l'ancienne collection ont été retirés : chaque collection a les siens.
+				</p>
+			{/if}
+			{#if collectionTags.length}
+				<TagPicker tags={collectionTags} groups={entries.tagGroupsIn(collectionId)} bind:selected={tagIds} label="Tags de la fiche" />
+			{:else if entries.tags}
+				<p class="text-base-content/60 text-sm">
+					Aucun tag dans cette collection. <a class="link link-primary" href="/tags">Créer des tags</a>
+				</p>
+			{:else}
+				<span class="loading loading-dots loading-sm"></span>
+			{/if}
+		</div>
+	</section>
+
+	<section class="card bg-base-100 shadow-sm">
+		<div class="card-body gap-3">
 			<h2 class="card-title text-base"><Icon name="link" /> Liens</h2>
 			{#if activeSites.length}
 				<p class="text-base-content/60 text-xs">
@@ -344,50 +388,6 @@
 			>
 				<Icon name="plus" class="size-4" /> Ajouter un lien
 			</button>
-		</div>
-	</section>
-
-	<section class="card bg-base-100 shadow-sm">
-		<div class="card-body gap-3">
-			<h2 class="card-title text-base"><Icon name="tag" /> Tags</h2>
-			{#if tagsDropped}
-				<p role="status" class="text-base-content/70 text-xs">
-					Les tags de l'ancienne collection ont été retirés : chaque collection a les siens.
-				</p>
-			{/if}
-			{#if collectionTags.length}
-				<TagPicker tags={collectionTags} groups={entries.tagGroupsIn(collectionId)} bind:selected={tagIds} label="Tags de la fiche" />
-			{:else if entries.tags}
-				<p class="text-base-content/60 text-sm">
-					Aucun tag dans cette collection. <a class="link link-primary" href="/tags">Créer des tags</a>
-				</p>
-			{:else}
-				<span class="loading loading-dots loading-sm"></span>
-			{/if}
-		</div>
-	</section>
-
-	<section class="card bg-base-100 shadow-sm">
-		<div class="card-body gap-3">
-			<h2 class="card-title text-base"><Icon name="image" /> Image</h2>
-			{#if preview}
-				<div class="relative self-start">
-					<img class="rounded-box max-h-56 w-auto" src={preview} alt="Aperçu" />
-					<button
-						type="button"
-						class="btn btn-circle btn-sm absolute top-2 right-2"
-						onclick={removeImage}
-						aria-label="Retirer l'image"
-						title="Retirer l'image"
-					>
-						<Icon name="close" class="size-4" />
-					</button>
-				</div>
-			{/if}
-			<input type="file" accept="image/*" class="file-input w-full" bind:this={fileInput} onchange={onFileChange} />
-			<p class="text-base-content/60 text-xs">
-				Choisissez un fichier, glissez-le ici ou collez une image. Redimensionnée et chiffrée sur cet appareil avant l'envoi.
-			</p>
 		</div>
 	</section>
 
