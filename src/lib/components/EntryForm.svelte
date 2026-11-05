@@ -5,12 +5,13 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ImageEditor from '$lib/components/ImageEditor.svelte';
 	import CountryPicker from '$lib/components/CountryPicker.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareImage } from '$lib/entries/images';
 	import { FRAMING_CENTER, FRAMING_STEP, type Link, MAX_NAME_LENGTH, framingClass, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
-	import { saveEntry } from '$lib/entries/repository';
+	import { getImage, saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -107,6 +108,34 @@
 		event.preventDefault();
 		fileInput.value = '';
 		file = image;
+		imageRemoved = false;
+		framing = FRAMING_CENTER;
+	}
+
+	// Recadrer ou pivoter : la nouvelle image si elle vient d'être choisie, sinon l'image complète enregistrée (déchiffrée).
+	let editing = $state<Blob | null>(null);
+	let openingEditor = $state(false);
+	async function openEditor() {
+		if (file) return void (editing = file);
+		const { user, dek } = session;
+		if (!entry?.imageType || !user || !dek) return;
+		openingEditor = true;
+		loadError = '';
+		try {
+			const bytes = await getImage(user.uid, dek, entry.id);
+			if (!bytes) throw new Error('Image introuvable.');
+			editing = new Blob([bytes], { type: entry.imageType });
+		} catch (e) {
+			loadError = errorMessage(e);
+		} finally {
+			openingEditor = false;
+		}
+	}
+
+	function applyEdit(edited: File) {
+		editing = null;
+		fileInput.value = '';
+		file = edited;
 		imageRemoved = false;
 		framing = FRAMING_CENTER;
 	}
@@ -276,7 +305,9 @@
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="card-title text-base"><Icon name="image" /> Image</h2>
-			{#if preview}
+			{#if editing}
+				<ImageEditor source={editing} onapply={applyEdit} oncancel={() => (editing = null)} />
+			{:else if preview}
 				<div class="relative self-start">
 					<img class="rounded-box max-h-56 w-auto" src={preview} alt="Aperçu" onload={readShape} />
 					<button
@@ -290,7 +321,13 @@
 					</button>
 				</div>
 			{/if}
-			{#if preview && (shape === 'tall' || shape === 'wide')}
+			{#if preview && !editing}
+				<button type="button" class="btn btn-outline btn-primary btn-sm self-start" disabled={openingEditor} onclick={openEditor}>
+					{#if openingEditor}<span class="loading loading-spinner loading-xs"></span>{:else}<Icon name="crop" class="size-4" />{/if}
+					Recadrer ou pivoter
+				</button>
+			{/if}
+			{#if preview && !editing && (shape === 'tall' || shape === 'wide')}
 				<!-- Cadrage : la carte carrée ne montre qu'une partie de l'image ; on choisit laquelle. -->
 				<div class="flex items-center gap-4">
 					<img

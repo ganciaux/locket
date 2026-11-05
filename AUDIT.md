@@ -118,8 +118,10 @@ Dans l'ordre de réalisation prévu.
       secondes, état précédent des fiches touchées en mémoire, effacé au verrouillage (`onLock`), réécrit par
       `commitEntries` (conflit d'un autre appareil : refus et message, comme `stale.ts`). Après « Fiche vérifiée », pour
       couvrir son comportement dans les actions groupées. *Intermédiaire.*
-- [ ] **Recadrer et pivoter l'image** avant l'enregistrement : cadre à déplacer (tactile), rotation par quart de tour,
-      sur le canvas déjà utilisé pour le redimensionnement, sans bibliothèque ; remplace l'image (complète et miniature).
+- [x] **Recadrer et pivoter l'image** — fait le 2026-11-05 (`ImageEditor.svelte`, calcul pur dans `crop.ts`) : bouton
+      « Recadrer ou pivoter » sous l'aperçu, sur une image choisie ou sur l'image enregistrée (déchiffrée), cadre SVG
+      (attributs, pas de style en ligne : CSP) déplaçable et redimensionnable par ses coins, quart de tour à gauche ou à
+      droite ; « Appliquer » remplace l'image (complète et miniature) à l'enregistrement de la fiche.
       Images « coupées » sur les cartes (2026-11-05) : la miniature garde ses proportions (640 px de grand côté), c'est
       la carte carrée (`object-cover`, centré) qui rogne à l'affichage. **Cadrage de la carte fait le 2026-11-05**
       (`framing.ts`, curseur Haut/Bas ou Gauche/Droite sous l'aperçu, carte, index, classement, similaires, outil de lecture) : une

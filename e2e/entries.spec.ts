@@ -395,3 +395,56 @@ test('cadrage de la carte : seulement pour une image non carrée, appliqué à l
 	await page.getByRole('dialog').getByRole('link', { name: 'Modifier la fiche' }).click();
 	await expect(page.getByLabel('Cadrage de la carte')).toHaveValue('0');
 });
+
+test('recadrer et pivoter : nouvelle image puis image enregistrée, remplacée à l’enregistrement', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await page.locator('a[href="/entry/new"]').first().click();
+	await page.getByLabel('Nom', { exact: true }).fill('Photo');
+	await page.evaluate(async () => {
+		const canvas = Object.assign(document.createElement('canvas'), { width: 300, height: 600 });
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+		const data = new DataTransfer();
+		data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
+		window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+	});
+	const preview = page.getByAltText('Aperçu', { exact: true });
+	const naturalSize = () => preview.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]);
+	await expect(preview).toBeVisible();
+
+	// Pivoter d'un quart de tour : l'image passe en largeur.
+	await page.getByRole('button', { name: 'Recadrer ou pivoter' }).click();
+	const apply = page.getByRole('button', { name: 'Appliquer' });
+	await expect(apply).toBeDisabled();
+	await page.getByRole('button', { name: 'Pivoter à droite' }).click();
+	await apply.click();
+	await expect(preview).toBeVisible();
+	expect(await naturalSize()).toEqual([600, 300]);
+	await expect(page.getByText('Gauche', { exact: true })).toBeVisible();
+
+	// Recadrer : le coin bas droit tiré vers le centre.
+	await page.getByRole('button', { name: 'Recadrer ou pivoter' }).click();
+	const corner = page.locator('circle[data-handle="se"]');
+	const box = (await corner.boundingBox())!;
+	const svgBox = (await page.locator('svg[preserveAspectRatio]').boundingBox())!;
+	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(svgBox.x + svgBox.width / 2, svgBox.y + svgBox.height / 2, { steps: 5 });
+	await page.mouse.up();
+	await apply.click();
+	await expect(preview).toBeVisible();
+	const [width, height] = await naturalSize();
+	expect(width).toBeGreaterThan(250);
+	expect(width).toBeLessThan(350);
+	expect(height).toBeGreaterThan(120);
+	expect(height).toBeLessThan(180);
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Photo' })).toBeVisible();
+
+	// Image déjà enregistrée : rouverte (déchiffrée) dans l'éditeur, annuler ne change rien.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByRole('button', { name: 'Recadrer ou pivoter' }).click();
+	await expect(page.locator('svg[preserveAspectRatio]')).toHaveAttribute('viewBox', `0 0 ${width} ${height}`);
+	await page.getByRole('button', { name: 'Annuler', exact: true }).first().click();
+	await expect(preview).toBeVisible();
+});
