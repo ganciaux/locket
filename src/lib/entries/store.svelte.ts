@@ -38,6 +38,7 @@ import {
 	matchesRatingFilter,
 	matchesValidatedFilter,
 	keepOneBorderTag,
+	revertTo,
 	borderOf,
 	type BorderColor,
 	type ValidatedFilter,
@@ -71,6 +72,11 @@ class EntriesData {
 export const data = new EntriesData();
 
 let unreadableIds = $state.raw<string[]>([]);
+/**
+ * Dernière action groupée, annulable : fiches telles qu'avant (`before`) et telles qu'elle les a laissées (`after`).
+ * En mémoire seulement, effacée au verrouillage (`clear`).
+ */
+let lastBulk = $state.raw<{ label: string; before: ListItem[]; after: Map<string, ListItem> } | null>(null);
 let catalogDamaged = $state(false);
 // Graine du tri aléatoire : fixée pour la session, l'ordre ne change pas à chaque retour sur la liste.
 let shuffleSeed = $state(Math.random());
@@ -123,6 +129,7 @@ function clear() {
 	unreadableIds = [];
 	catalogDamaged = false;
 	loading = null;
+	lastBulk = null;
 }
 
 onLock(clear);
@@ -445,6 +452,42 @@ export function changeEntriesTags(targets: ListItem[], tagIds: string[], mode: '
 		const next = keepOneBorderTag(merged, entries.tagsIn(entry.collectionId), entries.tagGroupsIn(entry.collectionId), tagIds);
 		return { tagIds: next.length ? next : undefined, updatedAt: Date.now() };
 	});
+}
+
+/** Action groupée en attente d'annulation : son libellé, ou null. */
+export const bulkUndo = {
+	get label() {
+		return lastBulk?.label ?? null;
+	}
+};
+
+/** Fait une action groupée sur `targets` et la rend annulable (`undoBulk`) ; remplace la précédente. */
+export async function recordBulk(label: string, targets: ListItem[], action: () => Promise<void>): Promise<void> {
+	lastBulk = null;
+	await action();
+	const ids = new Set(targets.map((entry) => entry.id));
+	const after = new Map((data.items ?? []).filter((item) => ids.has(item.id)).map((item) => [item.id, item]));
+	lastBulk = { label, before: targets, after };
+}
+
+export function forgetBulk(): void {
+	lastBulk = null;
+}
+
+/**
+ * Remet les fiches de la dernière action groupée dans leur état d'avant. Refusé si l'une a changé depuis dans l'app
+ * (autre modification, relecture) : l'annulation écraserait ce changement. Un autre appareil qui a écrit entre-temps
+ * fait refuser l'écriture, comme toute autre (`stale.ts`).
+ */
+export async function undoBulk(): Promise<void> {
+	const last = lastBulk;
+	if (!last) return;
+	lastBulk = null;
+	const current = last.before.map((entry) => (data.items ?? []).find((item) => item.id === entry.id));
+	if (current.some((item, i) => !item || item !== last.after.get(last.before[i].id)))
+		throw new Error('Ces fiches ont changé depuis : annulation impossible.');
+	const before = new Map(last.before.map((entry) => [entry.id, entry]));
+	await patchEntries(current as ListItem[], (entry) => revertTo(entry, before.get(entry.id)!));
 }
 
 const THUMBS_PER_WRITE = 25;

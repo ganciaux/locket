@@ -1,5 +1,5 @@
 /** « Mes fiches » : cartes, fiche agrandie, recherche, navigation, sélection multiple, éléments cachés. */
-import { addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
+import { PASSWORD, addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
 import { addSite, createEntry, createEntryWithImage, swipeOn } from './helpers';
 
 test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la fiche', async ({ page }) => {
@@ -199,6 +199,48 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await expect(page.getByText('Fiche B')).toBeVisible();
 	await expect(page.getByText('Fiche C')).toBeVisible();
 	await expect(page.getByText('Fiche A')).toHaveCount(0);
+});
+
+test('sélection multiple : la dernière action s’annule, tags comme corbeille', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Fiche A');
+	await createEntry(page, 'Fiche B');
+	await goSettings(page);
+	await page.getByRole('link', { name: 'Gérer les tags' }).click();
+	await page.getByLabel('Nouveau tag').fill('Lu');
+	await page.getByRole('button', { name: 'Ajouter' }).click();
+	await expect(page.getByText('Lu', { exact: true })).toBeVisible();
+	await goHome(page);
+
+	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
+	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
+	await page.getByRole('button', { name: 'Tout', exact: true }).click();
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await page.getByRole('toolbar').getByText('Lu', { exact: true }).click();
+	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+	await expect(card('Fiche A').getByText('Lu')).toBeVisible();
+	await expect(page.getByText('Tags ajoutés à 2 fiches.')).toBeVisible();
+	await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+	await expect(card('Fiche A').getByText('Lu')).toHaveCount(0);
+	await expect(card('Fiche B').getByText('Lu')).toHaveCount(0);
+	await expect(page.getByText('Tags ajoutés à 2 fiches.')).toHaveCount(0);
+
+	await page.getByRole('toolbar').getByRole('button', { name: 'Supprimer' }).click();
+	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
+	await expect(card('Fiche A')).toHaveCount(0);
+	await expect(page.getByText('2 fiches mises à la corbeille.')).toBeVisible();
+	await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+	await expect(card('Fiche A')).toBeVisible();
+	await expect(card('Fiche B')).toBeVisible();
+
+	// Annulation écrite dans Firestore : toujours là après une réouverture.
+	await page.reload();
+	await page.getByLabel('Mot de passe').fill(PASSWORD);
+	await page.getByRole('button', { name: 'Déverrouiller' }).click();
+	await expect(card('Fiche A')).toBeVisible();
+	await expect(card('Fiche B')).toBeVisible();
 });
 
 test('recherche : filtre la liste, effacée d’un clic', async ({ page }) => {
