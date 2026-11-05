@@ -114,10 +114,12 @@ Dans l'ordre de réalisation prévu.
       supprimer) qui la laissent de côté en le signalant, Tagger qui la saute, import qui met sa ligne en erreur ;
       suppression depuis la fiche toujours possible, avec rappel. Filtre « Statut : À valider / Validées » sur « Mes fiches » et sur l'index (chacun le sien). Index : coche en bout de ligne, option d'affichage « Validées » (préférence, active par défaut). Garde-fou de
       l'app, pas une protection (les règles Firestore n'en savent rien). *Simple à intermédiaire.*
-- [ ] **Annuler la dernière action groupée** (tags, corbeille, collection…) : bandeau « Annuler » une dizaine de
-      secondes, état précédent des fiches touchées en mémoire, effacé au verrouillage (`onLock`), réécrit par
-      `commitEntries` (conflit d'un autre appareil : refus et message, comme `stale.ts`). Après « Fiche vérifiée », pour
-      couvrir son comportement dans les actions groupées. *Intermédiaire.*
+- [x] **Annuler la dernière action groupée** — fait le 2026-11-05 (`undo.ts` pur, `recordBulk` / `undoBulk` dans le
+      store) : bandeau « Annuler » 10 secondes dans la barre de sélection (tags, liens, cacher, valider, corbeille ; pas
+      la suppression définitive), retiré en quittant la sélection. Fiches d'avant et d'après en mémoire seulement,
+      effacées au verrouillage (`clear`, inscrit à `onLock`) ; l'annulation réécrit l'état d'avant par `patchEntries`
+      (un autre appareil qui a écrit : refus, comme `stale.ts`) et est refusée si une fiche a changé depuis dans l'app
+      (objet différent : autre écriture, relecture). *Intermédiaire.*
 - [x] **Recadrer et pivoter l'image** — fait le 2026-11-05 (`ImageEditor.svelte`, calcul pur dans `crop.ts`) : bouton
       « Recadrer ou pivoter » sous l'aperçu, sur une image choisie ou sur l'image enregistrée (déchiffrée), cadre SVG
       (attributs, pas de style en ligne : CSP) déplaçable et redimensionnable par ses coins, quart de tour à gauche ou à
@@ -129,8 +131,10 @@ Dans l'ordre de réalisation prévu.
       ligne) ; image et miniature intactes, le zoom montre toujours l'image entière. *Intermédiaire.*
 - [x] **Bordure des cartes par une catégorie de tags** — fait le 2026-11-05 (`borders.ts`) : interrupteur « Bordure des
       cartes » sur une catégorie (une seule par collection), couleur par tag dans la liste des tags (or, argent, bronze,
-      bleu, rouge, vert, noir ; le noir suit la couleur du texte pour rester visible en thème sombre), anneau autour de la
-      carte (hors de sa taille). Un seul tag de la catégorie par fiche : formulaire, Tagger et sélection (« Ajouter »
+      bleu, rouge, vert, noir ; le noir suit la couleur du texte pour rester visible en thème sombre). Redessinée le
+      2026-11-05 en cadre de carte de collection (`[data-border]` dans app.css : dégradé à reflet pour les métaux, émail
+      pour les couleurs, halo de la teinte), intérieur à l'élément (la grille ne bouge pas), sur la carte, le zoom, la
+      fiche, le Tagger, les miniatures de l'index, du classement et des similaires, et les duels. Un seul tag de la catégorie par fiche : formulaire, Tagger et sélection (« Ajouter »
       remplace l'ancien), import (ligne en erreur) ; une fiche qui en porte deux prend le premier de la catégorie.
       Filtre, stats sans rien de plus. *Intermédiaire.*
       Constaté en test : deux choix de couleur à moins d'une seconde d'intervalle, la seconde écriture du catalogue est
