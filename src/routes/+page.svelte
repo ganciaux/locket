@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 	import { session } from '$lib/auth/session.svelte';
 	import { lastBackupAt } from '$lib/backup/lastBackup';
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
@@ -26,7 +26,8 @@
 		countryName,
 		describeFilter,
 		filterableTags,
-		hasAdvancedFilter
+		hasAdvancedFilter,
+		pickRandom
 	} from '$lib/entries/model';
 	import { addCollection } from '$lib/entries/collections';
 	import {
@@ -79,6 +80,18 @@
 	// Fiche agrandie, avec les résultats du moment : noter une fiche ne doit pas changer la suite si le filtre l'exclut.
 	let zoom = $state<{ id: string; ids: string[] } | null>(null);
 	const openZoom = (id: string) => (zoom = { id, ids: results.map((item) => item.id) });
+	let lastPicked: string | undefined;
+	/** Fiche au hasard parmi les résultats du moment, ouverte comme un clic sur sa carte (agrandie ou ouverte). */
+	function openRandom() {
+		const id = pickRandom(
+			results.map((item) => item.id),
+			lastPicked
+		);
+		if (!id) return;
+		lastPicked = id;
+		if (prefs.cardClick === 'open') goto(`/entry/${id}`);
+		else openZoom(id);
+	}
 	let error = $state('');
 	let searchInput = $state<HTMLInputElement>();
 	// Date partagée entre appareils (lue sur Firestore) : le bandeau attend de la connaître pour ne pas clignoter.
@@ -433,6 +446,16 @@
 					<option value={sort.value}>{sort.label}</option>
 				{/each}
 			</select>
+			{#if results.length > 1}
+				<button
+					class="btn btn-ghost btn-xs btn-square"
+					onclick={openRandom}
+					aria-label="Une fiche au hasard"
+					title="Une fiche au hasard parmi celles affichées"
+				>
+					<Icon name="dice" class="size-4" />
+				</button>
+			{/if}
 			{#if listView.sort === 'random'}
 				<button class="btn btn-ghost btn-xs btn-square" onclick={reshuffle} aria-label="Remélanger" title="Remélanger">
 					<Icon name="shuffle" class="size-4" />

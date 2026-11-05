@@ -128,6 +128,12 @@ export function neighbours(ids: string[], id: string): { position: number; count
 	return index < 0 ? null : { position: index + 1, count: ids.length, previous: ids[index - 1], next: ids[index + 1] };
 }
 
+/** Fiche au hasard parmi `ids`, autre que `avoid` s'il y a le choix (relancer change de fiche). */
+export function pickRandom(ids: string[], avoid?: string, random = Math.random): string | undefined {
+	const choices = ids.length > 1 ? ids.filter((id) => id !== avoid) : ids;
+	return choices[Math.floor(random() * choices.length)];
+}
+
 // ---------------------------------------------------------------------------
 // Note
 

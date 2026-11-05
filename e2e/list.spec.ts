@@ -328,3 +328,31 @@ test('collection cachée : absente du menu et des choix, réaffichée sur demand
 	await expect(choices).toHaveCount(2);
 	await expect(page.getByRole('button', { name: 'Masquer les cachées (1)' })).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('une fiche au hasard parmi celles affichées, agrandie comme un clic sur sa carte', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntry(page, 'Akira');
+	await createEntry(page, 'Monster');
+	await createEntry(page, 'Pluto');
+	await goHome(page);
+
+	// Filtré sur un seul résultat : pas de tirage.
+	await page.getByLabel('Rechercher').fill('akira');
+	await expect(page.getByRole('button', { name: 'Une fiche au hasard' })).toHaveCount(0);
+
+	// Jamais deux fois la même de suite.
+	await page.getByLabel('Rechercher').fill('');
+	const dice = page.getByRole('button', { name: 'Une fiche au hasard' });
+	const picked: string[] = [];
+	for (let i = 0; i < 3; i++) {
+		await dice.click();
+		const heading = page.getByRole('dialog').getByRole('heading').first();
+		await expect(heading).toHaveText(/^(Akira|Monster|Pluto)$/);
+		picked.push((await heading.textContent())!.trim());
+		await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).click();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+	}
+	expect(picked[1]).not.toBe(picked[0]);
+	expect(picked[2]).not.toBe(picked[1]);
+});

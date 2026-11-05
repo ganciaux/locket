@@ -41,6 +41,7 @@ import {
 	matchesFilter,
 	matchesSearch,
 	parseRemarks,
+	pickRandom,
 	MAX_REMARKS_LENGTH,
 	moveItem,
 	neighbours,
@@ -822,5 +823,18 @@ describe('parseRemarks', () => {
 
 	it('borne la longueur', () => {
 		expect(parseRemarks('a'.repeat(MAX_REMARKS_LENGTH + 50))).toHaveLength(MAX_REMARKS_LENGTH);
+	});
+});
+
+describe('pickRandom', () => {
+	it('tire parmi les fiches, jamais deux fois la même de suite quand il y a le choix', () => {
+		expect(pickRandom(['a', 'b', 'c'], undefined, () => 0.5)).toBe('b');
+		expect(pickRandom(['a', 'b', 'c'], 'a', () => 0)).toBe('b');
+		expect(pickRandom(['a', 'b', 'c'], 'c', () => 0.99)).toBe('b');
+	});
+
+	it('une seule fiche : toujours elle ; aucune : rien', () => {
+		expect(pickRandom(['a'], 'a')).toBe('a');
+		expect(pickRandom([])).toBeUndefined();
 	});
 });

@@ -105,7 +105,8 @@ Dans l'ordre de réalisation prévu.
 - [x] **Remarques libres** sur une fiche — fait le 2026-11-05 : champ `remarks` dans `data` chiffré (2 000 caractères,
       lignes vides en trop retirées), sur la fiche et dans l'outil de lecture, trouvé par la recherche de « Mes fiches »
       (pas par l'index, qui cherche un nom). Règles et format de sauvegarde inchangés. *Simple.*
-- [ ] **Une fiche au hasard** : bouton avec une icône de dé, ouvre une fiche tirée parmi la liste filtrée. *Simple.*
+- [x] **Une fiche au hasard** — fait le 2026-11-05 : bouton dé dans la barre de « Mes fiches » (dès 2 résultats), tire
+      parmi la liste filtrée, jamais deux fois la même de suite, ouvre comme un clic sur une carte (agrandie ou fiche). *Simple.*
 - [ ] **Fiche vérifiée** : statut posé quand une fiche est finie, pour ne plus y revenir et la protéger des modifications.
       Un seul statut (vérifiée = protégée), validé le 2026-11-05 avec les comportements ci-dessous : nom **« Validée »**,
       icône rosette avec une coche.
