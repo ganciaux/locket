@@ -36,6 +36,9 @@ export default defineConfig({
 			}
 		})
 	],
+	// Firebase pré-compilé dès le démarrage : découvert au premier chargement, Vite le compilait puis rechargeait la
+	// page en pleine action (premier test e2e qui expirait, premier `npm run dev` rechargé).
+	optimizeDeps: { include: ['firebase/app', 'firebase/auth', 'firebase/firestore'] },
 	test: {
 		environment: 'node',
 		projects: [
