@@ -231,3 +231,22 @@
 	--frame-color: var(--color-base-content);
 	--frame-dark: var(--color-base-content);
 }
+
+/*
+ * Reflet du tirage au hasard (reveal.ts) : une bande claire qui balaie la carte, de la couleur de sa bordure si elle
+ * en a une (`--sheen`, lue sur l'image). Position et taille posées par le script, animation par l'API Web Animations.
+ */
+.reveal-sheen {
+	position: absolute;
+	z-index: 1;
+	pointer-events: none;
+	border-radius: var(--radius-box);
+	background: linear-gradient(
+			105deg,
+			transparent 35%,
+			color-mix(in oklab, var(--sheen, #fff) 85%, transparent) 50%,
+			transparent 65%
+		)
+		0 0 / 250% 100% no-repeat;
+	mix-blend-mode: screen;
+}

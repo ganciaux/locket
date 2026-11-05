@@ -397,4 +397,26 @@ test('une fiche au hasard parmi celles affichées, agrandie comme un clic sur sa
 	}
 	expect(picked[1]).not.toBe(picked[0]);
 	expect(picked[2]).not.toBe(picked[1]);
+
+	// Après un tirage, le dé de la carte agrandie en refait un ; un clic ordinaire sur une carte ne le propose pas.
+	await dice.click();
+	const zoomed = page.getByRole('dialog');
+	const first = (await zoomed.getByRole('heading').first().textContent())!.trim();
+	await zoomed.getByRole('button', { name: 'Un autre tirage' }).click();
+	await expect(zoomed.getByRole('heading').first()).not.toHaveText(first);
+	await zoomed.getByRole('button', { name: 'Fermer' }).click();
+	await page.locator('li.card').first().getByRole('heading').click();
+	await expect(zoomed.getByRole('button', { name: 'Un autre tirage' })).toHaveCount(0);
+	await zoomed.getByRole('button', { name: 'Fermer' }).click();
+
+	// Clic réglé sur « Ouvrir la fiche » : le tirage ouvre la fiche, dont le bandeau propose un autre tirage.
+	await goSettings(page);
+	await page.getByRole('radio', { name: 'Ouvrir la fiche' }).click();
+	await goHome(page);
+	await dice.click();
+	await expect(page).toHaveURL(/\/entry\/[^/]+\?tirage$/);
+	const opened = (await page.getByRole('heading', { level: 1 }).textContent())!.trim();
+	await page.getByRole('button', { name: 'Un autre tirage' }).click();
+	await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(opened);
+	await expect(page).toHaveURL(/\?tirage$/);
 });

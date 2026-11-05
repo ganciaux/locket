@@ -80,7 +80,8 @@
 		{ key: 'cardLinks', label: 'Liens', icon: 'link' }
 	] as const;
 	// Fiche agrandie, avec les résultats du moment : noter une fiche ne doit pas changer la suite si le filtre l'exclut.
-	let zoom = $state<{ id: string; ids: string[] } | null>(null);
+	// `draw` : tirage au hasard (dé), qui joue la révélation de la carte et propose d'en refaire un.
+	let zoom = $state<{ id: string; ids: string[]; draw?: number } | null>(null);
 	const openZoom = (id: string) => (zoom = { id, ids: results.map((item) => item.id) });
 	let lastPicked: string | undefined;
 	/** Fiche au hasard parmi les résultats du moment, ouverte comme un clic sur sa carte (agrandie ou ouverte). */
@@ -91,8 +92,8 @@
 		);
 		if (!id) return;
 		lastPicked = id;
-		if (prefs.cardClick === 'open') goto(`/entry/${id}`);
-		else openZoom(id);
+		if (prefs.cardClick === 'open') goto(`/entry/${id}?tirage`);
+		else zoom = { id, ids: results.map((item) => item.id), draw: (zoom?.draw ?? 0) + 1 };
 	}
 	let error = $state('');
 	let searchInput = $state<HTMLInputElement>();
@@ -559,8 +560,10 @@
 	<EntryZoom
 		id={zoom.id}
 		ids={zoom.ids}
+		draw={zoom.draw}
 		onchange={(id) => zoom && (zoom.id = id)}
 		onclose={() => (zoom = null)}
+		onreroll={zoom.draw ? openRandom : undefined}
 	/>
 {/if}
 

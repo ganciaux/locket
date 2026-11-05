@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Fiche agrandie au-dessus de la liste, qui reste visible derrière. Un clic hors des boutons et des liens la referme.
 	// Animée par l'API Web Animations : la CSP interdit les styles en ligne, donc les transitions Svelte.
-	import { onMount } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -12,6 +12,7 @@
 	import { type Criterion, type Similarity, findSimilar } from '$lib/entries/similar';
 	import { type ListItem, entries, rateEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
+	import { playReveal } from '$lib/reveal';
 	import { swipe } from '$lib/swipe';
 
 	const DURATION_MS = 220;
@@ -26,11 +27,30 @@
 	let {
 		id,
 		ids,
+		draw = 0,
 		onchange,
-		onclose
-	}: { id: string; ids: string[]; onchange: (id: string) => void; onclose: () => void } = $props();
+		onclose,
+		onreroll
+	}: {
+		id: string;
+		ids: string[];
+		/** Numéro du tirage au hasard (dé) : chaque nouveau numéro joue la révélation de la carte. */
+		draw?: number;
+		onchange: (id: string) => void;
+		onclose: () => void;
+		/** Après un tirage : bouton dé pour en refaire un. */
+		onreroll?: () => void;
+	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
+	let image = $state<HTMLElement>();
+	let title = $state<HTMLElement>();
+
+	// Après le rendu de la fiche tirée : son image est en place.
+	$effect(() => {
+		if (!draw) return;
+		untrack(() => tick().then(() => image && playReveal(image, title)));
+	});
 	let box = $state<HTMLElement>();
 	let closing = false;
 	let error = $state('');
@@ -159,7 +179,7 @@
 			{/if}
 			<header class="flex items-center gap-2 px-4 py-2">
 				{#if entry.country}<span title={countryName(entry.country)}>{countryFlag(entry.country)}</span>{/if}
-				<h2 class="min-w-0 flex-1 text-lg font-bold break-words">{entry.name}</h2>
+				<h2 bind:this={title} class="min-w-0 flex-1 text-lg font-bold break-words">{entry.name}</h2>
 				{#if entry.birthYear}<span class="text-base-content/60 shrink-0 text-sm" title="Année de naissance : {entry.birthYear}">{formatAge(entry.birthYear)}</span>{/if}
 				{#if entry.validatedAt}<ValidatedMark />{/if}
 				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
@@ -174,6 +194,7 @@
 			<figure class="bg-base-200 relative flex min-h-40 shrink-0 items-center justify-center {border && entry.thumbUrl ? 'p-4' : ''}">
 				{#if entry.thumbUrl}
 					<img
+						bind:this={image}
 						src={entry.thumbUrl}
 						alt=""
 						data-border={border}
@@ -222,7 +243,7 @@
 				{#if links.length}
 					<LinkChips {links} />
 				{/if}
-				<div class="grid grid-cols-3 gap-2">
+				<div class="grid gap-2 {onreroll ? 'grid-cols-[1fr_1fr_1fr_auto]' : 'grid-cols-3'}">
 					<a class="btn btn-primary btn-sm" href="/entry/{entry.id}" aria-label="Ouvrir la fiche">Ouvrir</a>
 					<a class="btn btn-outline btn-primary btn-sm" href="/entry/{entry.id}/edit" aria-label="Modifier la fiche">Modifier</a>
 					{#if shownSimilar}
@@ -237,6 +258,11 @@
 					{:else}
 						<button class="btn btn-outline btn-primary btn-sm" aria-pressed={!!similar} disabled={searching} onclick={toggleSimilar}>
 							{#if searching}<span class="loading loading-spinner loading-xs"></span>{:else}Similaires{/if}
+						</button>
+					{/if}
+					{#if onreroll}
+						<button class="btn btn-ghost btn-sm btn-square" aria-label="Un autre tirage" title="Une autre fiche au hasard" onclick={onreroll}>
+							<Icon name="dice" class="size-4" />
 						</button>
 					{/if}
 				</div>
