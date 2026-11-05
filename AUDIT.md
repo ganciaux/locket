@@ -98,10 +98,32 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
 - [x] **Pays d'une fiche** : décidé le 2026-10-30, **un seul pays**, champ dédié (code ISO, drapeau emoji calculé, nom
       français par `Intl.DisplayNames`, pays favoris en tête), filtre par pays. « Anglais » = Royaume-Uni (`GB`), pas d'Angleterre/Écosse/Galles à part (2026-10-30).
 
+## 5. Nouvelles fonctionnalités (retenues le 2026-11-05)
+
+Dans l'ordre de réalisation prévu.
+
+- [ ] **Remarques libres** sur une fiche (« vu en 2024, tome 12 manquant… ») : texte dans `data` chiffré, rien à changer
+      dans les règles ni le format de sauvegarde ; recherche de la liste dans ce texte en option. *Simple.*
+- [ ] **Une fiche au hasard** : bouton avec une icône de dé, ouvre une fiche tirée parmi la liste filtrée. *Simple.*
+- [ ] **Fiche vérifiée** : statut posé quand une fiche est finie, pour ne plus y revenir et la protéger des modifications.
+      Un seul statut proposé (vérifiée = protégée) plutôt que « vérifiée » et « verrouillée » séparés, à confirmer.
+      Modifier une fiche vérifiée demande une confirmation ; les actions groupées la laissent de côté ou préviennent ;
+      repère sur la carte et filtre « à vérifier / vérifiées ». Garde-fou contre l'erreur, pas une protection de
+      sécurité (comme « Cachée »). *Simple à intermédiaire.*
+- [ ] **Annuler la dernière action groupée** (tags, corbeille, collection…) : bandeau « Annuler » une dizaine de
+      secondes, état précédent des fiches touchées en mémoire, effacé au verrouillage (`onLock`), réécrit par
+      `commitEntries` (conflit d'un autre appareil : refus et message, comme `stale.ts`). Après « Fiche vérifiée », pour
+      couvrir son comportement dans les actions groupées. *Intermédiaire.*
+- [ ] **Recadrer et pivoter l'image** avant l'enregistrement : cadre à déplacer (tactile), rotation par quart de tour,
+      sur le canvas déjà utilisé pour le redimensionnement, sans bibliothèque. Choix du cadrage de la miniature à
+      étudier en même temps (images « coupées » sur les cartes). *Intermédiaire.*
+
 ## À décider ou plus tard
 
 - [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
       le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
+- [ ] **Plusieurs images par fiche** (idée du 2026-11-05, gardée pour plus tard) : un document Firestore par image,
+      règles, sauvegarde (format v5 et nouveau témoin), corbeille et cache à reprendre. *Avancé.*
 - [ ] **Lecture hors ligne** avec le cache (chiffrés seulement) : seulement si un vrai besoin apparaît (métro, avion).
       À trancher avant : purge iOS du stockage, cache effacé à la déconnexion, Face ID qui lit le trousseau en ligne
       (il faudrait un déverrouillage hors ligne par mot de passe). *Intermédiaire.*
