@@ -233,6 +233,7 @@ plus tard : audit indépendant, empreinte SHA-256 de l'outil s'il circule, mot d
 ## Nouvelles fonctionnalités (retenues le 2026-11-05)
 
 Détail dans [AUDIT.md](AUDIT.md) § 5. Ordre : remarques libres → fiche au hasard (icône dé) → fiche vérifiée →
-annuler la dernière action groupée → recadrer et pivoter l'image. Plus tard : plusieurs images par fiche.
+annuler la dernière action groupée → recadrer et pivoter l'image (avec le cadrage de la carte) → bordure des cartes
+par une catégorie de tags. Plus tard : plusieurs images par fiche.
 Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors ligne, audit indépendant, mot de passe
 tous les 30 jours avec Face ID, entretien des dépendances.
