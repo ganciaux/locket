@@ -168,7 +168,7 @@
 		{@const border = entries.borderOf(entry)}
 		<div
 			bind:this={box}
-			class="modal-box flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-y-auto overscroll-contain p-0 outline-none"
+			class="modal-box flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col overflow-x-hidden overflow-y-auto overscroll-contain p-0 outline-none"
 			tabindex="-1"
 		>
 			{#if shownSimilar && source}

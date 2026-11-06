@@ -55,6 +55,17 @@
 	white-space: nowrap;
 }
 
+/*
+ * Pas de défilement horizontal de la page : les paillettes et les mouvements du tirage (reveal.ts) débordent un
+ * instant de la carte et faisaient apparaître puis disparaître une barre. `clip` ne crée pas de conteneur de
+ * défilement : l'en-tête collant reste collé.
+ */
+@layer base {
+	html {
+		overflow-x: clip;
+	}
+}
+
 /* Conteneur de SvelteKit dans app.html : en CSS plutôt qu'en attribut style, bloqué par la CSP. */
 @layer base {
 	.app-root {

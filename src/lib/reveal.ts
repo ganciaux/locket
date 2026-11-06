@@ -185,16 +185,26 @@ const titleFrames = (reveal: Reveal): Keyframe[] =>
 			]
 		: unveil(BLURRED_TITLE, SHARP_TITLE);
 
-/** Élément posé sur l'image le temps de l'animation (`reveal-sheen`, `reveal-spark` : app.css), retiré à la fin. */
+/**
+ * Élément posé sur l'image le temps de l'animation (`reveal-sheen`, `reveal-spark`… : app.css), retiré à la fin, ou
+ * au tirage suivant s'il est relancé avant (`clearOverlays`).
+ */
 function overlay(image: HTMLElement, className: string, color: string): HTMLSpanElement | null {
 	const parent = image.offsetParent;
 	if (!(parent instanceof HTMLElement)) return null;
 	const element = document.createElement('span');
-	element.className = className;
+	element.className = `${OVERLAY} ${className}`;
 	element.setAttribute('aria-hidden', 'true');
 	if (color) element.style.setProperty('--sheen', color);
 	parent.append(element);
 	return element;
+}
+
+const OVERLAY = 'reveal-overlay';
+
+/** Retire les voiles, reflets et paillettes d'un tirage précédent encore en cours. */
+function clearOverlays(image: HTMLElement): void {
+	image.offsetParent?.querySelectorAll(`:scope > .${OVERLAY}`).forEach((element) => element.remove());
 }
 
 /** Élément posé exactement sur l'image (ou sur une bande : `from` et `width` en fraction de sa largeur). */
@@ -325,6 +335,7 @@ export function playReveal(
 	{ mode = 'pack', random = false, duration = REVEAL_DEFAULT_MS }: { mode?: RevealMode; random?: boolean; duration?: number } = {}
 ): void {
 	for (const element of [image, title]) element?.getAnimations().forEach((animation) => animation.cancel());
+	clearOverlays(image);
 	if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
 		image.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, easing: 'ease-out' });
 		return;

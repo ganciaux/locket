@@ -439,6 +439,10 @@ test('tirage au hasard : mode et durée réglés dans Paramètres, aperçu anim�
 	await expect(page.getByLabel('Durée du tirage')).toHaveValue('2000');
 	await page.getByRole('button', { name: 'Aperçu' }).click();
 	expect(await animated()).toBe(true);
+	// Relancé en cours de route : le voile du tirage précédent est retiré, il n'en reste qu'un.
+	await page.getByRole('radio', { name: 'Grattage' }).check();
+	await page.getByRole('button', { name: 'Aperçu' }).click();
+	await expect(page.locator('.reveal-veil')).toHaveCount(1);
 	// Animation au hasard : l'icône Remélanger, à côté du titre.
 	const shuffle = page.getByRole('button', { name: 'Animation au hasard' });
 	await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
