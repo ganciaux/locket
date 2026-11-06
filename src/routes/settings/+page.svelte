@@ -16,6 +16,12 @@
 	import { deleteAllData, regenerateThumbs } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
 	import { type AutoLock, type CardClick, prefs, type Theme } from '$lib/prefs.svelte';
+	import { REVEAL_MAX_MS, REVEAL_MIN_MS, REVEAL_MODES, REVEAL_STEP_MS, playReveal } from '$lib/reveal';
+
+	// Aperçu du tirage sur une carte d'exemple, au choix d'un mode, d'une durée ou sur demande.
+	let revealSample = $state<HTMLElement>();
+	const previewReveal = () =>
+		revealSample && playReveal(revealSample, null, { mode: prefs.revealMode, duration: prefs.revealMs });
 
 	const THEMES: { value: Theme; label: string }[] = [
 		{ value: 'auto', label: 'Auto' },
@@ -174,6 +180,59 @@
 							bind:group={prefs.cardClick}
 						/>
 					{/each}
+				</div>
+			</div>
+
+			<!-- Révélation de la carte tirée au dé : trois façons, une durée, et un aperçu sur une carte d'exemple. -->
+			<div class="flex flex-col gap-2">
+				<span class="flex flex-col">
+					<span class="text-sm font-medium">Tirage au hasard</span>
+					<span class="text-base-content/60 text-xs">
+						{REVEAL_MODES.find((mode) => mode.value === prefs.revealMode)?.hint}
+					</span>
+				</span>
+				<div class="join" role="radiogroup" aria-label="Tirage au hasard">
+					{#each REVEAL_MODES as mode (mode.value)}
+						<input
+							class="join-item btn btn-sm"
+							type="radio"
+							name="reveal-mode"
+							value={mode.value}
+							aria-label={mode.label}
+							bind:group={prefs.revealMode}
+							onchange={previewReveal}
+						/>
+					{/each}
+				</div>
+				<div class="flex items-center gap-4">
+					<div class="relative shrink-0">
+						<div
+							bind:this={revealSample}
+							class="bg-primary/10 text-primary rounded-box flex size-20 items-center justify-center text-4xl font-bold"
+							aria-hidden="true"
+						>
+							S
+						</div>
+					</div>
+					<label class="flex min-w-0 flex-1 flex-col gap-1">
+						<span class="text-xs">Durée : {(prefs.revealMs / 1000).toLocaleString('fr-FR')} s</span>
+						<input
+							type="range"
+							class="range range-primary range-sm"
+							min={REVEAL_MIN_MS}
+							max={REVEAL_MAX_MS}
+							step={REVEAL_STEP_MS}
+							aria-label="Durée du tirage"
+							bind:value={prefs.revealMs}
+							onchange={previewReveal}
+						/>
+						<span class="text-base-content/60 flex justify-between text-xs" aria-hidden="true">
+							<span>Rapide</span><span>Lente</span>
+						</span>
+					</label>
+					<button type="button" class="btn btn-ghost btn-sm shrink-0" onclick={previewReveal}>
+						<Icon name="dice" class="size-4" /> Aperçu
+					</button>
 				</div>
 			</div>
 

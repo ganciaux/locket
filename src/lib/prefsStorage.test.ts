@@ -25,6 +25,14 @@ describe('parsePrefs', () => {
 		});
 	});
 
+	it('tirage au hasard : mode connu, durée arrondie et bornée, sinon les valeurs par défaut', () => {
+		expect(parsePrefs(null)).toMatchObject({ revealMode: 'pack', revealMs: 1100 });
+		expect(parsePrefs(JSON.stringify({ revealMode: 'flip', revealMs: 2340 }))).toMatchObject({ revealMode: 'flip', revealMs: 2300 });
+		expect(parsePrefs(JSON.stringify({ revealMode: 'boom', revealMs: 99999 }))).toMatchObject({ revealMode: 'pack', revealMs: 3000 });
+		expect(parsePrefs(JSON.stringify({ revealMs: 10 })).revealMs).toBe(500);
+		expect(parsePrefs(JSON.stringify({ revealMs: 'vite' })).revealMs).toBe(1100);
+	});
+
 	it('ramène l’ancien clic « expand » sur l’agrandissement', () => {
 		expect(parsePrefs(JSON.stringify({ cardClick: 'expand' })).cardClick).toBe('zoom');
 		expect(parsePrefs(JSON.stringify({ cardClick: 'open' })).cardClick).toBe('open');

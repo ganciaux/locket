@@ -420,3 +420,23 @@ test('une fiche au hasard parmi celles affichées, agrandie comme un clic sur sa
 	await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(opened);
 	await expect(page).toHaveURL(/\?tirage$/);
 });
+
+test('tirage au hasard : mode et durée réglés dans Paramètres, aperçu animé, retenus', async ({ page }) => {
+	await signUp(page);
+	await goSettings(page);
+	const sample = page.locator('div.size-20[aria-hidden="true"]');
+	const animated = () => sample.evaluate((node) => node.getAnimations().length > 0);
+
+	await page.getByRole('radio', { name: 'Retournement' }).check();
+	expect(await animated()).toBe(true);
+	await expect(page.getByText('La carte arrive de dos et se retourne.')).toBeVisible();
+	await page.getByLabel('Durée du tirage').fill('2000');
+	await expect(page.getByText('Durée : 2 s')).toBeVisible();
+
+	await goHome(page);
+	await goSettings(page);
+	await expect(page.getByRole('radio', { name: 'Retournement' })).toBeChecked();
+	await expect(page.getByLabel('Durée du tirage')).toHaveValue('2000');
+	await page.getByRole('button', { name: 'Aperçu' }).click();
+	expect(await animated()).toBe(true);
+});

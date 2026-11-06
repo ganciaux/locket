@@ -107,6 +107,9 @@ Dans l'ordre de réalisation prévu.
       (pas par l'index, qui cherche un nom). Règles et format de sauvegarde inchangés. *Simple.*
 - [x] **Une fiche au hasard** — fait le 2026-11-05 : bouton dé dans la barre de « Mes fiches » (dès 2 résultats), tire
       parmi la liste filtrée, jamais deux fois la même de suite, ouvre comme un clic sur une carte (agrandie ou fiche). *Simple.*
+      Révélation de la carte tirée (`reveal.ts`), trois modes au choix dans Paramètres › Affichage (2026-11-06) :
+      Paquet (floue, elle tremble puis éclate), Retournement (de dos, elle se retourne), Éclat (elle surgit d'une lumière
+      blanche), durée de 0,5 à 3 s, aperçu sur une carte d'exemple ; simple fondu si le système réduit les animations.
 - [x] **Fiche « Validée »** — fait le 2026-11-05 : `validatedAt` dans `data` chiffré, coche pâle juste avant le bouton copier
       (carte, zoom, fiche : même place partout, légère puisque presque toutes le seront), rosette « Validée le … » sur la
       fiche seulement, bouton Valider / Retirer la validation sur la fiche et dans la sélection. Protégée :

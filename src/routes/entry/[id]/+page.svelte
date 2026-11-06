@@ -17,6 +17,7 @@
 	import { deleteForever, entries, loadEntries, rateEntry, setEntriesValidated, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
+	import { prefs } from '$lib/prefs.svelte';
 	import { playReveal } from '$lib/reveal';
 	import { swipe } from '$lib/swipe';
 
@@ -53,7 +54,7 @@
 		if (!drawn) return;
 		untrack(() => tick().then(() => {
 			const image = figure?.querySelector('img');
-			if (image) playReveal(image, title);
+			if (image) playReveal(image, title, { mode: prefs.revealMode, duration: prefs.revealMs });
 		}));
 	});
 	function reroll() {

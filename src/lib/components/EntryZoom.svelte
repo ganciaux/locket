@@ -12,6 +12,7 @@
 	import { type Criterion, type Similarity, findSimilar } from '$lib/entries/similar';
 	import { type ListItem, entries, rateEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
+	import { prefs } from '$lib/prefs.svelte';
 	import { playReveal } from '$lib/reveal';
 	import { swipe } from '$lib/swipe';
 
@@ -49,7 +50,9 @@
 	// Après le rendu de la fiche tirée : son image est en place.
 	$effect(() => {
 		if (!draw) return;
-		untrack(() => tick().then(() => image && playReveal(image, title)));
+		untrack(() =>
+			tick().then(() => image && playReveal(image, title, { mode: prefs.revealMode, duration: prefs.revealMs }))
+		);
 	});
 	let box = $state<HTMLElement>();
 	let closing = false;

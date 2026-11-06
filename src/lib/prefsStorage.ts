@@ -2,6 +2,8 @@
  * Préférences d'affichage : types, valeurs par défaut et lecture du stockage (fonction pure, testée).
  * L'état réactif et l'écriture sont dans `prefs.svelte.ts`.
  */
+import { type RevealMode, REVEAL_DEFAULT_MS, parseRevealMode, parseRevealMs } from './reveal';
+
 export type Theme = 'auto' | 'light' | 'dark';
 export type CardSize = 'small' | 'medium' | 'large';
 /** Minutes d'inactivité avant verrouillage ; 0 = jamais. */
@@ -30,6 +32,9 @@ export type Prefs = {
 	indexStatus: boolean;
 	indexTags: boolean;
 	indexLinks: boolean;
+	/** Tirage au hasard (dé) : façon de révéler la carte, et durée en millisecondes. */
+	revealMode: RevealMode;
+	revealMs: number;
 };
 
 export const STORAGE_KEY = 'locket.prefs';
@@ -50,7 +55,9 @@ export const DEFAULTS: Prefs = {
 	indexAge: false,
 	indexStatus: true,
 	indexTags: false,
-	indexLinks: false
+	indexLinks: false,
+	revealMode: 'pack',
+	revealMs: REVEAL_DEFAULT_MS
 };
 
 /** Contenu stocké → préférences complètes. Illisible : valeurs par défaut. */
@@ -64,7 +71,12 @@ export function parsePrefs(text: string | null): Prefs {
 		if (stored.detailedCards === true && !('cardTags' in stored) && !('cardLinks' in stored))
 			Object.assign(loaded, { cardTags: true, cardLinks: true });
 		// Ancienne valeur `expand` : le dépliage est devenu l'agrandissement.
-		return { ...loaded, cardClick: loaded.cardClick === 'open' ? 'open' : 'zoom' };
+		return {
+			...loaded,
+			cardClick: loaded.cardClick === 'open' ? 'open' : 'zoom',
+			revealMode: parseRevealMode(loaded.revealMode),
+			revealMs: parseRevealMs(loaded.revealMs)
+		};
 	} catch {
 		return { ...DEFAULTS };
 	}
