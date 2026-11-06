@@ -164,7 +164,7 @@ Dans l'ordre de réalisation prévu.
 - [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
       le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
 - [x] **Plusieurs images par fiche** — fait le 2026-11-06 : 6 au plus (couverture + 5), les autres visibles seulement
-      sur la fiche (bande sous l'image, un clic l'affiche à la place). Formulaire : ajout (plusieurs fichiers), ordre
+      sur la fiche (bande sous l'image, un clic l'affiche à la place). Formulaire : ajout (plusieurs fichiers, bouton « Coller » qui lit le presse-papiers, ou Ctrl+V après un clic dans la partie « Autres images » ; ailleurs Ctrl+V remplace la couverture), ordre
       (‹ ›), retrait, « En couverture » (l'ancienne couverture prend sa place ; cadrage remis au centre) ; couverture
       retirée = la suivante la remplace. Recadrage et cadrage pour la couverture seulement. Stockage : `images/{id}_{n}`
       (n de 1 à 5, sans trou), mêmes règles Firestore que la couverture ; types dans `data.gallery` ; une image déplacée

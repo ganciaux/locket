@@ -496,3 +496,36 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
 	await expect(strip.getByRole('button')).toHaveCount(2);
 });
+
+test('autres images : collées par le bouton « Coller » ou par Ctrl+V dans leur partie, la couverture reste', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntryWithImage(page, 'Collage', 400);
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	const extras = page.getByRole('list', { name: 'Autres images' }).getByRole('img');
+	const cover = page.getByAltText('Aperçu', { exact: true });
+	await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
+
+	// Bouton « Coller » : l'image du presse-papiers, à la suite.
+	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+	await page.evaluate(async () => {
+		const canvas = Object.assign(document.createElement('canvas'), { width: 300, height: 200 });
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+		await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob! })]);
+	});
+	await page.getByRole('button', { name: 'Coller', exact: true }).click();
+	await expect(extras).toHaveCount(1);
+
+	// Ctrl+V après un clic dans la partie : ajoutée aussi, la couverture ne change pas.
+	await page.getByRole('heading', { name: /Autres images/ }).click();
+	await page.evaluate(async () => {
+		const canvas = Object.assign(document.createElement('canvas'), { width: 250, height: 250 });
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+		const data = new DataTransfer();
+		data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
+		window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+	});
+	await expect(extras).toHaveCount(2);
+	await expect.poll(() => extras.evaluateAll((imgs) => imgs.map((img) => (img as HTMLImageElement).naturalWidth))).toEqual([300, 250]);
+	expect(await cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
+});

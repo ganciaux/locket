@@ -108,6 +108,10 @@
 		const image = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
 		if (!image) return;
 		event.preventDefault();
+		if (preview && pastingInGallery()) {
+			if (!galleryLoading) addImages([image]);
+			return;
+		}
 		fileInput.value = '';
 		file = image;
 		imageRemoved = false;
@@ -189,12 +193,40 @@
 
 	function addToGallery(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		const files = [...(input.files ?? [])].filter((f) => f.type.startsWith('image/'));
+		addImages([...(input.files ?? [])]);
 		input.value = '';
+	}
+
+	function addImages(blobs: Blob[]) {
+		const images = blobs.filter((blob) => blob.type.startsWith('image/'));
 		const room = MAX_GALLERY - gallery.length;
-		if (files.length > room) loadError = `${MAX_IMAGES} images au plus par fiche : ${files.length - room} non ajoutée(s).`;
-		gallery = [...gallery, ...files.slice(0, room).map((f) => pic(f, true))];
+		loadError = images.length > room ? `${MAX_IMAGES} images au plus par fiche : ${images.length - room} non ajoutée(s).` : '';
+		gallery = [...gallery, ...images.slice(0, room).map((blob) => pic(blob, true))];
 		galleryTouched = true;
+	}
+
+	// Ctrl+V dans la partie « Autres images » (focus sur un de ses boutons ou champs) : ajoutée à la suite.
+	let gallerySection = $state<HTMLElement>();
+	const pastingInGallery = () => !!gallerySection?.contains(document.activeElement);
+
+	/** Bouton « Coller » : lit l'image du presse-papiers (bulle « Coller » de Safari, autorisation de Chrome). */
+	async function pasteToGallery() {
+		loadError = '';
+		try {
+			const items = await navigator.clipboard.read();
+			const blobs: Blob[] = [];
+			for (const item of items) {
+				const type = item.types.find((t) => t.startsWith('image/'));
+				if (type) blobs.push(await item.getType(type));
+			}
+			if (!blobs.length) throw new Error("Aucune image dans le presse-papiers : copiez d'abord une image.");
+			addImages(blobs);
+		} catch (e) {
+			loadError =
+				e instanceof DOMException
+					? 'Presse-papiers inaccessible : autorisez-le dans le navigateur, ou utilisez Ctrl+V après un clic ici.'
+					: errorMessage(e);
+		}
 	}
 
 	function moveInGallery(from: number, to: number) {
@@ -462,7 +494,8 @@
 			</p>
 			{#if preview && !editing}
 				<!-- Autres images : seulement sur la fiche, sans recadrage ; l'une d'elles peut passer en couverture. -->
-				<div class="border-base-200 flex flex-col gap-2 border-t pt-3">
+				<!-- tabindex : un clic dans la partie y met le focus, pour que Ctrl+V colle ici. -->
+				<div class="border-base-200 flex flex-col gap-2 border-t pt-3 outline-none" tabindex="-1" bind:this={gallerySection}>
 					<h3 class="text-sm font-medium">
 						Autres images <span class="text-base-content/60 font-normal">({gallery.length} / {MAX_GALLERY}, affichées sur la fiche)</span>
 					</h3>
@@ -493,14 +526,22 @@
 							</ul>
 						{/if}
 						{#if gallery.length < MAX_GALLERY}
-							<input
-								type="file"
-								accept="image/*"
-								multiple
-								class="file-input file-input-sm w-full"
-								aria-label="Ajouter d'autres images"
-								onchange={addToGallery}
-							/>
+							<div class="flex gap-2">
+								<input
+									type="file"
+									accept="image/*"
+									multiple
+									class="file-input file-input-sm min-w-0 flex-1"
+									aria-label="Ajouter d'autres images"
+									onchange={addToGallery}
+								/>
+								<button type="button" class="btn btn-outline btn-primary btn-sm shrink-0" onclick={pasteToGallery}>
+									<Icon name="copy" class="size-4" /> Coller
+								</button>
+							</div>
+							<p class="text-base-content/60 text-xs">
+								Ajoutées à la suite ; Ctrl+V les colle ici après un clic dans cette partie (sinon, il remplace la couverture).
+							</p>
 						{/if}
 					{/if}
 				</div>
