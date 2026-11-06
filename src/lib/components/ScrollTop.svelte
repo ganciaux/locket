@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Retour en haut d'une page longue (liste, index, classement…) : visible après un écran et demi de défilement,
+	// Retour en haut d'une page longue (liste, index, classement…) : visible dès un demi-écran de défilement,
 	// en bas à gauche (le « + » est à droite), au-dessus d'un bandeau fixé. Caché par `invisible` (ni clic, ni focus,
 	// ni lecteur d'écran), qui n'agit qu'à la fin du fondu. L'anneau montre où l'on en est de la page.
 	import Icon from '$lib/components/Icon.svelte';
@@ -14,7 +14,7 @@
 	function measure() {
 		pending = false;
 		const max = document.documentElement.scrollHeight - innerHeight;
-		shown = scrollY > innerHeight * 1.5;
+		shown = scrollY > innerHeight * 0.5;
 		progress = max > 0 ? Math.min(scrollY / max, 1) : 0;
 	}
 

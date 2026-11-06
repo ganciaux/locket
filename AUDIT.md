@@ -73,8 +73,8 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
       dans le `data` chiffré ; saisie sur la fiche, affichage sur la carte, filtre « au moins N étoiles », tri par note.
       *Intermédiaire.*
 - [x] **Pays** : champ dédié, un seul par fiche (voir « À décider »). *Intermédiaire.*
-- [x] **Revenir en haut** (2026-11-06) : bouton rond en bas à gauche (le « + » est à droite), sur toute page après un
-      écran et demi de défilement (liste, index, classement…), au-dessus d'un bandeau fixé (sélection, actions de la
+- [x] **Revenir en haut** (2026-11-06) : bouton rond en bas à gauche (le « + » est à droite), sur toute page dès un
+      demi-écran de défilement (liste, index, classement…), au-dessus d'un bandeau fixé (sélection, actions de la
       fiche : hauteur dans `dock.svelte.ts`). Anneau de progression dans la page. Remontée animée (`scrollTop.ts`) :
       accélère puis se pose, de 350 à 900 ms selon la distance, interrompue par un geste ; instantanée si le système
       réduit les animations. *Simple.*
