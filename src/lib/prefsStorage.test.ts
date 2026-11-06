@@ -31,6 +31,9 @@ describe('parsePrefs', () => {
 		expect(parsePrefs(JSON.stringify({ revealMode: 'boom', revealMs: 99999 }))).toMatchObject({ revealMode: 'pack', revealMs: 3000 });
 		expect(parsePrefs(JSON.stringify({ revealMs: 10 })).revealMs).toBe(500);
 		expect(parsePrefs(JSON.stringify({ revealMs: 'vite' })).revealMs).toBe(1100);
+		// Ancien mode « Aléatoire » : devenu l'option à part, le mode revient à Paquet.
+		expect(parsePrefs(JSON.stringify({ revealMode: 'random' }))).toMatchObject({ revealMode: 'pack', revealRandom: true });
+		expect(parsePrefs(null).revealRandom).toBe(false);
 	});
 
 	it('ramène l’ancien clic « expand » sur l’agrandissement', () => {

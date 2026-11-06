@@ -16,12 +16,19 @@
 	import { deleteAllData, regenerateThumbs } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
 	import { type AutoLock, type CardClick, prefs, type Theme } from '$lib/prefs.svelte';
+	import { tick } from 'svelte';
 	import { REVEAL_MAX_MS, REVEAL_MIN_MS, REVEAL_MODES, REVEAL_STEP_MS, playReveal } from '$lib/reveal';
 
 	// Aperçu du tirage sur une carte d'exemple, au choix d'un mode, d'une durée ou sur demande.
 	let revealSample = $state<HTMLElement>();
+	let sampleBorder = $state('');
+	// Après le rendu : la bordure choisie pour l'exemple doit être posée avant de lire sa rareté.
 	const previewReveal = () =>
-		revealSample && playReveal(revealSample, null, { mode: prefs.revealMode, duration: prefs.revealMs });
+		tick().then(
+			() =>
+				revealSample &&
+				playReveal(revealSample, null, { mode: prefs.revealMode, random: prefs.revealRandom, duration: prefs.revealMs })
+		);
 
 	const THEMES: { value: Theme; label: string }[] = [
 		{ value: 'auto', label: 'Auto' },
@@ -186,12 +193,27 @@
 			<!-- Révélation de la carte tirée au dé : trois façons, une durée, et un aperçu sur une carte d'exemple. -->
 			<div class="flex flex-col gap-2">
 				<span class="flex flex-col">
-					<span class="text-sm font-medium">Tirage au hasard</span>
+					<span class="flex items-center gap-1">
+						<span class="text-sm font-medium">Tirage au hasard</span>
+						<!-- Remélanger : une animation tirée au sort à chaque tirage, au lieu de celle choisie dessous. -->
+						<button
+							type="button"
+							class="btn btn-ghost btn-xs btn-square {prefs.revealRandom ? 'text-primary' : 'text-base-content/40'}"
+							aria-pressed={prefs.revealRandom}
+							aria-label="Animation au hasard"
+							title={prefs.revealRandom ? 'Animation au hasard : activée' : 'Animation au hasard : désactivée'}
+							onclick={() => ((prefs.revealRandom = !prefs.revealRandom), previewReveal())}
+						>
+							<Icon name="shuffle" class="size-4" />
+						</button>
+					</span>
 					<span class="text-base-content/60 text-xs">
-						{REVEAL_MODES.find((mode) => mode.value === prefs.revealMode)?.hint}
+						{prefs.revealRandom
+							? 'Une des trois animations, différente à chaque tirage.'
+							: REVEAL_MODES.find((mode) => mode.value === prefs.revealMode)?.hint}
 					</span>
 				</span>
-				<div class="join" role="radiogroup" aria-label="Tirage au hasard">
+				<div class="join {prefs.revealRandom ? 'opacity-50' : ''}" role="radiogroup" aria-label="Tirage au hasard">
 					{#each REVEAL_MODES as mode (mode.value)}
 						<input
 							class="join-item btn btn-sm"
@@ -205,14 +227,22 @@
 					{/each}
 				</div>
 				<div class="flex items-center gap-4">
-					<div class="relative shrink-0">
+					<div class="relative flex shrink-0 flex-col items-center gap-1">
 						<div
 							bind:this={revealSample}
+							data-border={sampleBorder || undefined}
 							class="bg-primary/10 text-primary rounded-box flex size-20 items-center justify-center text-4xl font-bold"
 							aria-hidden="true"
 						>
 							S
 						</div>
+						<!-- Rareté de l'exemple : la révélation d'une carte or dure plus et jette des paillettes. -->
+						<select class="select select-xs w-20" aria-label="Bordure de l'exemple" bind:value={sampleBorder} onchange={previewReveal}>
+							<option value="">Sans</option>
+							<option value="bronze">Bronze</option>
+							<option value="silver">Argent</option>
+							<option value="gold">Or</option>
+						</select>
 					</div>
 					<label class="flex min-w-0 flex-1 flex-col gap-1">
 						<span class="text-xs">Durée : {(prefs.revealMs / 1000).toLocaleString('fr-FR')} s</span>

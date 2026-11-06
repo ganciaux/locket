@@ -54,7 +54,7 @@
 		if (!drawn) return;
 		untrack(() => tick().then(() => {
 			const image = figure?.querySelector('img');
-			if (image) playReveal(image, title, { mode: prefs.revealMode, duration: prefs.revealMs });
+			if (image) playReveal(image, title, { mode: prefs.revealMode, random: prefs.revealRandom, duration: prefs.revealMs });
 		}));
 	});
 	function reroll() {

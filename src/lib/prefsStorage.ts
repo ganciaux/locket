@@ -34,6 +34,8 @@ export type Prefs = {
 	indexLinks: boolean;
 	/** Tirage au hasard (dé) : façon de révéler la carte, et durée en millisecondes. */
 	revealMode: RevealMode;
+	/** Animation tirée au sort à chaque tirage (icône Remélanger), au lieu de `revealMode`. */
+	revealRandom: boolean;
 	revealMs: number;
 };
 
@@ -57,6 +59,7 @@ export const DEFAULTS: Prefs = {
 	indexTags: false,
 	indexLinks: false,
 	revealMode: 'pack',
+	revealRandom: false,
 	revealMs: REVEAL_DEFAULT_MS
 };
 
@@ -75,6 +78,8 @@ export function parsePrefs(text: string | null): Prefs {
 			...loaded,
 			cardClick: loaded.cardClick === 'open' ? 'open' : 'zoom',
 			revealMode: parseRevealMode(loaded.revealMode),
+			// Ancienne valeur « Aléatoire » du mode : devenue une option à part.
+			revealRandom: loaded.revealRandom === true || stored.revealMode === 'random',
 			revealMs: parseRevealMs(loaded.revealMs)
 		};
 	} catch {

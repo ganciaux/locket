@@ -439,7 +439,16 @@ test('tirage au hasard : mode et durée réglés dans Paramètres, aperçu anim�
 	await expect(page.getByLabel('Durée du tirage')).toHaveValue('2000');
 	await page.getByRole('button', { name: 'Aperçu' }).click();
 	expect(await animated()).toBe(true);
-	await page.getByRole('radio', { name: 'Aléatoire' }).check();
-	expect(await animated()).toBe(true);
+	// Animation au hasard : l'icône Remélanger, à côté du titre.
+	const shuffle = page.getByRole('button', { name: 'Animation au hasard' });
+	await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
+	await shuffle.click();
+	await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
 	await expect(page.getByText('Une des trois animations, différente à chaque tirage.')).toBeVisible();
+	// Exemple en or : paillettes en plus du reflet.
+	await page.getByLabel("Bordure de l'exemple").selectOption('gold');
+	await expect(page.locator('.reveal-spark').first()).toBeAttached();
+	await goHome(page);
+	await goSettings(page);
+	await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
 });

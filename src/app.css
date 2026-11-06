@@ -250,3 +250,15 @@
 		0 0 / 250% 100% no-repeat;
 	mix-blend-mode: screen;
 }
+
+/* Paillettes d'une carte rare (bronze, argent, or) au tirage : position et taille posées par reveal.ts. */
+.reveal-spark {
+	position: absolute;
+	z-index: 2;
+	pointer-events: none;
+	border-radius: 9999px;
+	background: radial-gradient(circle, #fff 0%, var(--sheen, #fff) 45%, var(--sheen, #fff) 70%, transparent 72%);
+	box-shadow:
+		0 0 6px 2px var(--sheen, #fff),
+		0 0 2px 0 #fff;
+}

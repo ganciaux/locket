@@ -109,8 +109,10 @@ Dans l'ordre de réalisation prévu.
       parmi la liste filtrée, jamais deux fois la même de suite, ouvre comme un clic sur une carte (agrandie ou fiche). *Simple.*
       Révélation de la carte tirée (`reveal.ts`), trois modes au choix dans Paramètres › Affichage (2026-11-06) :
       Paquet (floue, elle tremble puis éclate), Retournement (de dos, elle se retourne), Éclat (elle surgit d'une lumière
-      blanche), ou Aléatoire (l'une des trois, jamais deux fois la même de suite), durée de 0,5 à 3 s, aperçu sur une
-      carte d'exemple ; simple fondu si le système réduit les animations. Paquet et dos du Retournement partagent le même
+      blanche), ou au hasard (icône Remélanger à côté du titre, grise éteinte, rouge allumée : l'une des trois, jamais
+      deux fois la même de suite), durée de 0,5 à 3 s, aperçu sur une carte d'exemple (bordure au choix) ; simple fondu
+      si le système réduit les animations. Selon la rareté de la bordure : bronze +5 % de durée et 5 paillettes, argent
+      +15 % et 9, or +30 % et 16 ; les autres couleurs restent sobres. Paquet et dos du Retournement partagent le même
       voile (flou 22 px, presque gris, assombri) : la carte n'est pas reconnaissable avant d'être révélée.
 - [x] **Fiche « Validée »** — fait le 2026-11-05 : `validatedAt` dans `data` chiffré, coche pâle juste avant le bouton copier
       (carte, zoom, fiche : même place partout, légère puisque presque toutes le seront), rosette « Validée le … » sur la

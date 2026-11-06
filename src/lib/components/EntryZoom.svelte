@@ -51,7 +51,7 @@
 	$effect(() => {
 		if (!draw) return;
 		untrack(() =>
-			tick().then(() => image && playReveal(image, title, { mode: prefs.revealMode, duration: prefs.revealMs }))
+			tick().then(() => image && playReveal(image, title, { mode: prefs.revealMode, random: prefs.revealRandom, duration: prefs.revealMs }))
 		);
 	});
 	let box = $state<HTMLElement>();
