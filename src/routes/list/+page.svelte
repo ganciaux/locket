@@ -84,6 +84,7 @@
 	// Pays présents dans la collection, avec leur nombre de fiches ; note proposée dès qu'une fiche en a une.
 	const countries = $derived(countryChoices(entries.activeItems ?? []));
 	const anyRated = $derived(visible.some((item) => item.rating));
+	const anyGallery = $derived(visible.some((item) => item.gallery?.length));
 	// Tags, note et pays : mêmes filtres que la recherche (`entries.search`, cachées selon la préférence, par nom),
 	// à part des siens.
 	const results = $derived(
@@ -93,6 +94,7 @@
 				(item) =>
 					(!query.trim() || matchesSearch(item.name, query)) &&
 					incomplete(item) &&
+					(!listView.indexMultiImages || !!item.gallery?.length) &&
 					matchesValidatedFilter(item.validatedAt, listView.indexValidated)
 			)
 	);
@@ -104,7 +106,8 @@
 			!!listView.indexMissing ||
 			!!listView.indexValidated ||
 			listView.indexRating !== 0 ||
-			listView.indexCountries.length > 0
+			listView.indexCountries.length > 0 ||
+			listView.indexMultiImages
 	);
 
 	// Tags et pays sont propres à chaque collection : leur filtre ne survit pas au changement.
@@ -119,6 +122,7 @@
 		listView.indexMissing = '';
 		listView.indexValidated = '';
 		listView.indexRating = 0;
+		listView.indexMultiImages = false;
 	}
 
 	/** Miniature : aucune → petite → grande → aucune. */
@@ -240,6 +244,17 @@
 					selected={listView.indexRating ? [String(listView.indexRating)] : []}
 					onchange={(next) => (listView.indexRating = Number(next[0] ?? 0))}
 				/>
+			{/if}
+			{#if anyGallery}
+				<button
+					type="button"
+					class="badge badge-lg cursor-pointer gap-1 badge-primary {listView.indexMultiImages ? '' : 'badge-outline border-dashed'}"
+					aria-pressed={listView.indexMultiImages}
+					title={listView.indexMultiImages ? 'Toutes les fiches' : "Seulement les fiches avec d'autres images que la couverture"}
+					onclick={() => (listView.indexMultiImages = !listView.indexMultiImages)}
+				>
+					<Icon name="images" class="size-3" /> Plusieurs images
+				</button>
 			{/if}
 			{#if countries.length}
 				<FacetDropdown

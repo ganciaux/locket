@@ -25,6 +25,8 @@ type ListView = {
 	/** Index : note et pays, à part de ceux de « Mes fiches ». */
 	indexRating: RatingFilter;
 	indexCountries: CountryFilter;
+	/** Index : seulement les fiches qui ont d'autres images que la couverture. */
+	indexMultiImages: boolean;
 };
 
 const defaults = (): ListView => ({
@@ -41,7 +43,8 @@ const defaults = (): ListView => ({
 	indexTags: { ...NO_TAG_FILTER },
 	indexExtended: false,
 	indexRating: 0,
-	indexCountries: []
+	indexCountries: [],
+	indexMultiImages: false
 });
 
 export const listView = $state<ListView>(defaults());

@@ -45,6 +45,7 @@
 <li
 	id="card-{entry.id}"
 	data-border={border}
+	data-stack={imageCount > 2 ? '3' : imageCount === 2 ? '2' : undefined}
 	class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
 		? 'opacity-50 hover:opacity-100'
 		: ''} {selected ? 'card-picked' : ''}"

@@ -495,11 +495,20 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
 	await expect(strip.getByRole('button')).toHaveCount(2);
 
-	// Nombre d'images (couverture comprise) sur la carte et dans l'index.
+	// Nombre d'images (couverture comprise) sur la carte, en pile, et dans l'index, qui filtre ces fiches.
+	await createEntry(page, 'Seule');
 	await goHome(page);
-	await expect(page.locator('li.card').filter({ hasText: 'Album' }).getByRole('img', { name: '2 images' })).toBeVisible();
+	const albumCard = page.locator('li.card').filter({ hasText: 'Album' });
+	await expect(albumCard.getByRole('img', { name: '2 images' })).toBeVisible();
+	await expect(albumCard).toHaveAttribute('data-stack', '2');
+	await expect(page.locator('li.card').filter({ hasText: 'Seule' })).not.toHaveAttribute('data-stack');
 	await goIndex(page);
 	await expect(page.getByRole('listitem').filter({ hasText: 'Album' }).getByRole('img', { name: '2 images' })).toBeVisible();
+	await page.getByRole('button', { name: 'Plusieurs images' }).click();
+	await expect(page.getByRole('link', { name: 'Album', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Seule', exact: true })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Effacer', exact: true }).click();
+	await expect(page.getByRole('link', { name: 'Seule', exact: true })).toBeVisible();
 
 	// Fiche agrandie : la même bande (vignettes), l'image complète chargée au clic.
 	await goHome(page);

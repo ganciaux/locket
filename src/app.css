@@ -177,15 +177,17 @@
 				var(--frame-light) 100%
 			)
 			border-box;
-	box-shadow:
+	/* Ombre en variable : la pile des cartes à plusieurs images (`data-stack`) s'y ajoute. */
+	--frame-shadow:
 		0 0 0 1px color-mix(in oklab, var(--frame-dark) 40%, transparent),
 		0 6px 16px -6px color-mix(in oklab, var(--frame-color) 70%, transparent),
 		0 0 12px -3px color-mix(in oklab, var(--frame-color) 45%, transparent);
+	box-shadow: var(--frame-shadow);
 }
 
 [data-border].frame-thin {
 	--frame-width: 2px;
-	box-shadow:
+	--frame-shadow:
 		0 0 0 1px color-mix(in oklab, var(--frame-dark) 35%, transparent),
 		0 2px 6px -2px color-mix(in oklab, var(--frame-color) 70%, transparent);
 }
@@ -193,10 +195,40 @@
 /* Cartes et duels : le halo s'intensifie au survol, comme l'ombre des cartes sans bordure. */
 @media (hover: hover) {
 	.card[data-border]:hover {
-		box-shadow:
+		--frame-shadow:
 			0 0 0 1px color-mix(in oklab, var(--frame-dark) 45%, transparent),
 			0 10px 22px -8px color-mix(in oklab, var(--frame-color) 80%, transparent),
 			0 0 18px -2px color-mix(in oklab, var(--frame-color) 55%, transparent);
+	}
+}
+
+/*
+ * Fiche à plusieurs images : une ou deux cartes dépassent derrière, en haut à droite, comme un petit paquet
+ * (`data-stack` : 2 images, une carte derrière ; 3 et plus, deux). Des ombres pleines plutôt que des éléments : la
+ * carte coupe ce qui déborde (`overflow-hidden`), pas ses ombres. Décalage de 8 px au plus : il tient dans
+ * l'espacement de la grille, sans mordre sur la carte voisine. L'ombre normale (ou le halo de la bordure) suit.
+ */
+.card[data-stack] {
+	--stack-edge: color-mix(in oklab, var(--color-base-content) 30%, transparent);
+	--stack-sheet-1: 4px -4px 0 -1px var(--color-base-100), 4px -4px 0 0 var(--stack-edge);
+	--stack-sheets: var(--stack-sheet-1);
+	box-shadow:
+		var(--stack-sheets),
+		var(--frame-shadow, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1));
+}
+
+/* Avec une bordure de catégorie, les cartes de derrière en prennent la teinte. */
+.card[data-stack][data-border] {
+	--stack-edge: color-mix(in oklab, var(--frame-color) 70%, transparent);
+}
+
+.card[data-stack='3'] {
+	--stack-sheets: var(--stack-sheet-1), 8px -8px 0 -2px var(--color-base-100), 8px -8px 0 -1px var(--stack-edge);
+}
+
+@media (hover: hover) {
+	.card[data-stack]:not([data-border]):hover {
+		--frame-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 	}
 }
 
