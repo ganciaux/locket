@@ -408,6 +408,11 @@
 								<!-- Le nom ouvre la fiche ; le crayon, la modification (au survol sur ordinateur, toujours au toucher). -->
 								<div class="group flex min-w-0 flex-1 items-center gap-1">
 									<a class="link-hover min-w-0 truncate font-medium" href="/entry/{item.id}" onclick={(event) => pickInstead(event, item.id)}>{item.name}</a>
+									{#if item.gallery?.length}
+										<span class="text-base-content/50 flex shrink-0 items-center gap-0.5 text-xs" role="img" aria-label="{item.gallery.length + 1} images">
+											<Icon name="images" class="size-3.5" />{item.gallery.length + 1}
+										</span>
+									{/if}
 									{#if !selecting}
 										<a
 											class="btn btn-ghost btn-xs btn-square pointer-fine:opacity-0 shrink-0 group-hover:opacity-100 focus-visible:opacity-100"

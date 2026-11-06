@@ -2,6 +2,7 @@
 	// Carte de fiche. Recherche (`onzoom`) : un clic l'agrandit. Index : un clic ouvre la fiche, ou la coche en
 	// mode sélection.
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
 	import { countryFlag, countryName, formatRating, framingClass } from '$lib/entries/model';
@@ -32,6 +33,8 @@
 	const rank = $derived(entries.rankOf(entry));
 	// Bordure : couleur du tag de la catégorie de bordure (cadre `data-border`, app.css).
 	const border = $derived(entries.borderOf(entry));
+	// Couverture comprise : « 3 » pour une couverture et deux autres images.
+	const imageCount = $derived(entry.gallery?.length ? entry.gallery.length + 1 : 0);
 </script>
 
 {#snippet cardName()}
@@ -99,7 +102,7 @@
 					{entry.name.charAt(0).toUpperCase()}
 				</span>
 			{/if}
-			<!-- Note et rang sur l'image pour ne pas ajouter de ligne ; translucides pour laisser voir la photo. -->
+			<!-- Note, rang et nombre d'images sur l'image pour ne pas ajouter de ligne ; translucides pour laisser voir la photo. -->
 			{#if entry.rating}
 				<span class="badge badge-sm bg-base-100/70 absolute bottom-1 left-1 border-0" role="img" aria-label="Note : {formatRating(entry.rating)} sur 5">
 					★ {formatRating(entry.rating)}
@@ -108,6 +111,11 @@
 			{#if rank}
 				<span class="badge badge-sm bg-neutral/70 text-neutral-content absolute right-1 bottom-1 border-0" title="Rang dans le classement">
 					#{rank}
+				</span>
+			{/if}
+			{#if imageCount}
+				<span class="badge badge-sm bg-base-100/70 absolute top-1 right-1 gap-0.5 border-0" role="img" aria-label="{imageCount} images">
+					<Icon name="images" class="size-3" />{imageCount}
 				</span>
 			{/if}
 			{#if selecting}

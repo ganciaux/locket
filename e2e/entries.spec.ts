@@ -1,6 +1,6 @@
 /** Fiches : formulaire, image, liens, sites, nom unique, note, pays, naissance. */
 import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
-import { addSite, createEntry, createEntryWithImage, lockAndUnlock, newEntryForm, openEntry, openIndex, swipeOn } from './helpers';
+import { addSite, createEntry, createEntryWithImage, goIndex, lockAndUnlock, newEntryForm, openEntry, openIndex, swipeOn } from './helpers';
 
 test('site de collection : lien calculé, nom custom, masquage', async ({ page }) => {
 	await signUp(page);
@@ -494,6 +494,12 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
 	await expect(strip.getByRole('button')).toHaveCount(2);
+
+	// Nombre d'images (couverture comprise) sur la carte et dans l'index.
+	await goHome(page);
+	await expect(page.locator('li.card').filter({ hasText: 'Album' }).getByRole('img', { name: '2 images' })).toBeVisible();
+	await goIndex(page);
+	await expect(page.getByRole('listitem').filter({ hasText: 'Album' }).getByRole('img', { name: '2 images' })).toBeVisible();
 
 	// Fiche agrandie : la même bande (vignettes), l'image complète chargée au clic.
 	await goHome(page);

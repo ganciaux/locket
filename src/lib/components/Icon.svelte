@@ -26,6 +26,8 @@
 		link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
 		external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
 		image: 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 8.5a1 1 0 1 0 0 .01',
+		// Deux photos empilées : fiche avec plusieurs images.
+		images: 'M8 8h12v12H8zM8 17l3-3 3 3 2-2 4 4M4 16V4h12',
 		copy: 'M8 8h12v12H8zM4 16V4h12',
 		import: 'M12 4v11M7 10l5 5 5-5M4 20h16',
 		tag: 'M3 12V4h8l10 10-8 8zM7.5 7.5h.01',
