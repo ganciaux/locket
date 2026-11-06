@@ -209,14 +209,15 @@
 					</span>
 					<span class="text-base-content/60 text-xs">
 						{prefs.revealRandom
-							? 'Une des trois animations, différente à chaque tirage.'
+							? 'Une des animations, différente à chaque tirage.'
 							: REVEAL_MODES.find((mode) => mode.value === prefs.revealMode)?.hint}
 					</span>
 				</span>
-				<div class="join {prefs.revealRandom ? 'opacity-50' : ''}" role="radiogroup" aria-label="Tirage au hasard">
+				<!-- Huit modes : sur plusieurs lignes plutôt qu'en barre (trop large sur téléphone). -->
+				<div class="flex flex-wrap gap-1 {prefs.revealRandom ? 'opacity-50' : ''}" role="radiogroup" aria-label="Tirage au hasard">
 					{#each REVEAL_MODES as mode (mode.value)}
 						<input
-							class="join-item btn btn-sm"
+							class="btn btn-sm"
 							type="radio"
 							name="reveal-mode"
 							value={mode.value}

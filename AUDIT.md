@@ -109,7 +109,9 @@ Dans l'ordre de réalisation prévu.
       parmi la liste filtrée, jamais deux fois la même de suite, ouvre comme un clic sur une carte (agrandie ou fiche). *Simple.*
       Révélation de la carte tirée (`reveal.ts`), trois modes au choix dans Paramètres › Affichage (2026-11-06) :
       Paquet (floue, elle tremble puis éclate), Retournement (de dos, elle se retourne), Éclat (elle surgit d'une lumière
-      blanche), ou au hasard (icône Remélanger à côté du titre, grise éteinte, rouge allumée : l'une des trois, jamais
+      blanche), puis le 2026-11-06 Grattage (voile gris métallisé effacé en trois coups), Polaroïd (blanche, sépia, puis
+      en couleurs), Chute (tombe cachée, rebondit), Tourbillon (tourne en grandissant), Rideau (velours rouge qui
+      s'ouvre) ; ou au hasard (icône Remélanger à côté du titre, grise éteinte, rouge allumée : l'une des trois, jamais
       deux fois la même de suite), durée de 0,5 à 3 s, aperçu sur une carte d'exemple (bordure au choix) ; simple fondu
       si le système réduit les animations. Selon la rareté de la bordure : bronze +5 % de durée et 5 paillettes, argent
       +15 % et 9, or +30 % et 16 ; les autres couleurs restent sobres. Paquet et dos du Retournement partagent le même

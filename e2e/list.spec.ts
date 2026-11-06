@@ -444,7 +444,7 @@ test('tirage au hasard : mode et durée réglés dans Paramètres, aperçu anim�
 	await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
 	await shuffle.click();
 	await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
-	await expect(page.getByText('Une des trois animations, différente à chaque tirage.')).toBeVisible();
+	await expect(page.getByText('Une des animations, différente à chaque tirage.')).toBeVisible();
 	// Exemple en or : paillettes en plus du reflet.
 	await page.getByLabel("Bordure de l'exemple").selectOption('gold');
 	await expect(page.locator('.reveal-spark').first()).toBeAttached();

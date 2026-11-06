@@ -7,9 +7,9 @@ describe('animation du tirage', () => {
 		expect(parseRevealMode('random')).toBe('pack');
 	});
 
-	it('au hasard : l’une des trois, jamais deux fois la même de suite', () => {
-		const drawn = Array.from({ length: 30 }, () => pickAnimation('pack', true));
-		expect(new Set(drawn)).toEqual(new Set(['pack', 'flip', 'glow']));
+	it('au hasard : l’une des huit, jamais deux fois la même de suite', () => {
+		const drawn = Array.from({ length: 200 }, () => pickAnimation('pack', true));
+		expect(new Set(drawn)).toEqual(new Set(['pack', 'flip', 'glow', 'scratch', 'polaroid', 'drop', 'spin', 'curtain']));
 		drawn.slice(1).forEach((animation, i) => expect(animation).not.toBe(drawn[i]));
 	});
 
