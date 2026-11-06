@@ -41,7 +41,16 @@ import {
 import { toBase64 } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import { type Keyring, unwrapBackupDek } from '$lib/backup/keyring';
-import { createFaceIdCredential, evaluateFaceId, forgetFaceId, readFaceId, saveFaceId } from './faceId';
+import {
+	PASSWORD_EVERY_DAYS,
+	createFaceIdCredential,
+	evaluateFaceId,
+	forgetFaceId,
+	passwordDue,
+	readFaceId,
+	saveFaceId,
+	touchFaceIdPassword
+} from './faceId';
 import { session, setRecoveryDamaged, setUnlocked } from './session.svelte';
 
 export const MIN_PASSWORD_LENGTH = 12;
@@ -188,8 +197,13 @@ export async function unlock(password: string): Promise<void> {
 	const { kek } = await deriveKeys(password, user.email);
 	const { wrappedDek } = await readKeyring(user.uid);
 	setUnlocked(user, await orFail(unwrapDek(wrappedDek, kek), WRONG_PASSWORD));
+	touchFaceIdPassword(user.uid);
 	await checkRecoveryKey();
 }
+
+export const PASSWORD_DUE =
+	`Par sécurité, le mot de passe est demandé tous les ${PASSWORD_EVERY_DAYS} jours. Déverrouillez avec lui : ` +
+	'Face ID reprendra ensuite.';
 
 const FACE_ID_STALE =
 	"Face ID n'ouvre plus ce compte (mot de passe changé, ou clé remplacée par une restauration) : il a été désactivé " +
@@ -225,7 +239,7 @@ export async function enableFaceId(password: string): Promise<void> {
 	}
 	const { credentialId, prf } = await createFaceIdCredential(user.email);
 	const faceKek = await faceIdKek(prf, faceIdPepper);
-	saveFaceId({ uid: user.uid, credentialId, wrappedDek: await rewrapDek(wrappedDek, kek, faceKek) });
+	saveFaceId({ uid: user.uid, credentialId, wrappedDek: await rewrapDek(wrappedDek, kek, faceKek), passwordAt: Date.now() });
 }
 
 /**
@@ -238,6 +252,7 @@ export async function unlockWithFaceId(): Promise<void> {
 	const user = currentUser();
 	const record = readFaceId(user.uid);
 	if (!record) throw new Error("Face ID n'est pas activé sur cet appareil.");
+	if (passwordDue(record)) throw new Error(PASSWORD_DUE);
 	const { faceIdPepper, keyringCheck } = await readStoredKeyring(user.uid);
 	if (!faceIdPepper || !keyringCheck) return staleFaceId();
 	const faceKek = await faceIdKek(await evaluateFaceId(record.credentialId), faceIdPepper);

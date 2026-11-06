@@ -12,10 +12,24 @@ const STORE = 'locket.faceId';
 const PRF_SALT = utf8('locket/face-id/v1');
 const prfInput = { prf: { eval: { first: PRF_SALT } } } as AuthenticationExtensionsClientInputs;
 
-/** Copie de la DEK emballée par la clé de Face ID, rattachée au compte qui l'a créée. */
-export type FaceIdRecord = { uid: string; credentialId: Bytes; wrappedDek: Encrypted };
+/**
+ * Copie de la DEK emballée par la clé de Face ID, rattachée au compte qui l'a créée. `passwordAt` : dernier
+ * déverrouillage par mot de passe sur cet appareil (ms), pour le redemander tous les `PASSWORD_EVERY_DAYS` jours.
+ */
+export type FaceIdRecord = { uid: string; credentialId: Bytes; wrappedDek: Encrypted; passwordAt: number };
 
-type StoredRecord = { uid: string; credentialId: string; iv: string; data: string };
+type StoredRecord = { uid: string; credentialId: string; iv: string; data: string; passwordAt?: number };
+
+/**
+ * Le mot de passe est redemandé tous les 30 jours, pour ne pas l'oublier (il reste le seul accès d'un autre appareil
+ * et de la récupération). Un rappel, pas une protection : la date est en clair sur l'appareil, comme la copie.
+ */
+export const PASSWORD_EVERY_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Mot de passe à redemander : plus de 30 jours, date inconnue (copie d'avant ce rappel) ou dans le futur. */
+export const passwordDue = ({ passwordAt }: FaceIdRecord, now = Date.now()): boolean =>
+	!(passwordAt > 0 && passwordAt <= now && now - passwordAt <= PASSWORD_EVERY_DAYS * DAY_MS);
 
 /** Contenu du stockage pour ce compte, ou null : absent, abîmé ou d'un autre compte. */
 export function parseFaceIdRecord(text: string | null, uid: string): FaceIdRecord | null {
@@ -27,19 +41,21 @@ export function parseFaceIdRecord(text: string | null, uid: string): FaceIdRecor
 		return {
 			uid,
 			credentialId: fromBase64(stored.credentialId),
-			wrappedDek: { iv: fromBase64(stored.iv), data: fromBase64(stored.data) }
+			wrappedDek: { iv: fromBase64(stored.iv), data: fromBase64(stored.data) },
+			passwordAt: typeof stored.passwordAt === 'number' && Number.isFinite(stored.passwordAt) ? stored.passwordAt : 0
 		};
 	} catch {
 		return null;
 	}
 }
 
-export const serializeFaceIdRecord = ({ uid, credentialId, wrappedDek }: FaceIdRecord): string =>
+export const serializeFaceIdRecord = ({ uid, credentialId, wrappedDek, passwordAt }: FaceIdRecord): string =>
 	JSON.stringify({
 		uid,
 		credentialId: toBase64(credentialId),
 		iv: toBase64(wrappedDek.iv),
-		data: toBase64(wrappedDek.data)
+		data: toBase64(wrappedDek.data),
+		passwordAt
 	} satisfies StoredRecord);
 
 export function readFaceId(uid: string): FaceIdRecord | null {
@@ -55,6 +71,17 @@ export function saveFaceId(record: FaceIdRecord): void {
 		localStorage.setItem(STORE, serializeFaceIdRecord(record));
 	} catch {
 		throw new Error("Stockage indisponible sur cet appareil : Face ID n'a pas pu être activé.");
+	}
+}
+
+/** Déverrouillage par mot de passe : repart pour 30 jours de Face ID sur cet appareil (s'il y est activé). */
+export function touchFaceIdPassword(uid: string, now = Date.now()): void {
+	const record = readFaceId(uid);
+	if (!record) return;
+	try {
+		localStorage.setItem(STORE, serializeFaceIdRecord({ ...record, passwordAt: now }));
+	} catch {
+		// stockage indisponible : le mot de passe sera redemandé, rien de plus
 	}
 }
 

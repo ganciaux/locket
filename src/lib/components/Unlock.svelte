@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { unlock, unlockWithFaceId } from '$lib/auth/account';
-	import { readFaceId } from '$lib/auth/faceId';
+	import { PASSWORD_DUE, unlock, unlockWithFaceId } from '$lib/auth/account';
+	import { passwordDue, readFaceId } from '$lib/auth/faceId';
 	import { session, signOut } from '$lib/auth/session.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Field from '$lib/components/Field.svelte';
@@ -8,8 +8,12 @@
 	import { formAction } from '$lib/form.svelte';
 
 	let password = $state('');
-	// Face ID activé sur cet appareil : son bouton passe en premier, sans ouvrir le clavier.
-	let faceId = $state(!!session.user && !!readFaceId(session.user.uid));
+	// Face ID activé sur cet appareil : son bouton passe en premier, sans ouvrir le clavier. Sauf quand le mot de passe
+	// est redemandé (tous les 30 jours) : Face ID revient au déverrouillage suivant.
+	const record = () => (session.user ? readFaceId(session.user.uid) : null);
+	const initial = record();
+	const due = !!initial && passwordDue(initial);
+	let faceId = $state(!!initial && !due);
 
 	const form = formAction(async () => {
 		await unlock(password);
@@ -20,7 +24,7 @@
 		try {
 			await unlockWithFaceId();
 		} finally {
-			faceId = !!session.user && !!readFaceId(session.user.uid);
+			faceId = !!record();
 		}
 	});
 </script>
@@ -35,6 +39,8 @@
 			Déverrouiller avec Face ID
 		</button>
 	</form>
+{:else if due}
+	<p role="status" class="alert alert-info alert-soft text-sm">{PASSWORD_DUE}</p>
 {/if}
 <ErrorAlert message={faceForm.error} />
 

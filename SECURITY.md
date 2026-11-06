@@ -62,7 +62,10 @@ Limites de cette copie :
 Les sauvegardes sont toujours lues sur Firestore, jamais dans la copie.
 
 **Face ID** (2026-11-04, si activé dans les paramètres) : `localStorage` `locket.faceId` garde l'uid, l'identifiant de la
-clé d'accès et la DEK emballée par la clé de Face ID. Ni la sortie PRF ni la DEK en clair. Effacé à la déconnexion, au
+clé d'accès, la DEK emballée par la clé de Face ID et la date du dernier déverrouillage par mot de passe sur
+l'appareil (`passwordAt`, 2026-11-06 : Face ID refusé au-delà de 30 jours, ou sans date ; un rappel pour ne pas
+oublier le mot de passe, pas une protection, la date étant modifiable par qui contrôle l'appareil). Ni la sortie PRF
+ni la DEK en clair. Effacé à la déconnexion, au
 changement de compte, à la désactivation, à l'adoption d'une clé et quand la copie n'ouvre plus le compte. La clé
 d'accès « Stash » (une par activation, identifiant d'utilisateur aléatoire) vit dans le trousseau du système (iCloud
 sur iPhone, synchronisée). La clé de Face ID exige trois éléments : la clé d'accès avec Face ID (ou le code de

@@ -216,7 +216,9 @@ Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify
    identifiant d'utilisateur aléatoire (avec l'uid, un 2e appareil iCloud remplaçait la clé d'accès du 1er) ; sceau
    `keyringCheck` contrôlé en plus. Limite acceptée : une XSS ou un voleur qui exécute du JS avec un Face ID accepté
    obtient la DEK brute (SECURITY.md § 4). **Règles Firestore à déployer** (`faceIdPepper`), sinon l'activation est
-   refusée. Écartés : copie dans Firestore, mot de passe redemandé tous les 30 jours (à reconsidérer à l'usage).
+   refusée. Écartée : copie dans Firestore. Mot de passe redemandé tous les 30 jours : écarté puis
+   fait le 2026-11-06 (`passwordAt` dans la copie de l'appareil, remis à jour à chaque déverrouillage par mot de
+   passe ; copie d'avant sans date = mot de passe demandé une fois).
    Page de test `/prf-test` retirée.
    Clé d'accès « Stash (test Face ID) » supprimée le 2026-11-05 (app Mots de passe sous iOS 18).
 4. Lecture hors ligne : seulement sur besoin réel (proposé le 2026-11-04, en attente de la réponse de l'utilisateur).

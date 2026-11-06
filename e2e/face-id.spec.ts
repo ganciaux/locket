@@ -42,12 +42,28 @@ test('active Face ID, déverrouille avec après réouverture, puis le désactive
 	await enable(page, PASSWORD);
 	await expect(page.getByText('Activé sur cet appareil.')).toBeVisible();
 	// Rien de la sortie PRF ni de la DEK en clair : seulement la copie emballée.
-	expect(Object.keys(JSON.parse((await stored(page))!)).sort()).toEqual(['credentialId', 'data', 'iv', 'uid']);
+	expect(Object.keys(JSON.parse((await stored(page))!)).sort()).toEqual(['credentialId', 'data', 'iv', 'passwordAt', 'uid']);
 
 	// Réouverture de l'app : la DEK est perdue, Face ID la retrouve.
 	await page.reload();
 	await expect(page.getByRole('heading', { name: 'Déverrouiller' })).toBeVisible();
 	await expect(page.getByLabel('Mot de passe')).not.toBeFocused();
+	await page.getByRole('button', { name: 'Déverrouiller avec Face ID' }).click();
+	await expect(page.getByRole('heading', { name: SETTINGS, level: 1 })).toBeVisible();
+
+	// Mot de passe plus utilisé depuis 31 jours : redemandé, puis Face ID revient.
+	await page.evaluate(() => {
+		const copy = JSON.parse(localStorage.getItem('locket.faceId')!);
+		localStorage.setItem('locket.faceId', JSON.stringify({ ...copy, passwordAt: Date.now() - 31 * 24 * 3600 * 1000 }));
+	});
+	await page.reload();
+	await expect(page.getByText('le mot de passe est demandé tous les 30 jours')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Déverrouiller avec Face ID' })).toHaveCount(0);
+	await page.getByLabel('Mot de passe').fill(PASSWORD);
+	await page.getByRole('button', { name: 'Déverrouiller', exact: true }).click();
+	await expect(page.getByRole('heading', { name: SETTINGS, level: 1 })).toBeVisible();
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Déverrouiller avec Face ID' })).toBeVisible();
 	await page.getByRole('button', { name: 'Déverrouiller avec Face ID' }).click();
 	await expect(page.getByRole('heading', { name: SETTINGS, level: 1 })).toBeVisible();
 
