@@ -13,6 +13,7 @@
 	import { albumOrder, discoveredIn, framingClass, pickHidden } from '$lib/entries/model';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
+	import { prefs } from '$lib/prefs.svelte';
 
 	let error = $state('');
 	loadEntries().catch((e) => (error = errorMessage(e)));
@@ -139,8 +140,13 @@
 						</figure>
 					</button>
 				{:else}
-					<figure class="album-back rounded-box flex size-full items-center justify-center" role="img" aria-label="Carte {i + 1}, face cachée">
-						<img src="/logo-256.png" alt="" class="size-1/2 opacity-30 drop-shadow" />
+					<figure
+						class="album-back rounded-box flex size-full items-center justify-center"
+						data-back={prefs.albumBack}
+						role="img"
+						aria-label="Carte {i + 1}, face cachée"
+					>
+						<img src="/logo-256.png" alt="" class="size-1/2" />
 					</figure>
 				{/if}
 			</li>

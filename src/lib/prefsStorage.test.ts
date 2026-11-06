@@ -36,6 +36,12 @@ describe('parsePrefs', () => {
 		expect(parsePrefs(null).revealRandom).toBe(false);
 	});
 
+	it('dos des cartes de l’album : bordeaux nuit par défaut, valeur inconnue ignorée', () => {
+		expect(parsePrefs(null).albumBack).toBe('night');
+		expect(parsePrefs(JSON.stringify({ albumBack: 'ivory' })).albumBack).toBe('ivory');
+		expect(parsePrefs(JSON.stringify({ albumBack: 'rouge' })).albumBack).toBe('night');
+	});
+
 	it('ramène l’ancien clic « expand » sur l’agrandissement', () => {
 		expect(parsePrefs(JSON.stringify({ cardClick: 'expand' })).cardClick).toBe('zoom');
 		expect(parsePrefs(JSON.stringify({ cardClick: 'open' })).cardClick).toBe('open');

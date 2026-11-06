@@ -1,5 +1,5 @@
 /** Album : fiches face cachée, découvertes une à une par le dé, gardées après verrouillage, remises à zéro. */
-import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
+import { addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
 import { createEntry, lockAndUnlock } from './helpers';
 
 async function openAlbum(page: import('@playwright/test').Page) {
@@ -58,4 +58,12 @@ test('album : tirages sans remise, fiche agrandie en lecture seule, complet, gar
 	await page.getByRole('button', { name: 'Recommencer', exact: true }).click();
 	await expect(progress).toHaveText('0 / 3');
 	await expect(page.getByRole('img', { name: /face cachée/ })).toHaveCount(3);
+
+	// Dos des cartes : bordeaux nuit par défaut, au choix dans Paramètres.
+	await expect(page.getByRole('img', { name: /face cachée/ }).first()).toHaveAttribute('data-back', 'night');
+	await goSettings(page);
+	await page.getByRole('radiogroup', { name: "Dos des cartes de l'album" }).getByText('Papier ivoire').click();
+	await expect(page.getByRole('radio', { name: 'Papier ivoire' })).toBeChecked();
+	await openAlbum(page);
+	await expect(page.getByRole('img', { name: /face cachée/ }).first()).toHaveAttribute('data-back', 'ivory');
 });

@@ -15,7 +15,7 @@
 	import { TRASH_DAYS } from '$lib/entries/model';
 	import { deleteAllData, regenerateThumbs } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
-	import { type AutoLock, type CardClick, prefs, type Theme } from '$lib/prefs.svelte';
+	import { ALBUM_BACKS, type AutoLock, type CardClick, prefs, type Theme } from '$lib/prefs.svelte';
 	import { tick } from 'svelte';
 	import { REVEAL_MAX_MS, REVEAL_MIN_MS, REVEAL_MODES, REVEAL_STEP_MS, playReveal } from '$lib/reveal';
 
@@ -264,6 +264,28 @@
 					<button type="button" class="btn btn-ghost btn-sm shrink-0" onclick={previewReveal}>
 						<Icon name="dice" class="size-4" /> Aperçu
 					</button>
+				</div>
+			</div>
+
+			<div class="flex flex-col gap-2">
+				<span class="flex flex-col">
+					<span class="text-sm font-medium">Dos des cartes de l'album</span>
+					<span class="text-base-content/60 text-xs">Les cartes encore face cachée de la page Album.</span>
+				</span>
+				<div class="flex flex-wrap gap-4" role="radiogroup" aria-label="Dos des cartes de l'album">
+					{#each ALBUM_BACKS as back (back.value)}
+						<label class="flex cursor-pointer flex-col items-center gap-1 text-xs">
+							<input type="radio" class="peer sr-only" name="album-back" value={back.value} bind:group={prefs.albumBack} aria-label={back.label} />
+							<span
+								class="album-back rounded-box peer-checked:outline-primary peer-focus-visible:outline-primary flex size-16 items-center justify-center outline-offset-2 peer-checked:outline-2 peer-focus-visible:outline-2"
+								data-back={back.value}
+								aria-hidden="true"
+							>
+								<img src="/logo-256.png" alt="" class="size-1/2" />
+							</span>
+							{back.label}
+						</label>
+					{/each}
 				</div>
 			</div>
 

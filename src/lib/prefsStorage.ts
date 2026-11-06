@@ -10,6 +10,13 @@ export type CardSize = 'small' | 'medium' | 'large';
 export type AutoLock = 0 | 1 | 5 | 15 | 30;
 /** Clic sur une carte : l'agrandir au-dessus de la liste ou ouvrir la fiche. */
 export type CardClick = 'zoom' | 'open';
+/** Dos des cartes face cachée de l'album (app.css, `.album-back`). */
+export type AlbumBack = 'night' | 'ivory' | 'slate';
+export const ALBUM_BACKS: { value: AlbumBack; label: string }[] = [
+	{ value: 'night', label: 'Bordeaux nuit' },
+	{ value: 'ivory', label: 'Papier ivoire' },
+	{ value: 'slate', label: 'Ardoise et or' }
+];
 export type Prefs = {
 	theme: Theme;
 	linksInNewTab: boolean;
@@ -37,6 +44,7 @@ export type Prefs = {
 	/** Animation tirée au sort à chaque tirage (icône Remélanger), au lieu de `revealMode`. */
 	revealRandom: boolean;
 	revealMs: number;
+	albumBack: AlbumBack;
 };
 
 export const STORAGE_KEY = 'locket.prefs';
@@ -60,7 +68,8 @@ export const DEFAULTS: Prefs = {
 	indexLinks: false,
 	revealMode: 'pack',
 	revealRandom: false,
-	revealMs: REVEAL_DEFAULT_MS
+	revealMs: REVEAL_DEFAULT_MS,
+	albumBack: 'night'
 };
 
 /** Contenu stocké → préférences complètes. Illisible : valeurs par défaut. */
@@ -80,7 +89,8 @@ export function parsePrefs(text: string | null): Prefs {
 			revealMode: parseRevealMode(loaded.revealMode),
 			// Ancienne valeur « Aléatoire » du mode : devenue une option à part.
 			revealRandom: loaded.revealRandom === true || stored.revealMode === 'random',
-			revealMs: parseRevealMs(loaded.revealMs)
+			revealMs: parseRevealMs(loaded.revealMs),
+			albumBack: ALBUM_BACKS.find((back) => back.value === loaded.albumBack)?.value ?? 'night'
 		};
 	} catch {
 		return { ...DEFAULTS };
