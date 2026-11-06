@@ -1,6 +1,6 @@
 /** Tags et catégories : rangement, saisie groupée, unicité, suppression. */
 import { addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
-import { addTagGroups, createEntry, openTagGroups } from './helpers';
+import { addTagGroups, createEntry, goIndex, newEntryForm, openEntry, openTagGroups } from './helpers';
 
 test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans perte', async ({ page }) => {
 	await signUp(page);
@@ -27,9 +27,7 @@ test('catégories de tags : ordre, tags rangés, choix groupé, suppression sans
 	await expect(tagHeadings).toHaveText(['Statut', 'Genre']);
 
 	// Formulaire : une ligne par catégorie, dans l'ordre choisi.
-	await goHome(page);
-	await page.locator('li.card').filter({ hasText: 'Naruto' }).getByRole('heading').click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await openEntry(page, 'Naruto');
 	await page.getByRole('link', { name: 'Modifier' }).click();
 	const picker = page.getByRole('group', { name: 'Tags de la fiche' });
 	await expect(picker.getByRole('group')).toHaveText([/^Statut\s*Fini$/, /^Genre\s*Action\s*Libre$/]);
@@ -173,9 +171,7 @@ test('catégories sur plusieurs lignes, puis tout supprimer : catégories, puis 
 	await expect(page.getByText('Drame', { exact: true })).toHaveCount(1);
 
 	// Le tag sur une fiche, pour le message de suppression.
-	await goHome(page);
-	await page.locator('li.card').filter({ hasText: 'Naruto' }).getByRole('heading').click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await openEntry(page, 'Naruto');
 	await page.getByRole('link', { name: 'Modifier' }).click();
 	await page.getByRole('group', { name: 'Tags de la fiche' }).getByRole('button', { name: 'Fini' }).click();
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
@@ -213,8 +209,7 @@ test('bordure des cartes : catégorie en un seul choix, couleur par tag, remplac
 	await expect(page.locator('span.bg-\\[\\#a7adb7\\]')).toBeVisible();
 
 	// Un seul tag de la catégorie sur la fiche : cocher Argent décoche Or.
-	await goHome(page);
-	await page.locator('a[href="/entry/new"]').first().click();
+	await newEntryForm(page);
 	await page.getByLabel('Nom', { exact: true }).fill('Akira');
 	const picker = page.getByRole('group', { name: 'Tags de la fiche' });
 	await picker.getByRole('button', { name: 'Or' }).click();
@@ -228,13 +223,16 @@ test('bordure des cartes : catégorie en un seul choix, couleur par tag, remplac
 	const card = page.locator('li.card').filter({ hasText: 'Akira' });
 	await expect(card).toHaveAttribute('data-border', 'silver');
 
-	// Sélection : ajouter Or remplace Argent.
+	// Sélection (index en cartes) : ajouter Or remplace Argent.
+	await goIndex(page);
+	await page.getByRole('radio', { name: 'Cartes' }).check();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await card.getByRole('heading').click();
 	await page.getByRole('button', { name: 'Tags', exact: true }).click();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Or' }).click();
 	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
 	await expect(card).toHaveAttribute('data-border', 'gold');
+	await goHome(page);
 	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
 	await expect(card.getByText('Argent')).toHaveCount(0);
 });

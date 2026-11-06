@@ -1,20 +1,19 @@
 <script lang="ts">
-	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
+	// Recherche (« Mes fiches ») : la vitrine de la collection. Cartes, filtres, carte agrandie, tirage au dé ;
+	// aucune action de modification (création, sélection, ouverture : depuis l'index).
 	import { session } from '$lib/auth/session.svelte';
 	import { lastBackupAt } from '$lib/backup/lastBackup';
 	import { daysSince, isReminderDue, readBackupInfo, snoozeReminder } from '$lib/backup/reminder';
-	import BulkToolbar from '$lib/components/BulkToolbar.svelte';
+	import CardSizePicker from '$lib/components/CardSizePicker.svelte';
 	import CollectionSwitcher from '$lib/components/CollectionSwitcher.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import EntryCard from '$lib/components/EntryCard.svelte';
 	import EntryZoom from '$lib/components/EntryZoom.svelte';
 	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
 	import Icon from '$lib/components/Icon.svelte';
-	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
-	import TagFacets from '$lib/components/TagFacets.svelte';
-	import TagPicker from '$lib/components/TagPicker.svelte';
-	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
+	import TagFilterChips from '$lib/components/TagFilterChips.svelte';
+	import { CARD_GRID } from '$lib/components/cardGrid';
 	import { listView } from '$lib/entries/listView.svelte';
 	import {
 		MAX_LABEL_LENGTH,
@@ -27,7 +26,6 @@
 		countryFlag,
 		countryName,
 		describeFilter,
-		filterableTags,
 		hasAdvancedFilter,
 		pickRandom
 	} from '$lib/entries/model';
@@ -40,19 +38,8 @@
 	} from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
-	import { type CardSize, prefs } from '$lib/prefs.svelte';
+	import { prefs } from '$lib/prefs.svelte';
 
-	// Classes écrites en entier : Tailwind ne détecte pas les noms de classes construits dynamiquement.
-	const GRID: Record<CardSize, string> = {
-		small: 'grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6',
-		medium: 'grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4',
-		large: 'grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3'
-	};
-	const SIZES: { value: CardSize; label: string; title: string }[] = [
-		{ value: 'small', label: 'S', title: 'Petites cartes' },
-		{ value: 'medium', label: 'M', title: 'Cartes moyennes' },
-		{ value: 'large', label: 'L', title: 'Grandes cartes' }
-	];
 	// Libellés courts : la barre d'affichage doit tenir sur une ligne à 320 px.
 	const SORTS: { value: SortOrder; label: string }[] = [
 		{ value: 'name', label: 'Tri : nom' },
@@ -84,7 +71,7 @@
 	let zoom = $state<{ id: string; ids: string[]; draw?: number } | null>(null);
 	const openZoom = (id: string) => (zoom = { id, ids: results.map((item) => item.id) });
 	let lastPicked: string | undefined;
-	/** Fiche au hasard parmi les résultats du moment, ouverte comme un clic sur sa carte (agrandie ou ouverte). */
+	/** Fiche au hasard parmi les résultats du moment, agrandie et révélée. */
 	function openRandom() {
 		const id = pickRandom(
 			results.map((item) => item.id),
@@ -92,8 +79,7 @@
 		);
 		if (!id) return;
 		lastPicked = id;
-		if (prefs.cardClick === 'open') goto(`/entry/${id}?tirage`);
-		else zoom = { id, ids: results.map((item) => item.id), draw: (zoom?.draw ?? 0) + 1 };
+		zoom = { id, ids: results.map((item) => item.id), draw: (zoom?.draw ?? 0) + 1 };
 	}
 	let error = $state('');
 	let searchInput = $state<HTMLInputElement>();
@@ -128,14 +114,6 @@
 	);
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
 
-	// La fiche ouverte navigue dans ces résultats, filtres et tri compris.
-	beforeNavigate(({ to }) => {
-		if (to?.route.id?.startsWith('/entry/[id]')) rememberEntryNav(results.map((item) => item.id), '/', 'Mes fiches');
-	});
-	afterNavigate(({ from }) => {
-		if (from?.route.id?.startsWith('/entry/[id]')) restoreEntryNavScroll('/');
-	});
-
 	// Pays présents dans la collection, avec leur nombre de fiches, par nom.
 	const countries = $derived.by(() => {
 		const counts = new Map<string, number>();
@@ -153,19 +131,6 @@
 		purgePassword = '';
 		confirmPurge = false;
 	});
-
-	// Sélection multiple : les actions et leur état vivent dans BulkToolbar, fermée en quittant.
-	let selecting = $state(false);
-	let selected = $state<string[]>([]);
-
-	function stopSelecting() {
-		selecting = false;
-		selected = [];
-	}
-
-	function toggleSelected(id: string) {
-		selected = selected.includes(id) ? selected.filter((other) => other !== id) : [...selected, id];
-	}
 
 	const tagFiltering = $derived(tagFilter.untagged || tagFilter.tagIds.length > 0 || tagFilter.missing.length > 0);
 	const filterActive = $derived(
@@ -208,15 +173,6 @@
 		await addCollection(collectionName);
 		collectionName = '';
 	});
-
-	// « Sans tag » et les tags sélectionnés s'excluent : cocher l'un décoche l'autre.
-	function toggleUntagged() {
-		listView.tags.untagged = !listView.tags.untagged;
-		if (listView.tags.untagged) {
-			listView.tags.tagIds = [];
-			listView.tags.missing = [];
-		}
-	}
 </script>
 
 <div class="mb-4 flex items-center gap-2">
@@ -302,7 +258,8 @@
 	<div class="flex flex-col items-center gap-4 py-16 text-center">
 		<Icon name="image" class="text-base-content/30 size-16" />
 		<p class="text-base-content/70">Aucune fiche dans « {entries.active?.name} » pour l'instant.</p>
-		<a class="btn btn-primary" href="/entry/new"><Icon name="plus" /> Créer une fiche</a>
+		<!-- Création dans l'index (le back-office), pas dans la vitrine. -->
+		<a class="btn btn-primary" href="/list"><Icon name="list" /> Créer des fiches depuis l'index</a>
 	</div>
 {:else if entries.activeItems}
 	{#if remindBackup}
@@ -414,36 +371,7 @@
 					{/if}
 				</div>
 			{/if}
-			<!-- Avec des catégories : une pastille par catégorie (facettes) ; sinon tous les tags à plat. -->
-			{#snippet untaggedChip()}
-				<button
-					type="button"
-					class="badge badge-lg cursor-pointer italic badge-primary {tagFilter.untagged ? '' : 'badge-outline border-dashed'}"
-					aria-pressed={tagFilter.untagged}
-					onclick={toggleUntagged}
-				>
-					Sans tag
-				</button>
-			{/snippet}
-			{#if entries.tags?.length && entries.tagGroups.length}
-				<TagFacets
-					tags={entries.tags}
-					groups={entries.tagGroups}
-					bind:selected={listView.tags.tagIds}
-					bind:missing={listView.tags.missing}
-					extended={listView.extended}
-					onchange={() => (listView.tags.tagIds.length || listView.tags.missing.length) && (listView.tags.untagged = false)}
-					before={untaggedChip}
-				/>
-			{:else if entries.tags?.length}
-				<TagPicker
-					tags={filterableTags(entries.tags, listView.extended, listView.tags.tagIds)}
-					bind:selected={listView.tags.tagIds}
-					label="Filtrer par tags"
-					onchange={(selected) => selected.length && (listView.tags.untagged = false)}
-					before={untaggedChip}
-				/>
-			{/if}
+			<TagFilterChips bind:filter={listView.tags} extended={listView.extended} />
 			{#if filterSummary.length}
 				<p class="text-base-content/60 text-xs">{filterSummary.join(' et ')}</p>
 			{/if}
@@ -512,27 +440,7 @@
 					{detail.label}
 				</button>
 			{/each}
-			<button
-				class="btn btn-xs {selecting ? 'btn-primary' : 'btn-ghost'}"
-				aria-pressed={selecting}
-				title="Sélectionner plusieurs fiches"
-				onclick={() => (selecting ? stopSelecting() : (selecting = true))}
-			>
-				<Icon name="check" class="size-3" /> Sélection
-			</button>
-			<div class="join ml-auto" role="radiogroup" aria-label="Taille des cartes">
-				{#each SIZES as size (size.value)}
-					<input
-						class="join-item btn btn-xs"
-						type="radio"
-						name="card-size"
-						value={size.value}
-						aria-label={size.label}
-						title={size.title}
-						bind:group={prefs.cardSize}
-					/>
-				{/each}
-			</div>
+			<CardSizePicker />
 		</div>
 	</div>
 
@@ -543,15 +451,9 @@
 	{/if}
 
 	<!-- items-start : une carte détaillée s'allonge sans étirer ses voisines. -->
-	<ul class="grid {GRID[prefs.cardSize]}">
+	<ul class="grid {CARD_GRID[prefs.cardSize]}">
 		{#each results as entry (entry.id)}
-			<EntryCard
-				{entry}
-				{selecting}
-				selected={selected.includes(entry.id)}
-				onzoom={() => openZoom(entry.id)}
-				ontoggle={() => toggleSelected(entry.id)}
-			/>
+			<EntryCard {entry} onzoom={() => openZoom(entry.id)} />
 		{/each}
 	</ul>
 {/if}
@@ -565,10 +467,4 @@
 		onclose={() => (zoom = null)}
 		onreroll={zoom.draw ? openRandom : undefined}
 	/>
-{/if}
-
-{#if selecting}
-	<BulkToolbar items={results} bind:selected onclose={stopSelecting} />
-{:else if entries.active}
-	<NewEntryButton />
 {/if}

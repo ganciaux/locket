@@ -15,7 +15,7 @@
 	import { TRASH_DAYS } from '$lib/entries/model';
 	import { deleteAllData, regenerateThumbs } from '$lib/entries/store.svelte';
 	import { formAction } from '$lib/form.svelte';
-	import { ALBUM_BACKS, type AutoLock, type CardClick, prefs, type Theme } from '$lib/prefs.svelte';
+	import { ALBUM_BACKS, type AutoLock, prefs, type Theme } from '$lib/prefs.svelte';
 	import { tick } from 'svelte';
 	import { REVEAL_MAX_MS, REVEAL_MIN_MS, REVEAL_MODES, REVEAL_STEP_MS, playReveal } from '$lib/reveal';
 
@@ -42,11 +42,6 @@
 		{ value: 15, label: '15 min' },
 		{ value: 30, label: '30 min' },
 		{ value: 0, label: 'Jamais' }
-	];
-
-	const CARD_CLICKS: { value: CardClick; label: string }[] = [
-		{ value: 'zoom', label: 'Agrandir' },
-		{ value: 'open', label: 'Ouvrir la fiche' }
 	];
 
 	let currentPassword = $state('');
@@ -170,25 +165,6 @@
 				</span>
 				<input type="checkbox" class="toggle toggle-primary" bind:checked={prefs.linksInNewTab} />
 			</label>
-
-			<div class="flex flex-col gap-2">
-				<span class="flex flex-col">
-					<span class="text-sm font-medium">Clic sur une carte</span>
-					<span class="text-base-content/60 text-xs">Agrandir affiche la carte au-dessus de la liste, avec ses liens et un accès à la fiche. L'autre action reste à portée : la barre « Détails ».</span>
-				</span>
-				<div class="join" role="radiogroup" aria-label="Clic sur une carte">
-					{#each CARD_CLICKS as option (option.value)}
-						<input
-							class="join-item btn btn-sm"
-							type="radio"
-							name="card-click"
-							value={option.value}
-							aria-label={option.label}
-							bind:group={prefs.cardClick}
-						/>
-					{/each}
-				</div>
-			</div>
 
 			<!-- Révélation de la carte tirée au dé : trois façons, une durée, et un aperçu sur une carte d'exemple. -->
 			<div class="flex flex-col gap-2">

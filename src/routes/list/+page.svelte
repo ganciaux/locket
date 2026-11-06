@@ -1,8 +1,15 @@
 <script lang="ts">
-	// Index de la collection active : toutes les fiches par ordre alphabétique, en texte, groupées par initiale.
+	// Index de la collection active, le back-office : toutes les fiches par ordre alphabétique, en liste groupée par
+	// initiale ou en cartes ; création, sélection multiple et actions groupées, ouverture et modification des fiches.
 	// Pays, âge, tags et liens affichés à la demande (préférences de l'appareil) ; recherche sur le nom seulement.
 	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
+	import BulkToolbar from '$lib/components/BulkToolbar.svelte';
+	import CardSizePicker from '$lib/components/CardSizePicker.svelte';
 	import CollectionHeader from '$lib/components/CollectionHeader.svelte';
+	import EntryCard from '$lib/components/EntryCard.svelte';
+	import NewEntryButton from '$lib/components/NewEntryButton.svelte';
+	import TagFilterChips from '$lib/components/TagFilterChips.svelte';
+	import { CARD_GRID } from '$lib/components/cardGrid';
 	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -19,7 +26,9 @@
 		framingClass,
 		groupByInitial,
 		groupTags,
+		hasAdvancedFilter,
 		matchesSearch,
+		NO_TAG_FILTER,
 		missingFields,
 		missingLabel,
 		notValidated,
@@ -70,14 +79,48 @@
 		const missing = missingOf(item);
 		return filter === 'any' ? missing.length > 0 : missing.includes(filter as MissingField);
 	};
+	// Tags : même filtre que la recherche (`entries.search`, cachées selon la préférence, par nom), à part du sien.
 	const results = $derived(
-		visible.filter(
-			(item) =>
-				(!query.trim() || matchesSearch(item.name, query)) &&
-				incomplete(item) &&
-				matchesValidatedFilter(item.validatedAt, listView.indexValidated)
-		)
+		entries
+			.search('', { tags: listView.indexTags })
+			.filter(
+				(item) =>
+					(!query.trim() || matchesSearch(item.name, query)) &&
+					incomplete(item) &&
+					matchesValidatedFilter(item.validatedAt, listView.indexValidated)
+			)
 	);
+	const tagFiltering = $derived(
+		listView.indexTags.untagged || listView.indexTags.tagIds.length > 0 || listView.indexTags.missing.length > 0
+	);
+	const filterActive = $derived(tagFiltering || !!listView.indexMissing || !!listView.indexValidated);
+
+	/** « Effacer » : tags, « Il manque » et statut ; la recherche par nom a sa propre croix. */
+	function clearFilters() {
+		listView.indexTags = { ...NO_TAG_FILTER };
+		listView.indexMissing = '';
+		listView.indexValidated = '';
+	}
+
+	// Sélection multiple : les actions et leur état vivent dans BulkToolbar, fermée en quittant.
+	let selecting = $state(false);
+	let selected = $state<string[]>([]);
+
+	function stopSelecting() {
+		selecting = false;
+		selected = [];
+	}
+
+	function toggleSelected(id: string) {
+		selected = selected.includes(id) ? selected.filter((other) => other !== id) : [...selected, id];
+	}
+
+	/** En sélection, le nom et la miniature cochent la fiche au lieu de l'ouvrir. */
+	function pickInstead(event: MouseEvent, id: string) {
+		if (!selecting) return;
+		event.preventDefault();
+		toggleSelected(id);
+	}
 	// Sans les lettres de séparation : une seule section, sans titre.
 	const groups = $derived(prefs.indexInitials ? groupByInitial(results) : [{ initial: '', items: results }]);
 
@@ -98,7 +141,8 @@
 </script>
 
 {#if entries.active}
-	<CollectionHeader>
+	<!-- Tags propres à chaque collection : leur filtre ne survit pas au changement. -->
+	<CollectionHeader onselect={() => (listView.indexTags = { ...NO_TAG_FILTER })}>
 		{#snippet actions()}
 			<!-- Libellés masqués sur téléphone : avec « Mes fiches », l'en-tête ne tiendrait plus à 320 px. -->
 			{#if entries.tags?.length && results.length}
@@ -143,134 +187,209 @@
 		{/if}
 	</label>
 
-	<div class="mb-3 flex flex-wrap items-center gap-2">
-		<span class="text-base-content/60 text-xs">Afficher</span>
-		{#each OPTIONS as option (option.key)}
-			<button
-				type="button"
-				class="badge badge-lg cursor-pointer badge-primary {prefs[option.key] ? '' : 'badge-outline border-dashed'}"
-				aria-pressed={prefs[option.key]}
-				title={'title' in option ? option.title : undefined}
-				onclick={() => (prefs[option.key] = !prefs[option.key])}
-			>
-				{option.label}
-			</button>
-		{/each}
-		<FacetDropdown
-			name="Il manque"
-			single
-			options={missingChoices}
-			selected={listView.indexMissing ? [listView.indexMissing] : []}
-			onchange={(next) => (listView.indexMissing = next[0] ?? '')}
-		/>
-		{#if visible.some((item) => item.validatedAt)}
+	<!-- Filtres : « Il manque », statut et tags (catégories avancées sur demande), pour sélectionner par lot. -->
+	<div class="mb-3 flex flex-col gap-2">
+		<div class="flex flex-wrap items-center gap-2">
+			<span class="text-base-content/60 text-xs">Filtrer</span>
 			<FacetDropdown
-				name="Statut"
+				name="Il manque"
 				single
-				options={VALIDATED_CHOICES}
-				selected={listView.indexValidated ? [listView.indexValidated] : []}
-				onchange={(next) => (listView.indexValidated = (next[0] ?? '') as ValidatedFilter)}
+				options={missingChoices}
+				selected={listView.indexMissing ? [listView.indexMissing] : []}
+				onchange={(next) => (listView.indexMissing = next[0] ?? '')}
 			/>
-		{/if}
-		<span class="text-base-content/60 ml-auto text-xs" role="status">
+			{#if visible.some((item) => item.validatedAt)}
+				<FacetDropdown
+					name="Statut"
+					single
+					options={VALIDATED_CHOICES}
+					selected={listView.indexValidated ? [listView.indexValidated] : []}
+					onchange={(next) => (listView.indexValidated = (next[0] ?? '') as ValidatedFilter)}
+				/>
+			{/if}
+			{#if entries.tags?.length && hasAdvancedFilter(entries.tags, entries.tagGroups)}
+				<button
+					class="btn btn-xs {listView.indexExtended ? 'btn-primary' : 'btn-ghost'}"
+					aria-pressed={listView.indexExtended}
+					title={listView.indexExtended ? 'Seulement les catégories et tags principaux' : 'Proposer aussi les autres catégories et tags'}
+					onclick={() => (listView.indexExtended = !listView.indexExtended)}
+				>
+					Recherche avancée
+				</button>
+			{/if}
+			{#if filterActive}
+				<button class="btn btn-ghost btn-xs ml-auto" onclick={clearFilters}>Effacer</button>
+			{/if}
+		</div>
+		<TagFilterChips bind:filter={listView.indexTags} extended={listView.indexExtended} />
+	</div>
+
+	<!-- Présentation : liste de noms ou cartes (préférence de l'appareil), et sélection multiple. -->
+	<div class="mb-3 flex items-center gap-2">
+		<span class="text-base-content/60 min-w-0 truncate text-xs" role="status">
 			{results.length} fiche{results.length > 1 ? 's' : ''}{results.length < visible.length ? ` sur ${visible.length}` : ''}
 		</span>
+		<div class="join ml-auto" role="radiogroup" aria-label="Présentation">
+			<input class="join-item btn btn-xs" type="radio" name="index-view" value={false} aria-label="Liste" bind:group={prefs.indexCards} />
+			<input class="join-item btn btn-xs" type="radio" name="index-view" value={true} aria-label="Cartes" bind:group={prefs.indexCards} />
+		</div>
+		<button
+			class="btn btn-xs {selecting ? 'btn-primary' : 'btn-ghost'}"
+			aria-pressed={selecting}
+			title="Sélectionner plusieurs fiches"
+			onclick={() => (selecting ? stopSelecting() : (selecting = true))}
+		>
+			<Icon name="check" class="size-3" /> Sélection
+		</button>
 	</div>
+
+	{#if prefs.indexCards}
+		<div class="mb-3 flex items-center gap-2">
+			<CardSizePicker />
+		</div>
+	{:else}
+		<div class="mb-3 flex flex-wrap items-center gap-2">
+			<span class="text-base-content/60 text-xs">Afficher</span>
+			{#each OPTIONS as option (option.key)}
+				<button
+					type="button"
+					class="badge badge-lg cursor-pointer badge-primary {prefs[option.key] ? '' : 'badge-outline border-dashed'}"
+					aria-pressed={prefs[option.key]}
+					title={'title' in option ? option.title : undefined}
+					onclick={() => (prefs[option.key] = !prefs[option.key])}
+				>
+					{option.label}
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	{#if results.length === 0}
 		<p class="text-base-content/60 py-8 text-center">
 			{query
 				? 'Aucun nom ne correspond.'
-				: listView.indexMissing
-					? 'Aucune fiche à compléter.'
-					: listView.indexValidated
-						? 'Aucune fiche avec ce statut.'
-						: 'Toutes les fiches sont cachées.'}
+				: tagFiltering
+					? 'Aucune fiche avec ces tags.'
+					: listView.indexMissing
+						? 'Aucune fiche à compléter.'
+						: listView.indexValidated
+							? 'Aucune fiche avec ce statut.'
+							: 'Toutes les fiches sont cachées.'}
 		</p>
 	{/if}
 
-	{#each groups as group (group.initial)}
-		<section class="mb-4" aria-labelledby={group.initial ? `initial-${group.initial}` : undefined}>
-			{#if group.initial}
-				<h2 id="initial-{group.initial}" class="text-primary border-base-300 mb-1 border-b pb-1 text-lg font-bold">{group.initial}</h2>
-			{/if}
-			<ul class="divide-base-200 divide-y">
-				{#each group.items as item (item.id)}
-					{@const tags = prefs.indexTags ? entries.tagsOf(item) : []}
-					{@const links = prefs.indexLinks ? entries.linksOf(item) : []}
-					<li class="flex flex-col gap-1.5 py-2 {item.hidden ? 'opacity-50' : ''}">
-						<div class="flex items-center gap-2">
-							{#if prefs.indexRank}
-								{@const rank = entries.rankOf(item)}
-								<!-- Largeur fixe : les noms restent alignés, classés ou non. -->
-								<span class="w-9 shrink-0 text-center">
-									{#if rank}<span class="badge badge-sm badge-neutral" title="Rang au classement">#{rank}</span>{/if}
-								</span>
-							{/if}
-							{#if prefs.indexThumb}
-								<!-- Ouvre la fiche comme le nom ; hors de l'ordre de tabulation, le nom suffit au clavier. -->
-								<a href="/entry/{item.id}" class="shrink-0" tabindex="-1" aria-hidden="true">
-									{#if item.thumbUrl}
-										<img
-											src={item.thumbUrl}
-											alt=""
-											data-border={entries.borderOf(item)}
-											class="frame-thin rounded-box block size-10 object-cover {framingClass(item.framing)}"
-										/>
-									{:else}
-										<span
-											data-border={entries.borderOf(item)}
-											class="frame-thin bg-primary/10 text-primary rounded-box flex size-10 items-center justify-center font-bold"
+	{#if prefs.indexCards}
+		<!-- Cartes : un clic ouvre la fiche, ou la coche en sélection. -->
+		<ul class="grid {CARD_GRID[prefs.cardSize]}">
+			{#each results as entry (entry.id)}
+				<EntryCard {entry} {selecting} selected={selected.includes(entry.id)} ontoggle={() => toggleSelected(entry.id)} />
+			{/each}
+		</ul>
+	{:else}
+		{#each groups as group (group.initial)}
+			<section class="mb-4" aria-labelledby={group.initial ? `initial-${group.initial}` : undefined}>
+				{#if group.initial}
+					<h2 id="initial-{group.initial}" class="text-primary border-base-300 mb-1 border-b pb-1 text-lg font-bold">{group.initial}</h2>
+				{/if}
+				<ul class="divide-base-200 divide-y">
+					{#each group.items as item (item.id)}
+						{@const tags = prefs.indexTags ? entries.tagsOf(item) : []}
+						{@const links = prefs.indexLinks ? entries.linksOf(item) : []}
+						{@const picked = selecting && selected.includes(item.id)}
+						<li class="flex flex-col gap-1.5 py-2 {item.hidden ? 'opacity-50' : ''} {picked ? 'bg-primary/10' : ''}">
+							<div class="flex items-center gap-2">
+								{#if selecting}
+									<input
+										type="checkbox"
+										class="checkbox checkbox-sm checkbox-primary shrink-0"
+										checked={picked}
+										onchange={() => toggleSelected(item.id)}
+										aria-label="Sélectionner {item.name}"
+									/>
+								{/if}
+								{#if prefs.indexRank}
+									{@const rank = entries.rankOf(item)}
+									<!-- Largeur fixe : les noms restent alignés, classés ou non. -->
+									<span class="w-9 shrink-0 text-center">
+										{#if rank}<span class="badge badge-sm badge-neutral" title="Rang au classement">#{rank}</span>{/if}
+									</span>
+								{/if}
+								{#if prefs.indexThumb}
+									<!-- Ouvre la fiche comme le nom ; hors de l'ordre de tabulation, le nom suffit au clavier. -->
+									<a href="/entry/{item.id}" class="shrink-0" tabindex="-1" aria-hidden="true" onclick={(event) => pickInstead(event, item.id)}>
+										{#if item.thumbUrl}
+											<img
+												src={item.thumbUrl}
+												alt=""
+												data-border={entries.borderOf(item)}
+												class="frame-thin rounded-box block size-10 object-cover {framingClass(item.framing)}"
+											/>
+										{:else}
+											<span
+												data-border={entries.borderOf(item)}
+												class="frame-thin bg-primary/10 text-primary rounded-box flex size-10 items-center justify-center font-bold"
+											>
+												{item.name.charAt(0).toUpperCase()}
+											</span>
+										{/if}
+									</a>
+								{/if}
+								{#if prefs.indexCountry && item.country}
+									<span class="shrink-0" title={countryName(item.country)}>{countryFlag(item.country)}</span>
+								{/if}
+								<!-- Le nom ouvre la fiche ; le crayon, la modification (au survol sur ordinateur, toujours au toucher). -->
+								<div class="group flex min-w-0 flex-1 items-center gap-1">
+									<a class="link-hover min-w-0 truncate font-medium" href="/entry/{item.id}" onclick={(event) => pickInstead(event, item.id)}>{item.name}</a>
+									{#if !selecting}
+										<a
+											class="btn btn-ghost btn-xs btn-square pointer-fine:opacity-0 shrink-0 group-hover:opacity-100 focus-visible:opacity-100"
+											href="/entry/{item.id}/edit?from=list"
+											aria-label="Modifier {item.name}"
+											title="Modifier"
 										>
-											{item.name.charAt(0).toUpperCase()}
-										</span>
-									{/if}
-								</a>
-							{/if}
-							{#if prefs.indexCountry && item.country}
-								<span class="shrink-0" title={countryName(item.country)}>{countryFlag(item.country)}</span>
-							{/if}
-							<!-- Le nom ouvre la fiche ; le crayon, la modification (au survol sur ordinateur, toujours au toucher). -->
-							<div class="group flex min-w-0 flex-1 items-center gap-1">
-								<a class="link-hover min-w-0 truncate font-medium" href="/entry/{item.id}">{item.name}</a>
-								<a
-									class="btn btn-ghost btn-xs btn-square pointer-fine:opacity-0 shrink-0 group-hover:opacity-100 focus-visible:opacity-100"
-									href="/entry/{item.id}/edit?from=list"
-									aria-label="Modifier {item.name}"
-									title="Modifier"
-								>
-									<Icon name="edit" class="size-3.5" />
-								</a>
+											<Icon name="edit" class="size-3.5" />
+										</a>
+{/if}
+								</div>
+								{#if prefs.indexCountry && item.country}
+									<span class="text-base-content/50 hidden shrink-0 text-xs sm:inline">{countryName(item.country)}</span>
+								{/if}
+								{#if prefs.indexAge && item.birthYear}
+									<span class="text-base-content/60 shrink-0 text-xs" title="Année de naissance : {item.birthYear}">{formatAge(item.birthYear)}</span>
+								{/if}
+								{#if prefs.indexStatus && item.validatedAt}<ValidatedMark />{/if}
 							</div>
-							{#if prefs.indexCountry && item.country}
-								<span class="text-base-content/50 hidden shrink-0 text-xs sm:inline">{countryName(item.country)}</span>
+							{#if listView.indexMissing}
+								{@const missing = missingOf(item)}
+								{#if missing.length}
+									<span class="text-base-content/60 text-xs italic">
+										Manque : {missing.map((field) => missingLabel(field, entries.tagGroups)).join(', ')}
+									</span>
+								{/if}
 							{/if}
-							{#if prefs.indexAge && item.birthYear}
-								<span class="text-base-content/60 shrink-0 text-xs" title="Année de naissance : {item.birthYear}">{formatAge(item.birthYear)}</span>
+							{#if tags.length}
+								<div class="flex flex-wrap gap-1">
+									{#each tags as tag (tag.id)}
+										<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
+									{/each}
+								</div>
 							{/if}
-							{#if prefs.indexStatus && item.validatedAt}<ValidatedMark />{/if}
-						</div>
-						{#if listView.indexMissing}
-							{@const missing = missingOf(item)}
-							{#if missing.length}
-								<span class="text-base-content/60 text-xs italic">
-									Manque : {missing.map((field) => missingLabel(field, entries.tagGroups)).join(', ')}
-								</span>
+							{#if links.length}
+								<LinkChips {links} small />
 							{/if}
-						{/if}
-						{#if tags.length}
-							<div class="flex flex-wrap gap-1">
-								{#each tags as tag (tag.id)}
-									<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
-								{/each}
-							</div>
-						{/if}
-						{#if links.length}
-							<LinkChips {links} small />
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/each}
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/each}
+	{/if}
+{/if}
+
+<!-- Hors des branches : une sélection qui vide l'index (tout à la corbeille) garde sa barre et son « Annuler ». -->
+{#if entries.activeItems}
+	{#if selecting}
+		<BulkToolbar items={results} bind:selected onclose={stopSelecting} />
+	{:else}
+		<NewEntryButton />
+	{/if}
 {/if}

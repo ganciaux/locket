@@ -271,12 +271,11 @@
 						</button>
 					{/if}
 				{:else}
-					<div class="grid gap-2 {onreroll ? 'grid-cols-[1fr_1fr_1fr_auto]' : 'grid-cols-3'}">
-						<a class="btn btn-primary btn-sm" href="/entry/{entry.id}" aria-label="Ouvrir la fiche">Ouvrir</a>
-						<a class="btn btn-outline btn-primary btn-sm" href="/entry/{entry.id}/edit" aria-label="Modifier la fiche">Modifier</a>
+					<!-- Vitrine : ni ouverture ni modification ici (elles passent par l'index), les similaires et le dé. -->
+					<div class="flex gap-2">
 						{#if shownSimilar}
 							<button
-								class="btn btn-outline btn-primary btn-sm"
+								class="btn btn-outline btn-primary btn-sm flex-1"
 								aria-label="Aller à cette fiche"
 								title="Quitter les similaires et continuer depuis cette fiche"
 								onclick={goToShown}
@@ -284,12 +283,12 @@
 								Y aller
 							</button>
 						{:else}
-							<button class="btn btn-outline btn-primary btn-sm" aria-pressed={!!similar} disabled={searching} onclick={toggleSimilar}>
+							<button class="btn btn-outline btn-primary btn-sm flex-1" aria-pressed={!!similar} disabled={searching} onclick={toggleSimilar}>
 								{#if searching}<span class="loading loading-spinner loading-xs"></span>{:else}Similaires{/if}
 							</button>
 						{/if}
 						{#if onreroll}
-							<button class="btn btn-ghost btn-sm btn-square" aria-label="Un autre tirage" title="Une autre fiche au hasard" onclick={onreroll}>
+							<button class="btn btn-outline btn-primary btn-sm btn-square" aria-label="Un autre tirage" title="Une autre fiche au hasard" onclick={onreroll}>
 								<Icon name="dice" class="size-4" />
 							</button>
 						{/if}

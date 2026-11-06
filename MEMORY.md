@@ -253,6 +253,12 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
 - Face ID : mot de passe redemandé tous les 30 jours.
 - ESLint (`npm run lint`, en CI) avec les invariants de sécurité en règles. Prettier écarté pour l'instant (AUDIT.md).
 - Dependabot : seules les versions mineures et correctives de dev sont regroupées, chaque majeure a sa PR.
+- **Vitrine et back-office séparés** : la recherche (« Mes fiches ») ne fait que montrer (cartes, filtres, carte
+  agrandie avec Similaires et le dé, note) : plus de « + », de sélection, ni d'Ouvrir / Modifier dans le zoom ; un clic
+  agrandit toujours (réglage « Clic sur une carte » retiré). L'index (`/list`) est le back-office : « + », sélection
+  multiple et actions groupées, filtres de tags (à part de ceux de la recherche, `listView.indexTags`), présentation
+  Liste (cases à cocher en sélection) ou Cartes (préférence `indexCards` ; un clic ouvre la fiche). Carte
+  sélectionnée : liseré bordeaux de 3 px en plus de l'inclinaison.
 
 **Décisions et reports** :
 - Autres images gardées à leur taille actuelle ; un script les réduira (1200 px) quand le quota Spark (1 Go)

@@ -1,6 +1,6 @@
 /** Classement par duels. */
 import { addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
-import { createEntry, createEntryWithImage, runDuels } from './helpers';
+import { createEntry, createEntryWithImage, openEntry, runDuels } from './helpers';
 import type { Page } from '@playwright/test';
 
 test('classement : retour depuis une fiche, relancer, abandonner, terminer, supprimer', async ({ page }) => {
@@ -112,16 +112,15 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await expect(card('Delta')).not.toContainText('#');
 
 	// Bravo à la corbeille : Charlie remonte, sans réécrire le classement.
-	await card('Bravo').getByRole('heading').click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await openEntry(page, 'Bravo');
 	await page.getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
+	await goHome(page);
 	await page.getByLabel('Trier par').selectOption('rank');
 	await expect(card('Charlie')).toContainText('#2');
 
 	// Reclasser Alpha : il perd contre Charlie, puis revient sur sa fiche.
-	await card('Alpha').getByRole('heading').click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await openEntry(page, 'Alpha');
 	await expect(page.getByText('1re sur 2 au classement')).toBeVisible();
 	await page.getByRole('link', { name: 'Reclasser' }).click();
 	await page.getByRole('button', { name: 'Préférer Charlie', exact: true }).click();

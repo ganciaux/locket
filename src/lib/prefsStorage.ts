@@ -8,8 +8,6 @@ export type Theme = 'auto' | 'light' | 'dark';
 export type CardSize = 'small' | 'medium' | 'large';
 /** Minutes d'inactivité avant verrouillage ; 0 = jamais. */
 export type AutoLock = 0 | 1 | 5 | 15 | 30;
-/** Clic sur une carte : l'agrandir au-dessus de la liste ou ouvrir la fiche. */
-export type CardClick = 'zoom' | 'open';
 /** Dos des cartes face cachée de l'album (app.css, `.album-back`). */
 export type AlbumBack = 'night' | 'ivory' | 'slate';
 export const ALBUM_BACKS: { value: AlbumBack; label: string }[] = [
@@ -28,7 +26,8 @@ export type Prefs = {
 	/** Cartes de la liste : tags et liens affichés sur toutes les cartes, chacun à part ; sinon cartes compactes. */
 	cardTags: boolean;
 	cardLinks: boolean;
-	cardClick: CardClick;
+	/** Index de la collection (`/list`) : en cartes (sélection visuelle) plutôt qu'en liste de noms. */
+	indexCards: boolean;
 	/** Index de la collection (`/list`) : lettres de séparation, puis informations affichées sous chaque nom. */
 	indexInitials: boolean;
 	indexThumb: boolean;
@@ -57,7 +56,7 @@ export const DEFAULTS: Prefs = {
 	showHidden: false,
 	cardTags: false,
 	cardLinks: false,
-	cardClick: 'zoom',
+	indexCards: false,
 	indexInitials: true,
 	indexThumb: false,
 	indexRank: false,
@@ -82,10 +81,8 @@ export function parsePrefs(text: string | null): Prefs {
 		// Ancien `detailedCards` : tags et liens ensemble, devenus deux réglages.
 		if (stored.detailedCards === true && !('cardTags' in stored) && !('cardLinks' in stored))
 			Object.assign(loaded, { cardTags: true, cardLinks: true });
-		// Ancienne valeur `expand` : le dépliage est devenu l'agrandissement.
 		return {
 			...loaded,
-			cardClick: loaded.cardClick === 'open' ? 'open' : 'zoom',
 			revealMode: parseRevealMode(loaded.revealMode),
 			// Ancienne valeur « Aléatoire » du mode : devenue une option à part.
 			revealRandom: loaded.revealRandom === true || stored.revealMode === 'random',

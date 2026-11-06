@@ -244,15 +244,17 @@
 }
 
 /*
- * Carte sélectionnée (sélection multiple) : un cadre de couleur se confondrait avec les bordures de catégorie ; elle
- * pivote un peu vers le lecteur, soulevée, avec un reflet irisé, comme une carte de collection qu'on incline.
+ * Carte sélectionnée (sélection multiple, dans l'index) : elle pivote un peu vers le lecteur, soulevée, avec un reflet
+ * irisé, comme une carte de collection qu'on incline, et un liseré bordeaux épais (demandé le 2026-11-06), posé hors
+ * de la carte : il entoure le cadre de catégorie au lieu de le remplacer.
  * Hors couche pour passer devant les ombres de Tailwind et des bordures.
  */
 .card.card-picked {
 	z-index: 1;
 	transform: perspective(700px) rotateY(-8deg) rotateX(5deg) scale(1.03);
+	/* Liseré de 3 px : bien visible, y compris sur une carte à bordure de catégorie (son cadre reste dessous). */
 	box-shadow:
-		0 0 0 1px color-mix(in oklab, var(--color-primary) 35%, transparent),
+		0 0 0 3px var(--color-primary),
 		-10px 16px 26px -12px rgb(0 0 0 / 0.5);
 }
 

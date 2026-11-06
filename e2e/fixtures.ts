@@ -43,7 +43,7 @@ export async function signUp(page: Page): Promise<{ email: string; recoveryKey: 
 export async function addFirstCollection(page: Page, name = 'Manga'): Promise<void> {
 	await page.getByLabel('Nom de la collection').fill(name);
 	await page.getByRole('button', { name: 'Créer', exact: true }).click();
-	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
+	await expect(page.getByRole('link', { name: "Créer des fiches depuis l'index" })).toBeVisible();
 }
 
 /** Navigation par clics : un rechargement verrouillerait la session (la DEK ne vit qu'en mémoire). */

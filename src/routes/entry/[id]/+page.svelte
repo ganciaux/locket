@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { tick, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import ActionBar from '$lib/components/ActionBar.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
@@ -14,12 +13,10 @@
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
 	import { entryNav } from '$lib/entries/entryNav.svelte';
-	import { TRASH_DAYS, countryFlag, countryName, formatAge, formatRating, groupTags, neighbours, pickRandom } from '$lib/entries/model';
+	import { TRASH_DAYS, countryFlag, countryName, formatAge, formatRating, groupTags, neighbours } from '$lib/entries/model';
 	import { deleteForever, entries, loadEntries, rateEntry, setEntriesValidated, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
-	import { prefs } from '$lib/prefs.svelte';
-	import { playReveal } from '$lib/reveal';
 	import { swipe } from '$lib/swipe';
 
 	let error = $state('');
@@ -45,25 +42,8 @@
 	// Remplace l'adresse : le retour du navigateur ramène à la page d'origine, pas à chaque fiche parcourue.
 	const open = (other: string | undefined) => other && goto(`/entry/${other}`, { replaceState: true });
 
-	// Tirage au hasard (dé de la liste, `?tirage`) : la carte se révèle, et le dé du bandeau en refait un parmi la
-	// même liste. Les flèches quittent le tirage.
-	const drawn = $derived(page.url.searchParams.has('tirage'));
-	let figure = $state<HTMLElement>();
 	// Autre image affichée à la place de la couverture (bande `GalleryStrip`) : position (0 = couverture) et URL.
 	let shownImage = $state<{ index: number; url: string | null }>({ index: 0, url: null });
-	let title = $state<HTMLElement>();
-	$effect(() => {
-		void id;
-		if (!drawn) return;
-		untrack(() => tick().then(() => {
-			const image = figure?.querySelector('img');
-			if (image) playReveal(image, title, { mode: prefs.revealMode, random: prefs.revealRandom, duration: prefs.revealMs });
-		}));
-	});
-	function reroll() {
-		const other = pickRandom(navIds, id);
-		if (other) goto(`/entry/${other}?tirage`, { replaceState: true });
-	}
 
 	function onKeydown(event: KeyboardEvent) {
 		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -163,7 +143,7 @@
 	>
 		<header class="flex flex-col gap-1 p-4 sm:px-6">
 			<div class="flex items-start gap-2">
-				<h1 bind:this={title} class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
+				<h1 class="card-title min-w-0 flex-1 text-2xl break-words">{entry.name}</h1>
 				{#if entry.validatedAt}<ValidatedMark class="h-8" />{/if}
 				<CopyButton text={entry.name} label="Copier le nom" class="btn btn-ghost btn-sm btn-square shrink-0" />
 			</div>
@@ -184,7 +164,7 @@
 			<!-- Avec bordure, le cadre épouse l'image, posée sur le fond avec une marge pour son halo. -->
 			{@const border = entries.borderOf(entry)}
 			{@const imageClass = `object-contain ${border ? 'rounded-box max-h-[calc(60vh-2rem)] max-w-full' : 'max-h-[60vh] w-full'}`}
-			<figure bind:this={figure} class="bg-base-200 relative {border ? 'flex justify-center p-4' : ''}">
+			<figure class="bg-base-200 relative {border ? 'flex justify-center p-4' : ''}">
 				{#if shownImage.url}
 					<img src={shownImage.url} alt={entry.name} data-border={border} class={imageClass} />
 				{:else}
@@ -315,12 +295,7 @@
 				<button class="btn btn-outline btn-error" aria-label="Supprimer" title="Supprimer" onclick={() => (confirmDelete = true)}>
 					<Icon name="trash" class="size-4" /> <span class="hidden sm:inline">Supprimer</span>
 				</button>
-				{#if drawn && navIds.length > 1}
-					<button class="btn btn-ghost btn-square ml-auto" aria-label="Un autre tirage" title="Une autre fiche au hasard" onclick={reroll}>
-						<Icon name="dice" class="size-5" />
-					</button>
-				{/if}
-				<a class="btn btn-primary btn-circle {drawn && navIds.length > 1 ? '' : 'ml-auto'}" href="/entry/new" aria-label="Nouvelle fiche" title="Nouvelle fiche">
+				<a class="btn btn-primary btn-circle ml-auto" href="/entry/new" aria-label="Nouvelle fiche" title="Nouvelle fiche">
 					<Icon name="plus" class="size-6" />
 				</a>
 			</div>

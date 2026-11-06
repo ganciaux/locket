@@ -1,7 +1,7 @@
 <script lang="ts">
-	// Carte de la liste. En mode sélection, un clic coche la fiche ; sinon il l'agrandit ou l'ouvre (Paramètres).
+	// Carte de fiche. Recherche (`onzoom`) : un clic l'agrandit. Index : un clic ouvre la fiche, ou la coche en
+	// mode sélection.
 	import CopyButton from '$lib/components/CopyButton.svelte';
-	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
 	import { countryFlag, countryName, formatRating, framingClass } from '$lib/entries/model';
@@ -10,25 +10,23 @@
 
 	let {
 		entry,
-		selecting,
-		selected,
+		selecting = false,
+		selected = false,
 		onzoom,
 		ontoggle
 	}: {
 		entry: ListItem;
-		selecting: boolean;
-		selected: boolean;
-		onzoom: () => void;
-		ontoggle: () => void;
+		selecting?: boolean;
+		selected?: boolean;
+		/** Recherche : un clic agrandit la carte. Sans lui (index), un clic ouvre la fiche. */
+		onzoom?: () => void;
+		ontoggle?: () => void;
 	} = $props();
 
-	const clickZooms = $derived(prefs.cardClick === 'zoom');
-	const zooms = $derived(clickZooms && !selecting);
+	const zooms = $derived(!!onzoom && !selecting);
 	const links = $derived(entries.linksOf(entry));
 	const entryTags = $derived(entries.tagsOf(entry));
 	const rank = $derived(entries.rankOf(entry));
-	// Barre « Détails » : seulement s'il reste des tags ou des liens que la carte n'affiche pas.
-	const hasMore = $derived((entryTags.length > 0 && !prefs.cardTags) || (links.length > 0 && !prefs.cardLinks));
 	// Bordure : couleur du tag de la catégorie de bordure (cadre `data-border`, app.css).
 	const border = $derived(entries.borderOf(entry));
 </script>
@@ -75,7 +73,7 @@
 					onclick={(event) => {
 						if (!selecting) return;
 						event.preventDefault();
-						ontoggle();
+						ontoggle?.();
 					}}
 				>
 					{@render cardName()}
@@ -114,27 +112,15 @@
 					type="checkbox"
 					class="checkbox checkbox-sm bg-base-100 text-primary checked:border-primary absolute top-1 left-1 z-10"
 					checked={selected}
-					onchange={ontoggle}
+					onchange={() => ontoggle?.()}
 					aria-label="Sélectionner {entry.name}"
 				/>
 			{/if}
 		</figure>
 	</div>
-	{#if (!clickZooms || selecting) && hasMore}
-		<button
-			type="button"
-			class="text-base-content/60 hover:bg-base-200 border-base-200 mt-auto flex w-full cursor-pointer items-center gap-1 border-t px-3 py-1.5 text-xs"
-			aria-haspopup="dialog"
-			onclick={onzoom}
-		>
-			<span class="flex-1 text-left">Détails</span>
-			<Icon name="chevronRight" class="size-4" />
-		</button>
-	{/if}
-
 	<!--
 		Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>.
-		Cartes d'une même ligne à la même hauteur (grille étirée) : les liens et « Détails » se calent en bas (mt-auto).
+		Cartes d'une même ligne à la même hauteur (grille étirée) : les liens se calent en bas (mt-auto).
 	-->
 	{#if prefs.cardTags && entryTags.length}
 		<div class="flex flex-wrap gap-1 px-3 py-2">

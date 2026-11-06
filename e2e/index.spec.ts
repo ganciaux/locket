@@ -1,6 +1,6 @@
 /** Index (backoffice) : liste par initiale, « Il manque », import, comparaison, statistiques. */
 import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
-import { addTagGroups, createEntry, importTable, openIndex } from './helpers';
+import { addTagGroups, createEntry, goIndex, importTable, openIndex } from './helpers';
 
 test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche', async ({ page }) => {
 	await signUp(page);
@@ -13,6 +13,7 @@ test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche
 	await expect(page.locator('details.dropdown ul a')).toHaveText([
 		'Chercher des fiches',
 		'Index de la collection',
+		'Album de la collection',
 		'Gérer les liens',
 		'Gérer les tags',
 		'Gérer le classement',
@@ -250,4 +251,46 @@ test('statistiques de la collection : chiffres clés, répartitions et lien vers
 	await page.getByRole('link', { name: /À compléter/ }).click();
 	await expect(page).toHaveURL(/\/list$/);
 	await expect(page.locator('summary').filter({ hasText: 'Il manque' })).toHaveText(/Il manque\s*: Une info/);
+});
+
+test('index : bouton +, sélection en liste par cases à cocher, filtre par tag', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await addTagGroups(page, 'Genre = Action, Drame');
+	for (const name of ['Akira', 'Monster', 'Pluto']) await createEntry(page, name);
+
+	await goIndex(page);
+	await expect(page.locator('a[href="/entry/new"]')).toBeVisible();
+	// En sélection : la case ou le nom cochent la fiche, sans l'ouvrir ; le « + » laisse la place à la barre.
+	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
+	await expect(page.locator('a[href="/entry/new"]')).toHaveCount(0);
+	await page.getByLabel('Sélectionner Akira').check();
+	await page.getByRole('link', { name: 'Monster', exact: true }).click();
+	await expect(page).toHaveURL(/\/list$/);
+	await expect(page.getByText('2 sélectionnées')).toBeVisible();
+	await page.getByRole('toolbar').getByRole('button', { name: 'Tags', exact: true }).click();
+	await page.getByRole('toolbar').getByRole('button', { name: 'Action' }).click();
+	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+	await expect(page.getByText('Tags ajoutés à 2 fiches.')).toBeVisible();
+	await page.getByRole('button', { name: 'Quitter la sélection' }).click();
+
+	// Filtre par tag, à part de celui de la recherche.
+	const facet = (name: string) => page.getByRole('group', { name: 'Filtrer par tags' }).locator('summary').filter({ hasText: name });
+	await facet('Genre').click();
+	await page.getByRole('checkbox', { name: 'Action' }).check();
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('link', { name: 'Akira', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Monster', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Pluto', exact: true })).toHaveCount(0);
+	await expect(page.getByText('2 fiches sur 3')).toBeVisible();
+	await goHome(page);
+	await expect(page.locator('li.card')).toHaveCount(3);
+	await goIndex(page);
+	await page.getByRole('button', { name: 'Effacer' }).click();
+	await expect(page.getByRole('link', { name: 'Pluto', exact: true })).toBeVisible();
+
+	// En cartes : un clic ouvre la fiche.
+	await page.getByRole('radio', { name: 'Cartes' }).check();
+	await page.locator('li.card').filter({ hasText: 'Pluto' }).getByRole('heading').click();
+	await expect(page.getByRole('heading', { name: 'Pluto', level: 1 })).toBeVisible();
 });

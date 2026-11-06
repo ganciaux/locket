@@ -19,6 +19,9 @@ type ListView = {
 	indexMissing: string;
 	/** Index : statut, à part de celui de « Mes fiches » comme « Il manque ». */
 	indexValidated: ValidatedFilter;
+	/** Index : tags et recherche avancée, à part de ceux de « Mes fiches » (sélection multiple par tag). */
+	indexTags: TagFilter;
+	indexExtended: boolean;
 };
 
 const defaults = (): ListView => ({
@@ -31,7 +34,9 @@ const defaults = (): ListView => ({
 	sort: 'random',
 	extended: false,
 	indexMissing: '',
-	indexValidated: ''
+	indexValidated: '',
+	indexTags: { ...NO_TAG_FILTER },
+	indexExtended: false
 });
 
 export const listView = $state<ListView>(defaults());

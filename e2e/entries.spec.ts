@@ -1,6 +1,6 @@
 /** Fiches : formulaire, image, liens, sites, nom unique, note, pays, naissance. */
 import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
-import { addSite, createEntry, createEntryWithImage, lockAndUnlock, openIndex, swipeOn } from './helpers';
+import { addSite, createEntry, createEntryWithImage, lockAndUnlock, newEntryForm, openEntry, openIndex, swipeOn } from './helpers';
 
 test('site de collection : lien calculé, nom custom, masquage', async ({ page }) => {
 	await signUp(page);
@@ -27,8 +27,7 @@ test('site de collection : lien calculé, nom custom, masquage', async ({ page }
 test('colle une image dans le formulaire, sans gêner le collage de texte', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
-	await page.locator('a[href="/entry/new"]').first().click();
-	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
+	await newEntryForm(page);
 
 	const paste = (withImage: boolean) =>
 		page.evaluate(async (image) => {
@@ -163,8 +162,7 @@ test('nom unique dans la collection : signalé à la saisie, refusé à l’enre
 	await addFirstCollection(page);
 	await createEntry(page, 'École');
 
-	await goHome(page);
-	await page.locator('a[href="/entry/new"]').first().click();
+	await newEntryForm(page);
 	const name = page.getByLabel('Nom', { exact: true });
 	await name.fill('Naruto');
 	await expect(page.getByText('Disponible')).toBeVisible();
@@ -262,7 +260,8 @@ test('année de naissance : âge sur la fiche, le zoom et l’index, effaçable'
 
 	await page.locator('li.card').getByRole('heading').click();
 	await expect(page.getByRole('dialog').getByText(age)).toBeVisible();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await page.keyboard.press('Escape');
+	await openEntry(page, 'Akira');
 	await page.getByRole('link', { name: 'Modifier' }).click();
 	await expect(page.getByLabel('Année de naissance')).toHaveValue('1990');
 	await page.getByLabel('Année de naissance').fill('');
@@ -289,8 +288,7 @@ test('remarques : saisies, affichées, gardées par une note, trouvées par la r
 	await lockAndUnlock(page);
 	await page.getByLabel('Rechercher').fill('elodie');
 	await expect(page.locator('li.card')).toHaveCount(1);
-	await page.locator('li.card').getByRole('heading', { name: 'Akira' }).click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await openEntry(page, 'Akira');
 	await expect(remarks).toBeVisible();
 });
 
@@ -341,9 +339,10 @@ test('fiche validée : confirmation avant de modifier, note figée, filtre, lais
 	await expect(row.getByRole('img', { name: 'Validée' })).toBeVisible();
 	await page.getByRole('button', { name: 'Validées', exact: true }).click();
 	await expect(row.getByRole('img', { name: 'Validée' })).toHaveCount(0);
-	await goHome(page);
+	await page.getByRole('button', { name: 'Effacer' }).click();
 
-	// Sélection : « Cacher » laisse la validée de côté.
+	// Sélection (index en cartes) : « Cacher » laisse la validée de côté.
+	await page.getByRole('radio', { name: 'Cartes' }).check();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await page.getByRole('button', { name: 'Tout', exact: true }).click();
 	await expect(page.getByText('1 validée laissée de côté')).toBeVisible();
@@ -360,7 +359,7 @@ test('fiche validée : confirmation avant de modifier, note figée, filtre, lais
 test('cadrage de la carte : seulement pour une image non carrée, appliqué à la miniature', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
-	await page.locator('a[href="/entry/new"]').first().click();
+	await newEntryForm(page);
 	await page.getByLabel('Nom', { exact: true }).fill('Portrait');
 	const paste = (width: number, height: number) =>
 		page.evaluate(
@@ -391,15 +390,15 @@ test('cadrage de la carte : seulement pour une image non carrée, appliqué à l
 
 	await goHome(page);
 	await expect(page.locator('li.card img')).toHaveClass(/object-\[0%_0%\]/);
-	await page.locator('li.card').getByRole('heading').click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Modifier la fiche' }).click();
+	await openEntry(page, 'Portrait');
+	await page.getByRole('link', { name: 'Modifier' }).click();
 	await expect(page.getByLabel('Cadrage de la carte')).toHaveValue('0');
 });
 
 test('recadrer et pivoter : nouvelle image puis image enregistrée, remplacée à l’enregistrement', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
-	await page.locator('a[href="/entry/new"]').first().click();
+	await newEntryForm(page);
 	await page.getByLabel('Nom', { exact: true }).fill('Photo');
 	await page.evaluate(async () => {
 		const canvas = Object.assign(document.createElement('canvas'), { width: 300, height: 600 });

@@ -1,6 +1,6 @@
-/** « Mes fiches » : cartes, fiche agrandie, recherche, navigation, sélection multiple, éléments cachés. */
+/** « Mes fiches » (vitrine) et index (sélection multiple) : cartes, fiche agrandie, recherche, navigation, cachées. */
 import { PASSWORD, addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
-import { addSite, createEntry, createEntryWithImage, swipeOn } from './helpers';
+import { addSite, createEntry, createEntryWithImage, goIndex, swipeOn } from './helpers';
 
 test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la fiche', async ({ page }) => {
 	await signUp(page);
@@ -42,10 +42,15 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await page.keyboard.press('Escape');
 	await expect(zoom).toHaveCount(0);
 
+	// Vitrine : la carte agrandie n'ouvre ni ne modifie la fiche ; ni création ni sélection sur la page.
 	await card('Jane Roe').getByRole('heading').click();
-	await zoom.getByRole('link', { name: 'Ouvrir la fiche' }).click();
-	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
-	await page.getByRole('main').getByRole('link', { name: 'Mes fiches', exact: true }).click();
+	await expect(zoom.getByRole('button', { name: 'Similaires' })).toBeVisible();
+	await expect(zoom.getByRole('link', { name: 'Ouvrir la fiche' })).toHaveCount(0);
+	await expect(zoom.getByRole('link', { name: 'Modifier la fiche' })).toHaveCount(0);
+	await page.keyboard.press('Escape');
+	await expect(zoom).toHaveCount(0);
+	await expect(page.locator('a[href="/entry/new"]')).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Sélection', exact: true })).toHaveCount(0);
 
 	// Bascule de la liste : les liens sur toutes les cartes, puis de nouveau compactes.
 	const linksToggle = page.getByRole('button', { name: 'Liens sur les cartes' });
@@ -55,26 +60,12 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await linksToggle.click();
 	await expect(animeOf('John Doe')).toHaveCount(0);
 
-	// Clic = ouvrir la fiche : la barre « Détails » de la carte l'agrandit.
-	await goSettings(page);
-	await page.getByRole('radio', { name: 'Ouvrir la fiche' }).check();
-	await goHome(page);
-	await expect(animeOf('John Doe')).toHaveCount(0);
-	await card('John Doe').getByRole('button', { name: 'Détails' }).click();
-	await expect(zoom.getByRole('link', { name: 'anime', exact: true })).toBeVisible();
-	await page.keyboard.press('Escape');
-	await expect(zoom).toHaveCount(0);
-	await card('John Doe').getByRole('heading').click();
-	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
-
-	// Liens sur les cartes pour la suite : réglage retenu, et plus de barre « Détails » sans tag à montrer.
-	await goHome(page);
+	// Liens sur les cartes pour la suite : réglage retenu.
 	await linksToggle.click();
 	await goSettings(page);
 	await goHome(page);
 	await expect(linksToggle).toHaveAttribute('aria-pressed', 'true');
 	await expect(animeOf('John Doe')).toBeVisible();
-	await expect(card('John Doe').getByRole('button', { name: 'Détails' })).toHaveCount(0);
 
 	// Filtre sur la présence de liens.
 	await createEntry(page, 'Sans site');
@@ -91,7 +82,9 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await expect(card('Sans site')).toBeVisible();
 	await expect(page.getByText('3 fiches', { exact: true })).toBeVisible();
 
-	// Sélection : masquer puis réafficher un site de la collection ; la sélection reste ouverte.
+	// Sélection (index en cartes) : masquer puis réafficher un site de la collection ; la sélection reste ouverte.
+	await goIndex(page);
+	await page.getByRole('radio', { name: 'Cartes' }).check();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await card('John Doe').getByRole('heading').click();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
@@ -153,8 +146,11 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await expect(page.getByText('Vu', { exact: true })).toBeVisible();
 	await goHome(page);
 
+	// Tags affichés sur les cartes (réglage de la recherche, valable aussi pour l'index en cartes).
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
+	await goIndex(page);
+	await page.getByRole('radio', { name: 'Cartes' }).check();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await card('Fiche A').getByRole('heading').click(); // coche sans ouvrir la fiche
 	await card('Fiche B').getByLabel('Sélectionner Fiche B').check();
@@ -180,7 +176,6 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await card('Fiche B').getByRole('heading').click();
 	await page.getByRole('button', { name: 'Cacher', exact: true }).click();
 	await expect(card('Fiche A')).toHaveCount(0);
-	await expect(page.getByRole('button', { name: 'Cachées (1)' })).toBeVisible();
 	await expect(page.getByText('0 sélectionnée')).toBeVisible();
 
 	// « Tout » est une bascule : un second clic désélectionne tout.
@@ -213,8 +208,11 @@ test('sélection multiple : la dernière action s’annule, tags comme corbeille
 	await expect(page.getByText('Lu', { exact: true })).toBeVisible();
 	await goHome(page);
 
+	// Tags affichés sur les cartes (réglage de la recherche, valable aussi pour l'index en cartes).
 	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
 	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
+	await goIndex(page);
+	await page.getByRole('radio', { name: 'Cartes' }).check();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await page.getByRole('button', { name: 'Tout', exact: true }).click();
 	await page.getByRole('button', { name: 'Tags', exact: true }).click();
@@ -294,21 +292,17 @@ test('fiche agrandie : ouvrir, modifier, ressemblantes', async ({ page }) => {
 	await expect(zoom.getByRole('button', { name: 'Retour à Alpha' })).toHaveCount(0);
 	await expect(zoom.getByRole('heading', { name: 'Bravo' })).toBeVisible();
 
-	await zoom.getByRole('link', { name: 'Modifier la fiche' }).click();
-	await expect(page).toHaveURL(/\/entry\/[^/]+\/edit$/);
-	await expect(page.getByLabel('Nom', { exact: true })).toHaveValue('Bravo');
+	// Vitrine : pas de modification depuis la carte agrandie.
+	await expect(zoom.getByRole('link', { name: 'Modifier la fiche' })).toHaveCount(0);
 });
 
-test('navigation : fiches voisines dans la liste filtrée, retour et place conservés', async ({ page }) => {
+test('navigation : fiches voisines dans l’index filtré, retour et place conservés', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
 	for (const name of ['Alpha', 'Bravo', 'Charlie']) await createEntry(page, name);
 
-	await goHome(page);
-	await page.getByLabel('Trier par').selectOption('name');
-	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
-	await card('Alpha').getByRole('heading').click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await goIndex(page);
+	await page.getByRole('link', { name: 'Alpha', exact: true }).click();
 
 	const previous = page.getByRole('button', { name: 'Fiche précédente' });
 	const next = page.getByRole('button', { name: 'Fiche suivante' });
@@ -330,11 +324,9 @@ test('navigation : fiches voisines dans la liste filtrée, retour et place conse
 	await expect(page.getByText('2 / 3')).toBeVisible();
 
 	// Une recherche réduit la navigation aux résultats.
-	await page.getByRole('link', { name: 'Mes fiches' }).first().click();
-	await page.getByLabel('Rechercher').fill('br');
-	await card('Bravo').getByRole('heading').click();
-	await page.getByRole('dialog').getByRole('link', { name: 'Ouvrir la fiche' }).click();
-	// Sinon la carte et le zoom, encore affichés, donnent deux titres « Bravo ».
+	await page.getByRole('link', { name: 'Index' }).first().click();
+	await page.getByLabel('Rechercher un nom').fill('br');
+	await page.getByRole('link', { name: 'Bravo', exact: true }).click();
 	await expect(page).toHaveURL(/\/entry\/[^/]+$/);
 	await expect(page.getByRole('heading', { name: 'Bravo' })).toBeVisible();
 	await expect(next).toHaveCount(0);
@@ -408,17 +400,6 @@ test('une fiche au hasard parmi celles affichées, agrandie comme un clic sur sa
 	await page.locator('li.card').first().getByRole('heading').click();
 	await expect(zoomed.getByRole('button', { name: 'Un autre tirage' })).toHaveCount(0);
 	await zoomed.getByRole('button', { name: 'Fermer' }).click();
-
-	// Clic réglé sur « Ouvrir la fiche » : le tirage ouvre la fiche, dont le bandeau propose un autre tirage.
-	await goSettings(page);
-	await page.getByRole('radio', { name: 'Ouvrir la fiche' }).click();
-	await goHome(page);
-	await dice.click();
-	await expect(page).toHaveURL(/\/entry\/[^/]+\?tirage$/);
-	const opened = (await page.getByRole('heading', { level: 1 }).textContent())!.trim();
-	await page.getByRole('button', { name: 'Un autre tirage' }).click();
-	await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(opened);
-	await expect(page).toHaveURL(/\?tirage$/);
 });
 
 test('tirage au hasard : mode et durée réglés dans Paramètres, aperçu animé, retenus', async ({ page }) => {

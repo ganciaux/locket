@@ -4,7 +4,7 @@
  */
 import { type Prefs, STORAGE_KEY, parsePrefs } from './prefsStorage';
 
-export { ALBUM_BACKS, type AlbumBack, type AutoLock, type CardClick, type CardSize, type Theme } from './prefsStorage';
+export { ALBUM_BACKS, type AlbumBack, type AutoLock, type CardSize, type Theme } from './prefsStorage';
 
 function load(): Prefs {
 	try {

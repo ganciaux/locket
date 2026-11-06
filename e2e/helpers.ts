@@ -23,8 +23,30 @@ export async function addSite(page: Page, label: string, urlTemplate: string) {
 	await expect(page.getByText('Sites (1 actif sur 1)')).toBeVisible();
 }
 
-export async function createEntry(page: Page, name: string) {
+/** Index de la collection active (le back-office : création, sélection, ouverture des fiches), depuis n'importe où. */
+export async function goIndex(page: Page) {
 	await goHome(page);
+	await page.locator('details.dropdown > summary').first().click();
+	await page.getByRole('link', { name: 'Index de la collection' }).click();
+	await expect(page).toHaveURL(/\/list$/);
+}
+
+/** Ouvre la page d'une fiche depuis l'index (la recherche ne fait qu'agrandir les cartes). */
+export async function openEntry(page: Page, name: string) {
+	await goIndex(page);
+	await page.getByRole('link', { name, exact: true }).click();
+	await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
+}
+
+/** Formulaire de nouvelle fiche, par le bouton « + » de l'index. */
+export async function newEntryForm(page: Page) {
+	await goIndex(page);
+	await page.locator('a[href="/entry/new"]').first().click();
+	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
+}
+
+export async function createEntry(page: Page, name: string) {
+	await goIndex(page);
 	await page.locator('a[href="/entry/new"]').first().click();
 	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
 	await page.getByLabel('Nom', { exact: true }).fill(name);
@@ -66,7 +88,7 @@ export const editCache = (page: Page, action: 'count' | 'drop' | 'damage' | 'exp
 	}, action);
 
 export async function createEntryWithImage(page: Page, name: string, size = 800) {
-	await goHome(page);
+	await goIndex(page);
 	await page.locator('a[href="/entry/new"]').first().click();
 	await expect(page.getByLabel('Nom', { exact: true })).toBeFocused();
 	await page.evaluate(async (size) => {

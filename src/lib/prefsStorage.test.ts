@@ -42,8 +42,8 @@ describe('parsePrefs', () => {
 		expect(parsePrefs(JSON.stringify({ albumBack: 'rouge' })).albumBack).toBe('night');
 	});
 
-	it('ramène l’ancien clic « expand » sur l’agrandissement', () => {
-		expect(parsePrefs(JSON.stringify({ cardClick: 'expand' })).cardClick).toBe('zoom');
-		expect(parsePrefs(JSON.stringify({ cardClick: 'open' })).cardClick).toBe('open');
+	it('oublie l’ancien réglage du clic sur une carte (la recherche agrandit toujours)', () => {
+		expect('cardClick' in parsePrefs(JSON.stringify({ cardClick: 'open' }))).toBe(false);
+		expect(parsePrefs(null).indexCards).toBe(false);
 	});
 });

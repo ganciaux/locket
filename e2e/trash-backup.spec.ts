@@ -1,7 +1,7 @@
 /** Corbeille et sauvegarde : restauration, fichiers altérés, compte neuf. */
 import { readFile } from 'node:fs/promises';
 import { PASSWORD, addFirstCollection, expect, goHome, goSettings, signUp, test } from './fixtures';
-import { addTagGroups, createEntry, createEntryWithImage, lockAndUnlock, openIndex } from './helpers';
+import { addTagGroups, createEntry, createEntryWithImage, lockAndUnlock, openEntry, openIndex } from './helpers';
 
 test('corbeille : suppression réversible, puis définitive', async ({ page }) => {
 	await signUp(page);
@@ -10,7 +10,7 @@ test('corbeille : suppression réversible, puis définitive', async ({ page }) =
 
 	await page.getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
-	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
+	await expect(page.getByRole('link', { name: "Créer des fiches depuis l'index" })).toBeVisible();
 
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
@@ -19,12 +19,10 @@ test('corbeille : suppression réversible, puis définitive', async ({ page }) =
 	await page.getByRole('button', { name: 'Restaurer' }).click();
 	await expect(page.getByText('La corbeille est vide.')).toBeVisible();
 
-	await goHome(page);
-	await page.getByRole('heading', { name: 'À revoir' }).click();
-	await page.getByRole('link', { name: 'Ouvrir la fiche' }).click();
+	await openEntry(page, 'À revoir');
 	await page.getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
-	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
+	await expect(page.getByText('Aucune fiche dans cette collection.')).toBeVisible();
 
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
@@ -37,7 +35,7 @@ test('corbeille : suppression réversible, puis définitive', async ({ page }) =
 	await createEntry(page, 'Jetable');
 	await page.getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Supprimer définitivement' }).click();
-	await expect(page.getByRole('link', { name: 'Créer une fiche' })).toBeVisible();
+	await expect(page.getByRole('link', { name: "Créer des fiches depuis l'index" })).toBeVisible();
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
 	await expect(page.getByText('La corbeille est vide.')).toBeVisible();
