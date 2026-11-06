@@ -13,7 +13,8 @@
 		selecting = false,
 		selected = false,
 		onzoom,
-		ontoggle
+		ontoggle,
+		details = true
 	}: {
 		entry: ListItem;
 		selecting?: boolean;
@@ -21,6 +22,8 @@
 		/** Recherche : un clic agrandit la carte. Sans lui (index), un clic ouvre la fiche. */
 		onzoom?: () => void;
 		ontoggle?: () => void;
+		/** Tags et liens selon les bascules de la recherche ; false (index) : jamais, la carte reste compacte. */
+		details?: boolean;
 	} = $props();
 
 	const zooms = $derived(!!onzoom && !selecting);
@@ -122,14 +125,14 @@
 		Hors du lien de la carte : on ne peut pas imbriquer des éléments cliquables dans un <a>.
 		Cartes d'une même ligne à la même hauteur (grille étirée) : les liens se calent en bas (mt-auto).
 	-->
-	{#if prefs.cardTags && entryTags.length}
+	{#if details && prefs.cardTags && entryTags.length}
 		<div class="flex flex-wrap gap-1 px-3 py-2">
 			{#each entryTags as tag (tag.id)}
 				<span class="badge badge-soft badge-primary badge-xs">{tag.name}</span>
 			{/each}
 		</div>
 	{/if}
-	{#if prefs.cardLinks && links.length}
+	{#if details && prefs.cardLinks && links.length}
 		<div class="border-base-200 mt-auto border-t px-3 py-2">
 			<LinkChips {links} small />
 		</div>

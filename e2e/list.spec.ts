@@ -41,6 +41,10 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await expect(zoom.getByRole('heading', { name: 'John Doe' })).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(zoom).toHaveCount(0);
+	// Glisser vers le haut ferme aussi.
+	await card('John Doe').getByRole('heading').click();
+	await swipeOn(zoom.locator('figure'), 0, -100);
+	await expect(zoom).toHaveCount(0);
 
 	// Vitrine : la carte agrandie n'ouvre ni ne modifie la fiche ; ni création ni sélection sur la page.
 	await card('Jane Roe').getByRole('heading').click();
@@ -82,16 +86,18 @@ test('fiche agrandie : au-dessus de la liste, voisines, fermeture, accès à la 
 	await expect(card('Sans site')).toBeVisible();
 	await expect(page.getByText('3 fiches', { exact: true })).toBeVisible();
 
-	// Sélection (index en cartes) : masquer puis réafficher un site de la collection ; la sélection reste ouverte.
+	// Sélection (index en liste, liens affichés sous les noms ; les cartes de l'index restent compactes) : masquer
+	// puis réafficher un site de la collection ; la sélection reste ouverte.
 	await goIndex(page);
-	await page.getByRole('radio', { name: 'Cartes' }).check();
+	const row = (name: string) => page.getByRole('main').getByRole('listitem').filter({ hasText: name });
+	await page.getByRole('button', { name: 'Liens', exact: true }).click();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
-	await card('John Doe').getByRole('heading').click();
+	await page.getByLabel('Sélectionner John Doe').check();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
 	await page.getByRole('toolbar').getByText('anime', { exact: true }).click();
 	await page.getByRole('button', { name: 'Masquer', exact: true }).click();
-	// Liens sur les cartes : on regarde le lien lui-même.
-	const anime = animeOf('John Doe');
+	// On regarde le lien lui-même.
+	const anime = row('John Doe').getByRole('link', { name: 'anime', exact: true });
 	await expect(anime).toHaveCount(0);
 	await expect(page.getByText('1 sélectionnée')).toBeVisible();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Liens', exact: true }).click();
@@ -146,36 +152,36 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await expect(page.getByText('Vu', { exact: true })).toBeVisible();
 	await goHome(page);
 
-	// Tags affichés sur les cartes (réglage de la recherche, valable aussi pour l'index en cartes).
-	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
-	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
+	// Index en liste, tags affichés sous les noms (les cartes de l'index restent compactes).
+	const row = (name: string) => page.getByRole('main').getByRole('listitem').filter({ hasText: name });
+	const toolbar = page.getByRole('toolbar', { name: 'Actions sur la sélection' });
 	await goIndex(page);
-	await page.getByRole('radio', { name: 'Cartes' }).check();
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
-	await card('Fiche A').getByRole('heading').click(); // coche sans ouvrir la fiche
-	await card('Fiche B').getByLabel('Sélectionner Fiche B').check();
+	await page.getByRole('link', { name: 'Fiche A', exact: true }).click(); // coche sans ouvrir la fiche
+	await page.getByLabel('Sélectionner Fiche B').check();
 	await expect(page.getByText('2 sélectionnées')).toBeVisible();
 
-	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await toolbar.getByRole('button', { name: 'Tags', exact: true }).click();
 	await page.getByRole('toolbar').getByText('Lu', { exact: true }).click();
 	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
-	await expect(card('Fiche A').getByText('Lu')).toBeVisible();
-	await expect(card('Fiche B').getByText('Lu')).toBeVisible();
-	await expect(card('Fiche C').getByText('Lu')).toHaveCount(0);
+	await expect(row('Fiche A').getByText('Lu')).toBeVisible();
+	await expect(row('Fiche B').getByText('Lu')).toBeVisible();
+	await expect(row('Fiche C').getByText('Lu')).toHaveCount(0);
 
 	// « Définir » remplace les tags : A et B n'ont plus que Vu.
-	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await toolbar.getByRole('button', { name: 'Tags', exact: true }).click();
 	await page.getByRole('toolbar').getByText('Vu', { exact: true }).click();
 	await page.getByRole('button', { name: 'Définir', exact: true }).click();
-	await expect(card('Fiche A').getByText('Vu')).toBeVisible();
-	await expect(card('Fiche A').getByText('Lu')).toHaveCount(0);
-	await expect(card('Fiche B').getByText('Lu')).toHaveCount(0);
+	await expect(row('Fiche A').getByText('Vu')).toBeVisible();
+	await expect(row('Fiche A').getByText('Lu')).toHaveCount(0);
+	await expect(row('Fiche B').getByText('Lu')).toHaveCount(0);
 
 	// La sélection reste ouverte et cochée : on enchaîne en décochant B.
 	await expect(page.getByText('2 sélectionnées')).toBeVisible();
-	await card('Fiche B').getByRole('heading').click();
+	await page.getByRole('link', { name: 'Fiche B', exact: true }).click();
 	await page.getByRole('button', { name: 'Cacher', exact: true }).click();
-	await expect(card('Fiche A')).toHaveCount(0);
+	await expect(row('Fiche A')).toHaveCount(0);
 	await expect(page.getByText('0 sélectionnée')).toBeVisible();
 
 	// « Tout » est une bascule : un second clic désélectionne tout.
@@ -186,8 +192,8 @@ test('sélection multiple : cacher, taguer, mettre à la corbeille', async ({ pa
 	await page.getByRole('button', { name: 'Tout', exact: true }).click();
 	await page.getByRole('toolbar').getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
-	await expect(card('Fiche B')).toHaveCount(0);
-	await expect(card('Fiche C')).toHaveCount(0);
+	await expect(row('Fiche B')).toHaveCount(0);
+	await expect(row('Fiche C')).toHaveCount(0);
 
 	await goSettings(page);
 	await page.getByRole('link', { name: 'Ouvrir la corbeille' }).click();
@@ -208,37 +214,37 @@ test('sélection multiple : la dernière action s’annule, tags comme corbeille
 	await expect(page.getByText('Lu', { exact: true })).toBeVisible();
 	await goHome(page);
 
-	// Tags affichés sur les cartes (réglage de la recherche, valable aussi pour l'index en cartes).
-	const card = (name: string) => page.locator('li.card').filter({ hasText: name });
-	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
+	// Index en liste, tags affichés sous les noms (les cartes de l'index restent compactes).
+	const row = (name: string) => page.getByRole('main').getByRole('listitem').filter({ hasText: name });
+	const toolbar = page.getByRole('toolbar', { name: 'Actions sur la sélection' });
 	await goIndex(page);
-	await page.getByRole('radio', { name: 'Cartes' }).check();
+	await page.getByRole('button', { name: 'Tags', exact: true }).click();
 	await page.getByRole('button', { name: 'Sélection', exact: true }).click();
 	await page.getByRole('button', { name: 'Tout', exact: true }).click();
-	await page.getByRole('button', { name: 'Tags', exact: true }).click();
+	await toolbar.getByRole('button', { name: 'Tags', exact: true }).click();
 	await page.getByRole('toolbar').getByText('Lu', { exact: true }).click();
 	await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
-	await expect(card('Fiche A').getByText('Lu')).toBeVisible();
+	await expect(row('Fiche A').getByText('Lu')).toBeVisible();
 	await expect(page.getByText('Tags ajoutés à 2 fiches.')).toBeVisible();
 	await page.getByRole('button', { name: 'Annuler', exact: true }).click();
-	await expect(card('Fiche A').getByText('Lu')).toHaveCount(0);
-	await expect(card('Fiche B').getByText('Lu')).toHaveCount(0);
+	await expect(row('Fiche A').getByText('Lu')).toHaveCount(0);
+	await expect(row('Fiche B').getByText('Lu')).toHaveCount(0);
 	await expect(page.getByText('Tags ajoutés à 2 fiches.')).toHaveCount(0);
 
 	await page.getByRole('toolbar').getByRole('button', { name: 'Supprimer' }).click();
 	await page.getByRole('button', { name: 'Mettre à la corbeille' }).click();
-	await expect(card('Fiche A')).toHaveCount(0);
+	await expect(row('Fiche A')).toHaveCount(0);
 	await expect(page.getByText('2 fiches mises à la corbeille.')).toBeVisible();
 	await page.getByRole('button', { name: 'Annuler', exact: true }).click();
-	await expect(card('Fiche A')).toBeVisible();
-	await expect(card('Fiche B')).toBeVisible();
+	await expect(row('Fiche A')).toBeVisible();
+	await expect(row('Fiche B')).toBeVisible();
 
 	// Annulation écrite dans Firestore : toujours là après une réouverture.
 	await page.reload();
 	await page.getByLabel('Mot de passe').fill(PASSWORD);
 	await page.getByRole('button', { name: 'Déverrouiller' }).click();
-	await expect(card('Fiche A')).toBeVisible();
-	await expect(card('Fiche B')).toBeVisible();
+	await expect(row('Fiche A')).toBeVisible();
+	await expect(row('Fiche B')).toBeVisible();
 });
 
 test('recherche : filtre la liste, effacée d’un clic', async ({ page }) => {

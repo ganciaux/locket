@@ -3,16 +3,20 @@ import { PASSWORD, expect, goHome, goSettings } from './fixtures';
 import type { Locator, Page } from '@playwright/test';
 
 /** Glissement du doigt, simulé : Chrome de bureau ne le produit pas. */
-export const swipeOn = (target: Locator, dx: number) =>
-	target.evaluate((node, dx) => {
-		const touch = (clientX: number) => new Touch({ identifier: 1, target: node, clientX: 200 + clientX, clientY: 200 });
-		const send = (type: string, x: number, active: boolean) =>
-			node.dispatchEvent(
-				new TouchEvent(type, { bubbles: true, touches: active ? [touch(x)] : [], changedTouches: [touch(x)] })
-			);
-		send('touchstart', 0, true);
-		send('touchend', dx, false);
-	}, dx);
+export const swipeOn = (target: Locator, dx: number, dy = 0) =>
+	target.evaluate(
+		(node, [dx, dy]) => {
+			const touch = (x: number, y: number) =>
+				new Touch({ identifier: 1, target: node, clientX: 200 + x, clientY: 300 + y });
+			const send = (type: string, x: number, y: number, active: boolean) =>
+				node.dispatchEvent(
+					new TouchEvent(type, { bubbles: true, touches: active ? [touch(x, y)] : [], changedTouches: [touch(x, y)] })
+				);
+			send('touchstart', 0, 0, true);
+			send('touchend', dx, dy, false);
+		},
+		[dx, dy]
+	);
 
 export async function addSite(page: Page, label: string, urlTemplate: string) {
 	await goSettings(page);

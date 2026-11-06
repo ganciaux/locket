@@ -329,8 +329,14 @@ test('index : bouton +, sélection en liste par cases à cocher, filtre par tag'
 	await page.getByRole('button', { name: 'Effacer' }).click();
 	await expect(page.getByRole('link', { name: 'Pluto', exact: true })).toBeVisible();
 
-	// En cartes : un clic ouvre la fiche.
+	// En cartes : compactes, sans les tags affichés sur les cartes de la recherche ; un clic ouvre la fiche.
+	await goHome(page);
+	await page.getByRole('button', { name: 'Tags sur les cartes' }).click();
+	await expect(page.locator('li.card').filter({ hasText: 'Akira' }).getByText('Action')).toBeVisible();
+	await goIndex(page);
 	await page.getByRole('radio', { name: 'Cartes' }).check();
+	await expect(page.locator('li.card').filter({ hasText: 'Akira' })).toBeVisible();
+	await expect(page.locator('li.card').filter({ hasText: 'Akira' }).getByText('Action')).toHaveCount(0);
 	await page.locator('li.card').filter({ hasText: 'Pluto' }).getByRole('heading').click();
 	await expect(page.getByRole('heading', { name: 'Pluto', level: 1 })).toBeVisible();
 });

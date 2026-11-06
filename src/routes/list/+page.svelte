@@ -341,10 +341,10 @@
 	{/if}
 
 	{#if prefs.indexCards}
-		<!-- Cartes : un clic ouvre la fiche, ou la coche en sélection. -->
+		<!-- Cartes compactes (ni tags ni liens) : un clic ouvre la fiche, ou la coche en sélection. -->
 		<ul class="grid {CARD_GRID[prefs.cardSize]}">
 			{#each results as entry (entry.id)}
-				<EntryCard {entry} {selecting} selected={selected.includes(entry.id)} ontoggle={() => toggleSelected(entry.id)} />
+				<EntryCard {entry} details={false} {selecting} selected={selected.includes(entry.id)} ontoggle={() => toggleSelected(entry.id)} />
 			{/each}
 		</ul>
 	{:else}

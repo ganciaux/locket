@@ -160,7 +160,7 @@
 	aria-label={entry?.name}
 	onclick={onClick}
 	onkeydown={onKeydown}
-	use:swipe={{ onleft: () => show(position?.next), onright: () => show(position?.previous) }}
+	use:swipe={{ onleft: () => show(position?.next), onright: () => show(position?.previous), onup: close }}
 	oncancel={(event) => {
 		event.preventDefault();
 		close();
