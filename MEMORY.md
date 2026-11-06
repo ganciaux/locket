@@ -229,14 +229,36 @@ Plan validé. **Étape 1 faite** : noyau pur `backup/keyring.ts`, `backup/verify
 refusé » à l'activation de Face ID) puis tester Face ID sur l'iPhone ; supprimer la clé d'accès « Stash (test Face
 ID) » (fait le 2026-11-05) ; ~~test de l'email de réinitialisation externe~~ (fait le 2026-11-05 : faille confirmée,
 acceptée, voir SECURITY.md § 5) ; scans en ligne à refaire après déploiement ;
-plus tard : audit indépendant, empreinte SHA-256 de l'outil s'il circule, mot de passe tous les 30 jours avec Face ID
-à reconsidérer à l'usage.
+plus tard : audit indépendant, empreinte SHA-256 de l'outil s'il circule ; ~~mot de passe tous les 30 jours avec
+Face ID~~ (fait le 2026-11-06).
 
 ## Nouvelles fonctionnalités (retenues le 2026-11-05)
 
 Détail dans [AUDIT.md](AUDIT.md) § 5. Ordre : remarques libres → fiche au hasard (icône dé) → fiche vérifiée →
 annuler la dernière action groupée → recadrer et pivoter l'image (avec le cadrage de la carte) → bordure des cartes
 par une catégorie de tags. **Toutes faites le 2026-11-05** (bordure redessinée en cadre à reflet et halo, appliquée
-partout où la fiche a une image). Plus tard : plusieurs images par fiche.
-Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors ligne, audit indépendant, mot de passe
-tous les 30 jours avec Face ID, entretien des dépendances.
+partout où la fiche a une image). Plusieurs images par fiche : faite le 2026-11-06 (ci-dessous).
+Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors ligne, audit indépendant.
+
+## Fait le 2026-11-06
+
+- Révélations : même dévoilement flou/sombre pour tous les modes (sauf Éclat et Polaroïd), grattage fluide, rideau qui
+  dévoile la carte ; sélection multiple = carte inclinée à reflet irisé (plus de cadre rouge).
+- Bouton « remonter en haut » sur toutes les pages (après une demi-hauteur d'écran) ; clic sur la miniature de l'index.
+- Plusieurs images par fiche : couverture + 5, vignettes en un bloc (`_t`) pour la bande de la fiche et du zoom,
+  coller (bouton ou Ctrl+V), sauvegarde **format v5**. Revue `security-reviewer` faite, corrections appliquées.
+- Album de la collection (`/album`) : fiches face cachée par classement, découvertes au dé sans remise, ids découverts
+  dans le catalogue chiffré des collections (`Collection.discovered`), fiche agrandie en lecture seule, remise à zéro.
+  Dos des cartes au choix dans Paramètres (bordeaux nuit par défaut, papier ivoire, ardoise et or ; rouge vif rejeté).
+- Face ID : mot de passe redemandé tous les 30 jours.
+- ESLint (`npm run lint`, en CI) avec les invariants de sécurité en règles. Prettier écarté pour l'instant (AUDIT.md).
+- Dependabot : seules les versions mineures et correctives de dev sont regroupées, chaque majeure a sa PR.
+
+**Décisions et reports** :
+- Autres images gardées à leur taille actuelle ; un script les réduira (1200 px) quand le quota Spark (1 Go)
+  approchera la saturation (~550 fiches à 6 images).
+- Durée des e2e en local (17 à 24 min, contre ~4,5 min en CI) : mise de côté. Exclusion Defender du dossier faite
+  (−17 %) ; 3 workers sans gain (machine limitée par le CPU : PBKDF2, serveur Vite).
+- Versions majeures en attente : SvelteKit 3 + adapter-static 4 + `@vite-pwa/sveltekit` 2 (qui lèverait peut-être le
+  blocage noté dans CLAUDE.md) à essayer sur une branche ; TypeScript 7 bloqué tant que `svelte-check` ne le prend pas.
+- Après le push : déployer le hosting, refaire une sauvegarde complète (v5).
