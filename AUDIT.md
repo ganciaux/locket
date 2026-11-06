@@ -171,7 +171,7 @@ Dans l'ordre de réalisation prévu.
       est rechiffrée (AAD liée à l'emplacement). Suppression (corbeille, définitive, totale, illisibles) : les six
       emplacements effacés sans rien déchiffrer, pas d'orphelines. Sauvegarde **format v5** (`gallery` par fiche, absente
       d'une sauvegarde légère), témoin `witness-v5.json`, outil de lecture (vignettes, export en clair avec les images
-      complètes). Vignettes (~200 px, 5 à 10 Ko) toutes dans un document  (une lecture à l'ouverture du zoom ou de la fiche),
+      complètes). Vignettes (~200 px, 5 à 10 Ko) toutes dans un document `images/{id}_t` (une lecture à l'ouverture du zoom ou de la fiche),
       refaites à chaque enregistrement de la galerie. Pas dans le cache local. Quota Spark : 1 Go stocké, soit ~550 fiches
       à 6 images de ~300 Ko ; à surveiller (console › Firestore › Utilisation), images à 1200 px si besoin (−40 %). *Avancé.*
 - [ ] **Lecture hors ligne** avec le cache (chiffrés seulement) : seulement si un vrai besoin apparaît (métro, avion).
