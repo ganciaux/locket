@@ -439,4 +439,7 @@ test('tirage au hasard : mode et durée réglés dans Paramètres, aperçu anim�
 	await expect(page.getByLabel('Durée du tirage')).toHaveValue('2000');
 	await page.getByRole('button', { name: 'Aperçu' }).click();
 	expect(await animated()).toBe(true);
+	await page.getByRole('radio', { name: 'Aléatoire' }).check();
+	expect(await animated()).toBe(true);
+	await expect(page.getByText('Une des trois animations, différente à chaque tirage.')).toBeVisible();
 });

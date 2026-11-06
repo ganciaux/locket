@@ -4,12 +4,15 @@
  * CSP) ; un simple fondu si le système demande moins d'animations.
  */
 
-export type RevealMode = 'pack' | 'flip' | 'glow';
+type Animation = 'pack' | 'flip' | 'glow';
+/** Une animation, ou l'une des trois tirée au sort à chaque tirage. */
+export type RevealMode = Animation | 'random';
 
 export const REVEAL_MODES: { value: RevealMode; label: string; hint: string }[] = [
 	{ value: 'pack', label: 'Paquet', hint: 'Floue et sombre, la carte tremble puis se dévoile d’un éclat.' },
 	{ value: 'flip', label: 'Retournement', hint: 'La carte arrive de dos et se retourne.' },
-	{ value: 'glow', label: 'Éclat', hint: 'La carte surgit d’une lumière blanche.' }
+	{ value: 'glow', label: 'Éclat', hint: 'La carte surgit d’une lumière blanche.' },
+	{ value: 'random', label: 'Aléatoire', hint: 'Une des trois animations, différente à chaque tirage.' }
 ];
 
 export const REVEAL_MIN_MS = 500;
@@ -30,10 +33,11 @@ export const parseRevealMode = (value: unknown): RevealMode =>
 /** Images clés de la carte, et moment (de 0 à 1) où elle devient nette : le nom et le reflet s'y calent. */
 type Reveal = { frames: Keyframe[]; easing: string; at: number };
 
-const hidden = { filter: 'blur(16px) saturate(0.3) brightness(0.7)' };
-const back = 'blur(2px) saturate(0) brightness(0.15)';
+// Carte encore cachée (Paquet, et le dos du Retournement) : assez floue et terne pour ne pas la reconnaître.
+const hidden = { filter: 'blur(22px) saturate(0.1) brightness(0.55)' };
+const back = hidden.filter;
 
-const REVEALS: Record<RevealMode, Reveal> = {
+const REVEALS: Record<Animation, Reveal> = {
 	pack: {
 		easing: 'ease-in-out',
 		at: 0.58,
@@ -108,6 +112,17 @@ function sweep(image: HTMLElement, duration: number, at: number): void {
 		.finished.finally(() => sheen.remove());
 }
 
+const ANIMATIONS: Animation[] = ['pack', 'flip', 'glow'];
+let lastRandom: Animation | undefined;
+
+/** Animation à jouer ; « Aléatoire » en tire une, jamais deux fois la même de suite. */
+export function pickAnimation(mode: RevealMode, random = Math.random): Animation {
+	if (mode !== 'random') return mode;
+	const choices = ANIMATIONS.filter((animation) => animation !== lastRandom);
+	lastRandom = choices[Math.floor(random() * choices.length)];
+	return lastRandom;
+}
+
 /** Joue la révélation sur l'image de la carte (et son nom) ; relancée, elle repart du début. */
 export function playReveal(
 	image: HTMLElement,
@@ -119,7 +134,7 @@ export function playReveal(
 		image.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, easing: 'ease-out' });
 		return;
 	}
-	const reveal = REVEALS[parseRevealMode(mode)];
+	const reveal = REVEALS[pickAnimation(parseRevealMode(mode))];
 	const ms = parseRevealMs(duration);
 	image.animate(reveal.frames, { duration: ms, easing: reveal.easing });
 	title?.animate(titleFrames(reveal.at), { duration: ms, easing: 'ease-out' });
