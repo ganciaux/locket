@@ -55,6 +55,8 @@ export type Collection = {
 	ranking?: string[];
 	/** Nouveau classement en cours : reçoit les duels, puis remplace `ranking` une fois terminé. */
 	rankingDraft?: string[];
+	/** Album : fiches déjà découvertes (tirées), dans l'ordre des tirages ; absent ou vide, tout est face cachée. */
+	discovered?: string[];
 	/** Catégories de tags, dans l'ordre d'affichage choisi. */
 	tagGroups?: TagGroup[];
 	/** Cachée : absente des menus et sélecteurs, sauf avec la préférence `showHidden` (comme les fiches cachées). */

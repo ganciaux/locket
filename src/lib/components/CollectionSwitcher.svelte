@@ -10,6 +10,7 @@
 	const PAGES = [
 		{ href: '/', icon: 'search', label: 'Chercher des fiches' },
 		{ href: '/list', icon: 'list', label: 'Index de la collection' },
+		{ href: '/album', icon: 'album', label: 'Album de la collection' },
 		{ href: '/sites', icon: 'link', label: 'Gérer les liens' },
 		{ href: '/tags', icon: 'tag', label: 'Gérer les tags' },
 		{ href: '/ranking', icon: 'podium', label: 'Gérer le classement' },

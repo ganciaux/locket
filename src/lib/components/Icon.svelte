@@ -33,6 +33,8 @@
 		folder: 'M3 6h6l2 2h10v11H3z',
 		podium: 'M3 20h18M4 20v-6h5v6M9 20V8h6v12M15 20v-9h5v9',
 		list: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
+		// Album : des cartes rangées en grille.
+		album: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
 		save: 'M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-7h8v7',
 		saveMore: 'M8 8h9l3 3v9H8zM11 8v4h5V8M11 20v-5h6v5M4 16V4h11'
 	} as const;

@@ -19,6 +19,7 @@ import {
 	parseSiteTemplate,
 	planTagGroups,
 	withFilterLevel,
+	withDiscovered,
 	withSiteMode
 } from './model';
 import { data, entries, loaded, unlocked } from './store.svelte';
@@ -51,6 +52,18 @@ export async function moveCollection(id: string, delta: -1 | 1): Promise<void> {
 	const current = loaded(data.collections);
 	const next = moveItem(current, current.findIndex((c) => c.id === id), delta);
 	if (next !== current) await replaceCollections(next);
+}
+
+/** Album : la fiche tirée devient découverte (voir album.ts). `ids` : les fiches de la collection. */
+export async function discoverInAlbum(collectionId: string, id: string, ids: string[]): Promise<void> {
+	const current = loaded(data.collections);
+	await replaceCollections(current.map((c) => (c.id === collectionId ? { ...c, discovered: withDiscovered(c.discovered, id, ids) } : c)));
+}
+
+/** Album : toutes les cartes repartent face cachée. */
+export async function resetAlbum(collectionId: string): Promise<void> {
+	const current = loaded(data.collections);
+	await replaceCollections(current.map((c) => (c.id === collectionId ? { ...c, discovered: undefined } : c)));
 }
 
 /** Au moins une collection reste visible : la liste a toujours une collection active à montrer. */

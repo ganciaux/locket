@@ -30,6 +30,7 @@
 		id,
 		ids,
 		draw = 0,
+		readonly = false,
 		onchange,
 		onclose,
 		onreroll
@@ -38,6 +39,8 @@
 		ids: string[];
 		/** Numéro du tirage au hasard (dé) : chaque nouveau numéro joue la révélation de la carte. */
 		draw?: number;
+		/** Album : on regarde seulement (ni ouvrir, ni modifier, ni similaires ; note figée). */
+		readonly?: boolean;
 		onchange: (id: string) => void;
 		onclose: () => void;
 		/** Après un tirage : bouton dé pour en refaire un. */
@@ -248,7 +251,7 @@
 				<ErrorAlert message={error} />
 				<div class="flex items-center gap-2">
 					<!-- Validée : note figée, comme le reste de la fiche. -->
-					<Rating value={entry.rating} onchange={rate} disabled={savingRating || !!entry.validatedAt} />
+					<Rating value={entry.rating} onchange={rate} disabled={readonly || savingRating || !!entry.validatedAt} />
 					{#if rank}<span class="badge badge-neutral ml-auto" title="Rang dans le classement">#{rank}</span>{/if}
 				</div>
 				{#if tags.length}
@@ -261,29 +264,37 @@
 				{#if links.length}
 					<LinkChips {links} />
 				{/if}
-				<div class="grid gap-2 {onreroll ? 'grid-cols-[1fr_1fr_1fr_auto]' : 'grid-cols-3'}">
-					<a class="btn btn-primary btn-sm" href="/entry/{entry.id}" aria-label="Ouvrir la fiche">Ouvrir</a>
-					<a class="btn btn-outline btn-primary btn-sm" href="/entry/{entry.id}/edit" aria-label="Modifier la fiche">Modifier</a>
-					{#if shownSimilar}
-						<button
-							class="btn btn-outline btn-primary btn-sm"
-							aria-label="Aller à cette fiche"
-							title="Quitter les similaires et continuer depuis cette fiche"
-							onclick={goToShown}
-						>
-							Y aller
-						</button>
-					{:else}
-						<button class="btn btn-outline btn-primary btn-sm" aria-pressed={!!similar} disabled={searching} onclick={toggleSimilar}>
-							{#if searching}<span class="loading loading-spinner loading-xs"></span>{:else}Similaires{/if}
-						</button>
-					{/if}
+				{#if readonly}
 					{#if onreroll}
-						<button class="btn btn-ghost btn-sm btn-square" aria-label="Un autre tirage" title="Une autre fiche au hasard" onclick={onreroll}>
-							<Icon name="dice" class="size-4" />
+						<button class="btn btn-primary btn-sm" onclick={onreroll}>
+							<Icon name="dice" class="size-4" /> Tirer une autre carte
 						</button>
 					{/if}
-				</div>
+				{:else}
+					<div class="grid gap-2 {onreroll ? 'grid-cols-[1fr_1fr_1fr_auto]' : 'grid-cols-3'}">
+						<a class="btn btn-primary btn-sm" href="/entry/{entry.id}" aria-label="Ouvrir la fiche">Ouvrir</a>
+						<a class="btn btn-outline btn-primary btn-sm" href="/entry/{entry.id}/edit" aria-label="Modifier la fiche">Modifier</a>
+						{#if shownSimilar}
+							<button
+								class="btn btn-outline btn-primary btn-sm"
+								aria-label="Aller à cette fiche"
+								title="Quitter les similaires et continuer depuis cette fiche"
+								onclick={goToShown}
+							>
+								Y aller
+							</button>
+						{:else}
+							<button class="btn btn-outline btn-primary btn-sm" aria-pressed={!!similar} disabled={searching} onclick={toggleSimilar}>
+								{#if searching}<span class="loading loading-spinner loading-xs"></span>{:else}Similaires{/if}
+							</button>
+						{/if}
+						{#if onreroll}
+							<button class="btn btn-ghost btn-sm btn-square" aria-label="Un autre tirage" title="Une autre fiche au hasard" onclick={onreroll}>
+								<Icon name="dice" class="size-4" />
+							</button>
+						{/if}
+					</div>
+				{/if}
 				{#if similar}
 					{#if similar.items.length}
 						<!-- Marge pour l'outline de la vignette affichée : le défilement coupe tout ce qui dépasse. -->

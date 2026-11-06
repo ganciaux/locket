@@ -158,6 +158,14 @@ Dans l'ordre de réalisation prévu.
       Constaté en test : deux choix de couleur à moins d'une seconde d'intervalle, la seconde écriture du catalogue est
       refusée (protection contre l'écrasement) ; erreur affichée, rien de perdu en dehors de ce choix. Idem pour les
       autres réglages des tags, à traiter si ça gêne à l'usage (file d'écritures du catalogue).
+- [x] **Album** de la collection — fait le 2026-11-06 : page `/album` (menu de la collection, sous l'index). Toutes les
+      fiches face cachée (cachées comprises, corbeille exclue), classées par rang puis par nom ; dos identique pour toutes
+      (velours bordeaux et logo, sans bordure de rareté). Seule action : le dé (bouton flottant), qui tire une carte encore
+      cachée ; elle se révèle dans la fiche agrandie (animation du tirage), qui en se refermant rejoint son emplacement, où
+      la carte se retourne. Fiche agrandie en lecture seule (ni Ouvrir, ni Modifier, ni Similaires, note figée), « Tirer une
+      autre carte » après un tirage. Progression « n / m », « Album complet », « Recommencer l'album » (confirmation).
+      Découvertes dans le catalogue chiffré des collections (`Collection.discovered`, `album.ts`) : synchronisées, une
+      écriture par tirage ; une fiche supprimée ou déplacée n'est plus comptée. *Intermédiaire.*
 
 ## À décider ou plus tard
 
