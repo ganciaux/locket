@@ -25,6 +25,13 @@ describe('parsePrefs', () => {
 		});
 	});
 
+	it('miniature de l’index : ancienne case à cocher reprise, valeur inconnue ignorée', () => {
+		expect(parsePrefs(JSON.stringify({ indexThumb: true })).indexThumb).toBe('small');
+		expect(parsePrefs(JSON.stringify({ indexThumb: false })).indexThumb).toBe('off');
+		expect(parsePrefs(JSON.stringify({ indexThumb: 'large' })).indexThumb).toBe('large');
+		expect(parsePrefs(JSON.stringify({ indexThumb: 'huge' })).indexThumb).toBe('off');
+	});
+
 	it('tirage au hasard : mode connu, durée arrondie et bornée, sinon les valeurs par défaut', () => {
 		expect(parsePrefs(null)).toMatchObject({ revealMode: 'pack', revealMs: 1100 });
 		expect(parsePrefs(JSON.stringify({ revealMode: 'flip', revealMs: 2340 }))).toMatchObject({ revealMode: 'flip', revealMs: 2300 });

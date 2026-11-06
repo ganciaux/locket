@@ -20,6 +20,7 @@
 	import { listView } from '$lib/entries/listView.svelte';
 	import {
 		type MissingField,
+		countryChoices,
 		countryFlag,
 		countryName,
 		formatAge,
@@ -33,6 +34,7 @@
 		missingLabel,
 		notValidated,
 		matchesValidatedFilter,
+		RATING_CHOICES,
 		tagQueue,
 		VALIDATED_CHOICES,
 		type ValidatedFilter
@@ -40,7 +42,7 @@
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { startTagging } from '$lib/entries/tagging.svelte';
 	import { errorMessage } from '$lib/errors';
-	import { prefs } from '$lib/prefs.svelte';
+	import { INDEX_THUMBS, prefs } from '$lib/prefs.svelte';
 
 	const OPTIONS = [
 		{ key: 'indexInitials', label: 'A…Z', title: 'Lettres de séparation' },
@@ -79,10 +81,14 @@
 		const missing = missingOf(item);
 		return filter === 'any' ? missing.length > 0 : missing.includes(filter as MissingField);
 	};
-	// Tags : même filtre que la recherche (`entries.search`, cachées selon la préférence, par nom), à part du sien.
+	// Pays présents dans la collection, avec leur nombre de fiches ; note proposée dès qu'une fiche en a une.
+	const countries = $derived(countryChoices(entries.activeItems ?? []));
+	const anyRated = $derived(visible.some((item) => item.rating));
+	// Tags, note et pays : mêmes filtres que la recherche (`entries.search`, cachées selon la préférence, par nom),
+	// à part des siens.
 	const results = $derived(
 		entries
-			.search('', { tags: listView.indexTags })
+			.search('', { tags: listView.indexTags, rating: listView.indexRating, country: listView.indexCountries })
 			.filter(
 				(item) =>
 					(!query.trim() || matchesSearch(item.name, query)) &&
@@ -93,14 +99,34 @@
 	const tagFiltering = $derived(
 		listView.indexTags.untagged || listView.indexTags.tagIds.length > 0 || listView.indexTags.missing.length > 0
 	);
-	const filterActive = $derived(tagFiltering || !!listView.indexMissing || !!listView.indexValidated);
+	const filterActive = $derived(
+		tagFiltering ||
+			!!listView.indexMissing ||
+			!!listView.indexValidated ||
+			listView.indexRating !== 0 ||
+			listView.indexCountries.length > 0
+	);
 
-	/** « Effacer » : tags, « Il manque » et statut ; la recherche par nom a sa propre croix. */
-	function clearFilters() {
+	// Tags et pays sont propres à chaque collection : leur filtre ne survit pas au changement.
+	function resetCollectionFilters() {
 		listView.indexTags = { ...NO_TAG_FILTER };
+		listView.indexCountries = [];
+	}
+
+	/** « Effacer » : tous les filtres ; la recherche par nom a sa propre croix. */
+	function clearFilters() {
+		resetCollectionFilters();
 		listView.indexMissing = '';
 		listView.indexValidated = '';
+		listView.indexRating = 0;
 	}
+
+	/** Miniature : aucune → petite → grande → aucune. */
+	function nextThumb() {
+		const at = INDEX_THUMBS.findIndex((thumb) => thumb.value === prefs.indexThumb);
+		prefs.indexThumb = INDEX_THUMBS[(at + 1) % INDEX_THUMBS.length].value;
+	}
+	const thumbLabel = $derived(INDEX_THUMBS.find((thumb) => thumb.value === prefs.indexThumb)?.label);
 
 	// Sélection multiple : les actions et leur état vivent dans BulkToolbar, fermée en quittant.
 	let selecting = $state(false);
@@ -141,8 +167,7 @@
 </script>
 
 {#if entries.active}
-	<!-- Tags propres à chaque collection : leur filtre ne survit pas au changement. -->
-	<CollectionHeader onselect={() => (listView.indexTags = { ...NO_TAG_FILTER })}>
+	<CollectionHeader onselect={resetCollectionFilters}>
 		{#snippet actions()}
 			<!-- Libellés masqués sur téléphone : avec « Mes fiches », l'en-tête ne tiendrait plus à 320 px. -->
 			{#if entries.tags?.length && results.length}
@@ -187,7 +212,7 @@
 		{/if}
 	</label>
 
-	<!-- Filtres : « Il manque », statut et tags (catégories avancées sur demande), pour sélectionner par lot. -->
+	<!-- Filtres : « Il manque », statut, note, pays et tags (catégories avancées sur demande), pour sélectionner par lot. -->
 	<div class="mb-3 flex flex-col gap-2">
 		<div class="flex flex-wrap items-center gap-2">
 			<span class="text-base-content/60 text-xs">Filtrer</span>
@@ -205,6 +230,23 @@
 					options={VALIDATED_CHOICES}
 					selected={listView.indexValidated ? [listView.indexValidated] : []}
 					onchange={(next) => (listView.indexValidated = (next[0] ?? '') as ValidatedFilter)}
+				/>
+			{/if}
+			{#if anyRated}
+				<FacetDropdown
+					name="Note"
+					single
+					options={RATING_CHOICES}
+					selected={listView.indexRating ? [String(listView.indexRating)] : []}
+					onchange={(next) => (listView.indexRating = Number(next[0] ?? 0))}
+				/>
+			{/if}
+			{#if countries.length}
+				<FacetDropdown
+					name="Pays"
+					options={countries}
+					selected={listView.indexCountries}
+					onchange={(next) => (listView.indexCountries = next)}
 				/>
 			{/if}
 			{#if entries.tags?.length && hasAdvancedFilter(entries.tags, entries.tagGroups)}
@@ -251,15 +293,33 @@
 		<div class="mb-3 flex flex-wrap items-center gap-2">
 			<span class="text-base-content/60 text-xs">Afficher</span>
 			{#each OPTIONS as option (option.key)}
-				<button
-					type="button"
-					class="badge badge-lg cursor-pointer badge-primary {prefs[option.key] ? '' : 'badge-outline border-dashed'}"
-					aria-pressed={prefs[option.key]}
-					title={'title' in option ? option.title : undefined}
-					onclick={() => (prefs[option.key] = !prefs[option.key])}
-				>
-					{option.label}
-				</button>
+				{#if option.key === 'indexThumb'}
+					<!-- Trois états : pointillés (aucune), trait plein (petite), plein (grande, comme une petite carte). -->
+					<button
+						type="button"
+						class="badge badge-lg cursor-pointer badge-primary {prefs.indexThumb === 'large'
+							? ''
+							: prefs.indexThumb === 'small'
+								? 'badge-outline'
+								: 'badge-outline border-dashed'}"
+						aria-pressed={prefs.indexThumb !== 'off'}
+						aria-label="Miniature : {thumbLabel}"
+						title="Miniature : {thumbLabel} (aucune, petite, grande)"
+						onclick={nextThumb}
+					>
+						{option.label}
+					</button>
+				{:else}
+					<button
+						type="button"
+						class="badge badge-lg cursor-pointer badge-primary {prefs[option.key] ? '' : 'badge-outline border-dashed'}"
+						aria-pressed={prefs[option.key]}
+						title={'title' in option ? option.title : undefined}
+						onclick={() => (prefs[option.key] = !prefs[option.key])}
+					>
+						{option.label}
+					</button>
+				{/if}
 			{/each}
 		</div>
 	{/if}
@@ -274,7 +334,9 @@
 						? 'Aucune fiche à compléter.'
 						: listView.indexValidated
 							? 'Aucune fiche avec ce statut.'
-							: 'Toutes les fiches sont cachées.'}
+							: filterActive
+								? 'Aucune fiche ne correspond aux filtres.'
+								: 'Toutes les fiches sont cachées.'}
 		</p>
 	{/if}
 
@@ -314,20 +376,26 @@
 										{#if rank}<span class="badge badge-sm badge-neutral" title="Rang au classement">#{rank}</span>{/if}
 									</span>
 								{/if}
-								{#if prefs.indexThumb}
-									<!-- Ouvre la fiche comme le nom ; hors de l'ordre de tabulation, le nom suffit au clavier. -->
+								{#if prefs.indexThumb !== 'off'}
+									{@const large = prefs.indexThumb === 'large'}
+									<!--
+										Ouvre la fiche comme le nom ; hors de l'ordre de tabulation, le nom suffit au clavier.
+										Grande : à la taille d'une petite carte (S), avec le cadre de bordure complet.
+									-->
 									<a href="/entry/{item.id}" class="shrink-0" tabindex="-1" aria-hidden="true" onclick={(event) => pickInstead(event, item.id)}>
 										{#if item.thumbUrl}
 											<img
 												src={item.thumbUrl}
 												alt=""
 												data-border={entries.borderOf(item)}
-												class="frame-thin rounded-box block size-10 object-cover {framingClass(item.framing)}"
+												class="rounded-box block object-cover {large ? 'size-24 sm:size-28' : 'frame-thin size-10'} {framingClass(item.framing)}"
 											/>
 										{:else}
 											<span
 												data-border={entries.borderOf(item)}
-												class="frame-thin bg-primary/10 text-primary rounded-box flex size-10 items-center justify-center font-bold"
+												class="bg-primary/10 text-primary rounded-box flex items-center justify-center font-bold {large
+													? 'size-24 text-3xl sm:size-28'
+													: 'frame-thin size-10'}"
 											>
 												{item.name.charAt(0).toUpperCase()}
 											</span>

@@ -177,6 +177,17 @@ export const UNRATED = -1;
 export const matchesRatingFilter = (rating: number | undefined, filter: RatingFilter): boolean =>
 	filter === 0 || (filter === UNRATED ? rating === undefined : (rating ?? 0) >= filter);
 
+/** Choix du filtre « Note », sur « Mes fiches » et l'index : un seul, les seuils « et plus » s'incluent l'un l'autre. */
+export const RATING_CHOICES: { value: string; label: string; extra?: boolean }[] = [
+	{ value: '2', label: '★ 1 et plus' },
+	{ value: '4', label: '★ 2 et plus' },
+	{ value: '6', label: '★ 3 et plus' },
+	{ value: '8', label: '★ 4 et plus' },
+	{ value: '9', label: '★ 4,5 et plus' },
+	{ value: '10', label: '★ 5' },
+	{ value: String(UNRATED), label: 'Sans note', extra: true }
+];
+
 export const MIN_BIRTH_YEAR = 1000;
 
 /** Entière, de `MIN_BIRTH_YEAR` à l'année en cours : un âge négatif n'a pas de sens. */

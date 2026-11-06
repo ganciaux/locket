@@ -9,7 +9,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import EntryCard from '$lib/components/EntryCard.svelte';
 	import EntryZoom from '$lib/components/EntryZoom.svelte';
-	import FacetDropdown, { type FacetOption } from '$lib/components/FacetDropdown.svelte';
+	import FacetDropdown from '$lib/components/FacetDropdown.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import TagFilterChips from '$lib/components/TagFilterChips.svelte';
@@ -20,10 +20,10 @@
 		NO_COUNTRY,
 		NO_TAG_FILTER,
 		type SortOrder,
-		UNRATED,
+		RATING_CHOICES,
 		VALIDATED_CHOICES,
 		type ValidatedFilter,
-		countryFlag,
+		countryChoices,
 		countryName,
 		describeFilter,
 		hasAdvancedFilter,
@@ -49,17 +49,6 @@
 		{ value: 'rank', label: 'Tri : classement' },
 		{ value: 'random', label: 'Tri : aléatoire' }
 	];
-	// Note minimale, en demi-étoiles : 6 = 3 étoiles ; rien de choisi : toutes les notes.
-	const RATINGS: FacetOption[] = [
-		{ value: '2', label: '★ 1 et plus' },
-		{ value: '4', label: '★ 2 et plus' },
-		{ value: '6', label: '★ 3 et plus' },
-		{ value: '8', label: '★ 4 et plus' },
-		{ value: '9', label: '★ 4,5 et plus' },
-		{ value: '10', label: '★ 5' },
-		{ value: String(UNRATED), label: 'Sans note', extra: true }
-	];
-
 	// Filtres et tri : gardés pendant la session, valeurs par défaut à chaque déverrouillage (voir listView).
 	const tagFilter = $derived(listView.tags);
 	const CARD_DETAILS = [
@@ -115,14 +104,7 @@
 	const hiddenCount = $derived((entries.activeItems ?? []).filter((item) => item.hidden).length);
 
 	// Pays présents dans la collection, avec leur nombre de fiches, par nom.
-	const countries = $derived.by(() => {
-		const counts = new Map<string, number>();
-		for (const item of entries.activeItems ?? [])
-			if (item.country) counts.set(item.country, (counts.get(item.country) ?? 0) + 1);
-		return [...counts]
-			.map(([code, count]) => ({ code, count, name: countryName(code) }))
-			.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-	});
+	const countries = $derived(countryChoices(entries.activeItems ?? []));
 
 	let confirmPurge = $state(false);
 	let purgePassword = $state('');
@@ -146,7 +128,7 @@
 		describeFilter({
 			withLinks: listView.withLinks && anyLinks,
 			validated: VALIDATED_CHOICES.find((option) => option.value === listView.validated)?.label,
-			rating: RATINGS.find((rating) => rating.value === String(listView.rating))?.label,
+			rating: RATING_CHOICES.find((rating) => rating.value === String(listView.rating))?.label,
 			countries: listView.country.map((code) => (code === NO_COUNTRY ? 'Sans pays' : countryName(code))),
 			tags: tagFilter,
 			tagList: entries.tags ?? [],
@@ -340,7 +322,7 @@
 						<FacetDropdown
 							name="Note"
 							single
-							options={RATINGS}
+							options={RATING_CHOICES}
 							selected={listView.rating ? [String(listView.rating)] : []}
 							onchange={(next) => (listView.rating = Number(next[0] ?? 0))}
 						/>
@@ -358,13 +340,7 @@
 						<!-- Plusieurs pays, en OU : même pastille à cocher que les catégories de tags. -->
 						<FacetDropdown
 							name="Pays"
-							options={[
-								...countries.map((country) => ({
-									value: country.code,
-									label: `${countryFlag(country.code)} ${country.name} (${country.count})`
-								})),
-								{ value: NO_COUNTRY, label: 'Sans pays', extra: true }
-							]}
+							options={countries}
 							selected={listView.country}
 							onchange={(next) => (listView.country = next)}
 						/>

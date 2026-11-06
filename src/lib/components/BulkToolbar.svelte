@@ -114,7 +114,7 @@
 	bind:offsetHeight={dock.height}
 	role="toolbar"
 	aria-label="Actions sur la sélection"
-	class="bg-base-100 fixed inset-x-0 bottom-0 z-20 flex flex-col gap-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgb(0_0_0/0.15)]"
+	class="bg-base-100 fixed inset-x-0 bottom-0 z-20 flex max-h-dvh flex-col gap-2 overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgb(0_0_0/0.15)]"
 >
 	<ErrorAlert message={error} />
 	{#if bulkUndo.label}
@@ -131,13 +131,16 @@
 		</p>
 	{/if}
 	{#if panel === 'tags'}
-		<TagPicker
-			tags={entries.tags ?? []}
-			groups={entries.tagGroups}
-			bind:selected={tagIds}
-			label="Tags à ajouter, retirer ou définir"
-			single
-		/>
+		<!-- Beaucoup de tags : ils défilent dans le bandeau, les boutons restent visibles (la page dessous est figée). -->
+		<div class="max-h-[45dvh] overflow-y-auto overscroll-contain">
+			<TagPicker
+				tags={entries.tags ?? []}
+				groups={entries.tagGroups}
+				bind:selected={tagIds}
+				label="Tags à ajouter, retirer ou définir"
+				single
+			/>
+		</div>
 		<div class="flex flex-wrap gap-2">
 			<button
 				class="btn btn-primary btn-sm"
@@ -170,7 +173,9 @@
 		</div>
 	{:else if panel === 'sites'}
 		<p class="text-sm">Sites de la collection à afficher ou masquer sur les fiches sélectionnées ; « Définir » n'affiche que ceux-là :</p>
-		<TagPicker tags={siteChoices} bind:selected={siteIds} label="Sites à afficher, masquer ou définir" />
+		<div class="max-h-[45dvh] overflow-y-auto overscroll-contain">
+			<TagPicker tags={siteChoices} bind:selected={siteIds} label="Sites à afficher, masquer ou définir" />
+		</div>
 		<div class="flex flex-wrap gap-2">
 			<button
 				class="btn btn-primary btn-sm"

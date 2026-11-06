@@ -259,6 +259,9 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
   multiple et actions groupées, filtres de tags (à part de ceux de la recherche, `listView.indexTags`), présentation
   Liste (cases à cocher en sélection) ou Cartes (préférence `indexCards` ; un clic ouvre la fiche). Carte
   sélectionnée : liseré bordeaux de 3 px en plus de l'inclinaison.
+  Index complété : filtres Note et Pays (à part, `indexRating` / `indexCountries`, choix partagés `RATING_CHOICES` et
+  `countryChoices`) ; miniature à trois états (`indexThumb` : aucune / petite / grande à la taille d'une carte S, l'ancien
+  booléen est repris) ; en sélection, les tags et sites défilent dans le bandeau (sinon le haut sortait de l'écran).
 
 **Décisions et reports** :
 - Autres images gardées à leur taille actuelle ; un script les réduira (1200 px) quand le quota Spark (1 Go)

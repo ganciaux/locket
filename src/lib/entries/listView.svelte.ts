@@ -22,6 +22,9 @@ type ListView = {
 	/** Index : tags et recherche avancée, à part de ceux de « Mes fiches » (sélection multiple par tag). */
 	indexTags: TagFilter;
 	indexExtended: boolean;
+	/** Index : note et pays, à part de ceux de « Mes fiches ». */
+	indexRating: RatingFilter;
+	indexCountries: CountryFilter;
 };
 
 const defaults = (): ListView => ({
@@ -36,7 +39,9 @@ const defaults = (): ListView => ({
 	indexMissing: '',
 	indexValidated: '',
 	indexTags: { ...NO_TAG_FILTER },
-	indexExtended: false
+	indexExtended: false,
+	indexRating: 0,
+	indexCountries: []
 });
 
 export const listView = $state<ListView>(defaults());

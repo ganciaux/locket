@@ -90,3 +90,20 @@ export const NO_COUNTRY = 'none';
 
 export const matchesCountryFilter = (country: string | undefined, filter: CountryFilter): boolean =>
 	!filter.length || filter.includes(country ?? NO_COUNTRY);
+
+/**
+ * Choix du filtre « Pays » : les pays présents parmi `items`, par nom, avec leur nombre de fiches, puis « Sans pays ».
+ * Aucun pays renseigné : aucun choix (le filtre n'est pas proposé).
+ */
+export function countryChoices(items: { country?: string }[]): { value: string; label: string; extra?: boolean }[] {
+	const counts = new Map<string, number>();
+	for (const item of items) if (item.country) counts.set(item.country, (counts.get(item.country) ?? 0) + 1);
+	if (!counts.size) return [];
+	return [
+		...[...counts]
+			.map(([code, count]) => ({ code, count, name: countryName(code) }))
+			.sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+			.map(({ code, count, name }) => ({ value: code, label: `${countryFlag(code)} ${name} (${count})` })),
+		{ value: NO_COUNTRY, label: 'Sans pays', extra: true }
+	];
+}

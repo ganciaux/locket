@@ -213,7 +213,13 @@ test('index : « Il manque » pour compléter les fiches', async ({ page }) => {
 	await thumb.click();
 	await expect(page.getByRole('heading', { name: 'Alpha' })).toBeVisible();
 	await page.goBack();
+	// Trois états : petite, grande, aucune.
 	await page.getByRole('button', { name: 'Miniature' }).click();
+	await expect(page.getByRole('button', { name: 'Miniature : grande' })).toBeVisible();
+	expect((await thumb.boundingBox())?.width).toBeGreaterThan(80);
+	await page.getByRole('button', { name: 'Miniature' }).click();
+	await expect(page.getByRole('button', { name: 'Miniature : aucune' })).toHaveAttribute('aria-pressed', 'false');
+	await expect(thumb).toBeHidden();
 	await expect(page.getByRole('button', { name: 'Classement' })).toHaveAttribute('aria-pressed', 'false');
 
 	// Gardé en revenant d'une fiche.
@@ -223,6 +229,40 @@ test('index : « Il manque » pour compléter les fiches', async ({ page }) => {
 	await page.goBack();
 	await expect(missing).toHaveText(/Il manque\s*: Pays/);
 	await expect(names).toHaveText(['Bravo']);
+});
+
+test('index : filtres note et pays ; en sélection, beaucoup de tags défilent dans le bandeau', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	const many = Array.from({ length: 60 }, (_, i) => `Tag ${i + 1}`).join(', ');
+	await addTagGroups(page, `Genre = ${many}`);
+
+	await goHome(page);
+	await openIndex(page);
+	await importTable(page, 'Nom;Pays;Note\nAlpha;FR;4,5\nBravo;FR;1\nCharlie;JP;', 3);
+
+	const names = page.getByRole('listitem').getByRole('link').filter({ hasText: /\S/ });
+	await page.locator('summary').filter({ hasText: 'Pays' }).click();
+	await page.getByRole('checkbox', { name: /France \(2\)/ }).check();
+	await expect(names).toHaveText(['Alpha', 'Bravo']);
+	await page.locator('summary').filter({ hasText: 'Note' }).click();
+	await page.getByRole('radio', { name: '★ 4 et plus' }).check();
+	await expect(names).toHaveText(['Alpha']);
+	await page.getByRole('button', { name: 'Effacer', exact: true }).click();
+	await expect(names).toHaveText(['Alpha', 'Bravo', 'Charlie']);
+
+	// Téléphone : la liste des tags dépasse l'écran et défile dans le bandeau. Sans cela, le premier tag restait
+	// au-dessus de l'écran, inatteignable (bandeau fixe, page figée).
+	await page.setViewportSize({ width: 390, height: 500 });
+	// Bandeau « emulator mode » de Firebase (absent en production) : il recouvre le bas de l'écran.
+	await page.locator('.firebase-emulator-warning').evaluate((banner) => banner.remove());
+	await page.getByRole('button', { name: 'Sélection' }).click();
+	const toolbar = page.getByRole('toolbar', { name: 'Actions sur la sélection' });
+	await toolbar.getByRole('button', { name: 'Tout' }).click();
+	await toolbar.getByRole('button', { name: 'Tags' }).click();
+	await toolbar.getByRole('button', { name: 'Tag 1', exact: true }).click();
+	await toolbar.getByRole('button', { name: 'Ajouter' }).click();
+	await expect(toolbar.getByText('Tags ajoutés à 3 fiches.')).toBeVisible();
 });
 
 test('statistiques de la collection : chiffres clés, répartitions et lien vers les fiches à compléter', async ({ page }) => {

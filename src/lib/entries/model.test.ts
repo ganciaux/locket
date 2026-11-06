@@ -57,6 +57,7 @@ import {
 	parseLinkUrl,
 	COUNTRY_CODES,
 	UNRATED,
+	countryChoices,
 	countryFlag,
 	countryName,
 	formatAge,
@@ -420,6 +421,14 @@ describe('pays', () => {
 		expect(matchesCountryFilter('ES', ['FR'])).toBe(false);
 		expect(matchesCountryFilter('ES', ['FR', 'ES'])).toBe(true);
 		expect(matchesCountryFilter(undefined, ['FR', 'none'])).toBe(true);
+	});
+
+	it('choix du filtre : pays présents par nom, avec leur nombre, puis « Sans pays »', () => {
+		expect(countryChoices([{}, {}])).toEqual([]);
+		const choices = countryChoices([{ country: 'FR' }, { country: 'ES' }, { country: 'FR' }, {}]);
+		expect(choices.map((choice) => choice.value)).toEqual(['ES', 'FR', 'none']);
+		expect(choices[1].label).toBe(`${countryFlag('FR')} ${countryName('FR')} (2)`);
+		expect(choices[2]).toMatchObject({ label: 'Sans pays', extra: true });
 	});
 });
 

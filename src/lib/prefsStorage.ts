@@ -9,6 +9,13 @@ export type CardSize = 'small' | 'medium' | 'large';
 /** Minutes d'inactivité avant verrouillage ; 0 = jamais. */
 export type AutoLock = 0 | 1 | 5 | 15 | 30;
 /** Dos des cartes face cachée de l'album (app.css, `.album-back`). */
+/** Miniature de l'index en liste : aucune, petite (à côté du nom) ou grande (comme une petite carte). */
+export type IndexThumb = 'off' | 'small' | 'large';
+export const INDEX_THUMBS: { value: IndexThumb; label: string }[] = [
+	{ value: 'off', label: 'aucune' },
+	{ value: 'small', label: 'petite' },
+	{ value: 'large', label: 'grande' }
+];
 export type AlbumBack = 'night' | 'ivory' | 'slate';
 export const ALBUM_BACKS: { value: AlbumBack; label: string }[] = [
 	{ value: 'night', label: 'Bordeaux nuit' },
@@ -30,7 +37,7 @@ export type Prefs = {
 	indexCards: boolean;
 	/** Index de la collection (`/list`) : lettres de séparation, puis informations affichées sous chaque nom. */
 	indexInitials: boolean;
-	indexThumb: boolean;
+	indexThumb: IndexThumb;
 	indexRank: boolean;
 	indexCountry: boolean;
 	indexAge: boolean;
@@ -58,7 +65,7 @@ export const DEFAULTS: Prefs = {
 	cardLinks: false,
 	indexCards: false,
 	indexInitials: true,
-	indexThumb: false,
+	indexThumb: 'off',
 	indexRank: false,
 	indexCountry: true,
 	indexAge: false,
@@ -87,6 +94,11 @@ export function parsePrefs(text: string | null): Prefs {
 			// Ancienne valeur « Aléatoire » du mode : devenue une option à part.
 			revealRandom: loaded.revealRandom === true || stored.revealMode === 'random',
 			revealMs: parseRevealMs(loaded.revealMs),
+			// Ancienne case à cocher : cochée = petite miniature.
+			indexThumb:
+				stored.indexThumb === true
+					? 'small'
+					: (INDEX_THUMBS.find((thumb) => thumb.value === loaded.indexThumb)?.value ?? 'off'),
 			albumBack: ALBUM_BACKS.find((back) => back.value === loaded.albumBack)?.value ?? 'night'
 		};
 	} catch {
