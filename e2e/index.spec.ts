@@ -206,7 +206,12 @@ test('index : « Il manque » pour compléter les fiches', async ({ page }) => {
 
 	// Miniature (initiale sans image) et classement : affichés à la demande.
 	await page.getByRole('button', { name: 'Miniature' }).click();
-	await expect(page.getByRole('listitem').filter({ hasText: 'Alpha' }).getByText('A', { exact: true })).toBeVisible();
+	const thumb = page.getByRole('listitem').filter({ hasText: 'Alpha' }).getByText('A', { exact: true });
+	await expect(thumb).toBeVisible();
+	// Un clic sur la miniature ouvre la fiche, comme le nom.
+	await thumb.click();
+	await expect(page.getByRole('heading', { name: 'Alpha' })).toBeVisible();
+	await page.goBack();
 	await page.getByRole('button', { name: 'Miniature' }).click();
 	await expect(page.getByRole('button', { name: 'Classement' })).toHaveAttribute('aria-pressed', 'false');
 

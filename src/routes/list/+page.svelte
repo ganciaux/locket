@@ -208,22 +208,24 @@
 								</span>
 							{/if}
 							{#if prefs.indexThumb}
-								{#if item.thumbUrl}
-									<img
-										src={item.thumbUrl}
-										alt=""
-										data-border={entries.borderOf(item)}
-										class="frame-thin rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}"
-									/>
-								{:else}
-									<span
-										data-border={entries.borderOf(item)}
-										class="frame-thin bg-primary/10 text-primary rounded-box flex size-10 shrink-0 items-center justify-center font-bold"
-										aria-hidden="true"
-									>
-										{item.name.charAt(0).toUpperCase()}
-									</span>
-								{/if}
+								<!-- Ouvre la fiche comme le nom ; hors de l'ordre de tabulation, le nom suffit au clavier. -->
+								<a href="/entry/{item.id}" class="shrink-0" tabindex="-1" aria-hidden="true">
+									{#if item.thumbUrl}
+										<img
+											src={item.thumbUrl}
+											alt=""
+											data-border={entries.borderOf(item)}
+											class="frame-thin rounded-box block size-10 object-cover {framingClass(item.framing)}"
+										/>
+									{:else}
+										<span
+											data-border={entries.borderOf(item)}
+											class="frame-thin bg-primary/10 text-primary rounded-box flex size-10 items-center justify-center font-bold"
+										>
+											{item.name.charAt(0).toUpperCase()}
+										</span>
+									{/if}
+								</a>
 							{/if}
 							{#if prefs.indexCountry && item.country}
 								<span class="shrink-0" title={countryName(item.country)}>{countryFlag(item.country)}</span>
