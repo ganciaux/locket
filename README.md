@@ -3,6 +3,9 @@
 PWA personnelle de fiches (nom, liens, image, tags), rangées en collections, **chiffrées de bout en bout**. Tout est chiffré dans le
 navigateur avant d'arriver dans Firebase. Firebase ne voit jamais de donnée en clair, ni le mot de passe, ni une clé.
 
+**Application : <https://locket-403b5.web.app>** (inscriptions fermées). Sur iPhone : Safari, Partager › Sur l'écran
+d'accueil, pour l'installer en PWA.
+
 - Code : SvelteKit 2 (SPA statique), Svelte 5, TypeScript, Tailwind CSS 4 + daisyUI 5.
 - Hébergement : Firebase Hosting, Auth (email + mot de passe) et Firestore (Europe), plan gratuit Spark.
 - Crypto : Web Crypto uniquement, dans `src/lib/crypto/` (voir [MEMORY.md](MEMORY.md) pour le détail des choix).
