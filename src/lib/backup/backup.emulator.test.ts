@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { deleteUser, signOut } from 'firebase/auth';
-import { Bytes, deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Bytes, deleteDoc, deleteField, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { checkRecoveryKey, readCurrentKeyring, rotateRecoveryKey, signUp } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
@@ -96,6 +96,13 @@ describe('sauvegarde (émulateurs)', () => {
 		expect(restored.gallery).toEqual(['image/jpeg', 'image/webp']);
 		expect(await getGalleryImages(uid, dek, restored)).toEqual([bytes(3), bytes(4)]);
 		expect((await getGalleryThumbs(uid, dek, restored.id)).map((thumb) => thumb.bytes)).toEqual([bytes(5), bytes(6)]);
+
+		// La 1re autre image supprimée côté serveur : la 2e (après le trou) n'est pas reprise, et les deux sont
+		// comptées comme écartées, le fichier ne se présente pas comme complet.
+		await deleteDoc(doc(db, 'users', uid, 'images', `${restored.id}_1`));
+		const partial = await createBackup(true);
+		expect(partial.skipped).toBe(2);
+		expect(parseBackup(partial.text).entries[0].gallery).toBeUndefined();
 	}, 60_000);
 
 	it('partage la date de dernière sauvegarde entre appareils, chiffrée', async () => {

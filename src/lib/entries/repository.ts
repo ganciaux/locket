@@ -172,9 +172,19 @@ export async function getImage(uid: string, dek: CryptoKey, id: string): Promise
 	return decrypt(dek, fromStored((snapshot.data() as StoredImage).image), `${id}/image`);
 }
 
-/** Autres images d'une fiche, dans l'ordre (null : absente, après une restauration sans images par exemple). */
+/**
+ * Autres images d'une fiche, dans l'ordre. null : absente (restauration sans images…) ou illisible (altérée), sans
+ * empêcher de lire les autres. Une erreur de lecture (réseau) rejette le tout : rien ne doit alors être réécrit.
+ */
 export function getGalleryImages(uid: string, dek: CryptoKey, entry: Pick<Entry, 'id' | 'gallery'>): Promise<(Bytes | null)[]> {
-	return Promise.all((entry.gallery ?? []).map((_, i) => getImage(uid, dek, galleryImageId(entry.id, i + 1))));
+	return Promise.all(
+		(entry.gallery ?? []).map(async (_, i) => {
+			const imageId = galleryImageId(entry.id, i + 1);
+			const snapshot = await getDoc(imageRef(uid, imageId));
+			if (!snapshot.exists()) return null;
+			return decrypt(dek, fromStored((snapshot.data() as StoredImage).image), `${imageId}/image`).catch(() => null);
+		})
+	);
 }
 
 /** Vignettes des autres images, dans l'ordre ; [] si la fiche n'en a pas (ou plus). */
@@ -218,11 +228,13 @@ export async function saveEntry(
 	const now = Date.now();
 	const keepImage = input.image === undefined;
 	const imageType = keepImage ? existing?.imageType : input.image?.type;
-	const previousGallery = existing?.gallery?.length ?? 0;
+	// Sans couverture, plus d'autres images : nettoyées seulement si la fiche en avait une (pas d'écritures inutiles).
 	const gallery = !imageType
-		? planGallery([], previousGallery)
+		? existing?.imageType
+			? planGallery([])
+			: null
 		: input.gallery
-			? planGallery(input.gallery, previousGallery)
+			? planGallery(input.gallery)
 			: null;
 	const galleryTypes = gallery ? gallery.types : (existing?.gallery ?? []);
 	const data: EntryData = {
@@ -430,7 +442,8 @@ export async function hasEntries(uid: string): Promise<boolean> {
 
 /** Un lot Firestore : 500 écritures et ~10 Mo par requête au plus ; on garde de la marge. */
 const MAX_BATCH_WRITES = 400;
-const MAX_BATCH_BYTES = 8 * 1024 * 1024;
+// Les Bytes passent en base64 sur le réseau (+33 %) : 6 Mo bruts restent sous la limite de 10 Mio par requête.
+const MAX_BATCH_BYTES = 6 * 1024 * 1024;
 
 /**
  * Écrit des fiches restaurées telles quelles (même id, donc même AAD) : remplace ou ajoute.

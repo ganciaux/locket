@@ -77,12 +77,13 @@ export type GalleryPlan = {
 };
 
 /**
- * Écritures pour passer d'une galerie de `previousCount` images à `items`, dans cet ordre. Une image restée à son
- * emplacement n'est pas réécrite ; une image déplacée l'est (son AAD change).
+ * Écritures pour passer à la galerie `items`, dans cet ordre. Une image restée à son emplacement n'est pas réécrite ;
+ * une image déplacée l'est (son AAD change). Tous les emplacements au-delà sont supprimés, existants ou non : après une
+ * restauration sans images, `data.gallery` peut en annoncer moins qu'il n'en reste, sans laisser d'orphelines.
  */
-export function planGallery(items: GalleryItem[], previousCount: number): GalleryPlan {
+export function planGallery(items: GalleryItem[]): GalleryPlan {
 	if (items.length > MAX_GALLERY) throw new Error(`${MAX_IMAGES} images au plus par fiche.`);
 	const writes = items.map((item, i) => ({ slot: i + 1, item })).filter(({ slot, item }) => item.slot !== slot);
-	const deletes = gallerySlots().filter((slot) => slot > items.length && slot <= previousCount);
+	const deletes = gallerySlots().filter((slot) => slot > items.length);
 	return { writes, deletes, types: items.map((item) => item.type) };
 }

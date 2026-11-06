@@ -31,6 +31,8 @@
 	// Images complètes déjà chargées, par position (1 à 5).
 	let full = new Map<number, string>();
 	let created: string[] = [];
+	// Faux après le nettoyage (verrouillage, autre fiche) : une image arrivée ensuite n'est pas déchiffrée en URL.
+	let alive = false;
 
 	// Rechargées seulement si la fiche ou ses images changent : noter la fiche remplace l'objet, pas les images.
 	const source = $derived({ id: entry.id, types: entry.gallery ?? [] });
@@ -49,8 +51,10 @@
 			},
 			(e) => onfail(e)
 		);
+		alive = true;
 		return () => {
 			cancelled = true;
+			alive = false;
 			created.forEach((url) => URL.revokeObjectURL(url));
 			created = [];
 			full = new Map();
@@ -74,7 +78,7 @@
 		const id = entry.id;
 		try {
 			const bytes = await getImage(user.uid, dek, galleryImageId(id, index));
-			if (id !== entry.id) return;
+			if (!alive || id !== entry.id) return;
 			if (!bytes) throw new Error('Image introuvable.');
 			const url = track(bytesToUrl(bytes, entry.gallery?.[index - 1] ?? 'image/jpeg'));
 			full.set(index, url);

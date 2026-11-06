@@ -109,9 +109,13 @@
 			const [id, index] = (img.dataset.extra ?? '').split(':');
 			const extra = byId.get(id)?.extras[Number(index)];
 			if (fullImages && extra) img.src = `data:${extra.type};base64,${toBase64(extra.bytes)}`;
-			else img.remove();
+			else (img.closest('button') ?? img).remove();
 			img.removeAttribute('data-extra');
 		}
+		clone.querySelectorAll('[data-extras]').forEach((element) => {
+			if (!element.querySelector('img')) element.remove();
+			element.removeAttribute('data-extras');
+		});
 		const css = [...document.querySelectorAll('style')].map((style) => style.textContent).join('\n');
 		const date = sealedAt ? formatDate(sealedAt) : `${formatDate(backup.createdAt)} (date non vérifiée)`;
 		const page = await plainPage({ title: `Stash — sauvegarde du ${date}`, body: clone.outerHTML, css });
@@ -184,7 +188,7 @@
 				</button>
 			{/if}
 			{#if entry.extras.length}
-				<div class="flex flex-wrap gap-1" aria-label="Autres images">
+				<div class="flex flex-wrap gap-1" aria-label="Autres images" data-extras>
 					{#each entry.extras as extra, i (i)}
 						<button type="button" class="cursor-zoom-in" onclick={() => showExtra(entry, extra)} aria-label="Image {i + 2} de {entry.name}">
 							<img src={urlOf(extra.bytes, extra.type)} alt="" loading="lazy" data-extra="{entry.id}:{i}" class="rounded-box size-14 object-cover" />

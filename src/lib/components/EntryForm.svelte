@@ -109,7 +109,7 @@
 		if (!image) return;
 		event.preventDefault();
 		if (preview && pastingInGallery()) {
-			if (!galleryLoading) addImages([image]);
+			if (!galleryLocked) addImages([image]);
 			return;
 		}
 		fileInput.value = '';
@@ -165,24 +165,41 @@
 	// fiche. `slot` : déjà enregistrée à cet emplacement (octets inchangés) ; `raw` : fichier choisi, à préparer.
 	type Pic = { blob: Blob; url: string; slot?: number; raw: boolean };
 	let gallery = $state<Pic[]>([]);
-	// Rien n'est réécrit tant que la galerie n'a pas changé (ni si elle n'a pas pu être chargée).
+	// Rien n'est réécrit tant que la galerie n'a pas changé. Tant qu'elle se charge ou si elle n'a pas pu l'être, rien
+	// ne peut la changer (ni le retrait de la couverture, qui l'emporterait) : on ne perd pas d'images non affichées.
 	let galleryTouched = $state(false);
 	// svelte-ignore state_referenced_locally
 	let galleryLoading = $state(!!entry?.gallery?.length);
+	let galleryFailed = $state(false);
+	/** Images annoncées mais illisibles ou absentes : retirées si la galerie est modifiée. */
+	let galleryMissing = $state(0);
+	const galleryLocked = $derived(galleryLoading || galleryFailed);
 	const pic = (blob: Blob, raw: boolean, slot?: number): Pic => ({ blob, url: URL.createObjectURL(blob), raw, ...(slot && { slot }) });
 
-	$effect(() => {
+	// Une seule fois, à l'ouverture (pas d'effet qui suivrait la session : la page est démontée au verrouillage).
+	// svelte-ignore state_referenced_locally
+	if (entry?.gallery?.length) loadGallery(entry);
+	async function loadGallery(source: ListItem) {
 		const { user, dek } = session;
-		if (!entry?.gallery?.length || !user || !dek) return;
-		const types = entry.gallery;
-		getGalleryImages(user.uid, dek, entry)
-			.then((images) => {
-				gallery = images.flatMap((bytes, i) => (bytes ? [pic(new Blob([bytes], { type: types[i] }), false, i + 1)] : []));
-			})
-			.catch((e) => (loadError = errorMessage(e)))
-			.finally(() => (galleryLoading = false));
+		const types = source.gallery ?? [];
+		try {
+			if (!user || !dek) throw new Error('Session verrouillée.');
+			const images = await getGalleryImages(user.uid, dek, source);
+			if (destroyed) return;
+			gallery = images.flatMap((bytes, i) => (bytes ? [pic(new Blob([bytes], { type: types[i] }), false, i + 1)] : []));
+			galleryMissing = images.filter((bytes) => !bytes).length;
+		} catch (e) {
+			galleryFailed = true;
+			loadError = `Autres images non chargées (${errorMessage(e)}) : elles restent telles quelles, rouvrez la fiche pour les modifier.`;
+		} finally {
+			galleryLoading = false;
+		}
+	}
+	let destroyed = false;
+	onDestroy(() => {
+		destroyed = true;
+		gallery.forEach((item) => URL.revokeObjectURL(item.url));
 	});
-	onDestroy(() => gallery.forEach((item) => URL.revokeObjectURL(item.url)));
 
 	/** Nouvelle couverture (fichier, image collée ou autre image promue) : cadrage remis au centre. */
 	function setCover(blob: Blob) {
@@ -452,6 +469,7 @@
 						type="button"
 						class="btn btn-circle btn-sm absolute top-2 right-2"
 						onclick={removeImage}
+						disabled={galleryLocked}
 						aria-label="Retirer l'image"
 						title="Retirer l'image"
 					>
@@ -503,7 +521,14 @@
 					</h3>
 					{#if galleryLoading}
 						<span class="loading loading-dots loading-sm"></span>
+					{:else if galleryFailed}
+						<p class="text-base-content/60 text-xs">Non chargées : elles restent telles quelles.</p>
 					{:else}
+						{#if galleryMissing}
+							<p role="status" class="text-warning text-xs">
+								{galleryMissing} image(s) illisible(s) ou absente(s) : retirée(s) si vous modifiez les autres images.
+							</p>
+						{/if}
 						{#if gallery.length}
 							<ul class="flex flex-wrap gap-3" aria-label="Autres images">
 								{#each gallery as item, i (item.url)}

@@ -7,7 +7,8 @@
  */
 import { adoptBackupKeyring, checkRecoveryKey, readCurrentKeyring, verifyPassword } from '$lib/auth/account';
 import { session } from '$lib/auth/session.svelte';
-import { type Encrypted, encryptJson } from '$lib/crypto/crypto';
+import { type Encrypted, decryptJson, encryptJson } from '$lib/crypto/crypto';
+import type { EntryData } from '$lib/entries/types';
 import { deleteStoredEntriesExcept, hasEntries, readStoredEntries, writeStoredEntries } from '$lib/entries/repository';
 import { resetEntries } from '$lib/entries/store.svelte';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
@@ -62,16 +63,16 @@ export async function createBackup(includeImages: boolean): Promise<{ text: stri
 		const thumb = await keep(entry.thumb, `${entry.id}/thumb`);
 		const image = await keep(entry.image, `${entry.id}/image`);
 		// Autres images : l'AAD dépend de l'emplacement, les suivantes ne peuvent pas avancer d'un rang. Une illisible
-		// écarte donc aussi celles d'après (comptées), pour ne pas laisser de trou.
+		// écarte donc aussi celles d'après, pour ne pas laisser de trou. Toutes celles que la fiche annonce sans qu'elles
+		// soient dans le fichier (illisibles, ou absentes de Firestore) sont comptées : le fichier se sait incomplet.
 		const gallery: Encrypted[] = [];
-		const extras = entry.gallery ?? [];
-		for (const [i, extra] of extras.entries()) {
-			const kept = await keep(extra, `${galleryImageId(entry.id, i + 1)}/image`);
-			if (!kept) {
-				skipped += extras.length - i - 1;
-				break;
+		if (includeImages) {
+			for (const [i, extra] of (entry.gallery ?? []).entries()) {
+				if (!(await isReadable({ encrypted: extra, context: `${galleryImageId(entry.id, i + 1)}/image` }, dek))) break;
+				gallery.push(extra);
 			}
-			gallery.push(kept);
+			const declared = (await decryptJson<EntryData>(dek, data, `${entry.id}/data`)).gallery?.length ?? 0;
+			skipped += Math.max(declared, entry.gallery?.length ?? 0) - gallery.length;
 		}
 		const galleryThumbs = gallery.length ? await keep(entry.galleryThumbs, `${galleryThumbsId(entry.id)}/image`) : undefined;
 		entries.push({
