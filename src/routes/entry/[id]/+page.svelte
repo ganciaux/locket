@@ -49,8 +49,8 @@
 	// même liste. Les flèches quittent le tirage.
 	const drawn = $derived(page.url.searchParams.has('tirage'));
 	let figure = $state<HTMLElement>();
-	// Autre image affichée à la place de la couverture (bande `GalleryStrip`) ; null : la couverture.
-	let shownImage = $state<string | null>(null);
+	// Autre image affichée à la place de la couverture (bande `GalleryStrip`) : position (0 = couverture) et URL.
+	let shownImage = $state<{ index: number; url: string | null }>({ index: 0, url: null });
 	let title = $state<HTMLElement>();
 	$effect(() => {
 		void id;
@@ -185,8 +185,8 @@
 			{@const border = entries.borderOf(entry)}
 			{@const imageClass = `object-contain ${border ? 'rounded-box max-h-[calc(60vh-2rem)] max-w-full' : 'max-h-[60vh] w-full'}`}
 			<figure bind:this={figure} class="bg-base-200 relative {border ? 'flex justify-center p-4' : ''}">
-				{#if shownImage}
-					<img src={shownImage} alt={entry.name} data-border={border} class={imageClass} />
+				{#if shownImage.url}
+					<img src={shownImage.url} alt={entry.name} data-border={border} class={imageClass} />
 				{:else}
 					{#key id}
 						<FullImage
@@ -206,8 +206,9 @@
 					<GalleryStrip
 						{entry}
 						thumbUrl={entry.thumbUrl}
-						shown={shownImage}
-						onshow={(url) => (shownImage = url)}
+						shown={shownImage.index}
+						onshow={(index, url) => (shownImage = { index, url })}
+						class="px-4 sm:px-6"
 						onfail={(e) => (error = errorMessage(e))}
 					/>
 				{/key}

@@ -11,7 +11,7 @@
 	import CountryPicker from '$lib/components/CountryPicker.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
-	import { prepareGalleryImage, prepareImage } from '$lib/entries/images';
+	import { prepareGalleryImage, prepareImage, prepareMiniThumb } from '$lib/entries/images';
 	import { FRAMING_CENTER, FRAMING_STEP, type GalleryItem, type Link, MAX_GALLERY, MAX_IMAGES, MAX_NAME_LENGTH, framingClass, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
 	import { getGalleryImages, getImage, saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
@@ -270,13 +270,15 @@
 		}
 	}
 
+	/** Vignettes refaites à chaque enregistrement de la galerie : quelques Ko chacune, depuis l'image en mémoire. */
 	async function galleryItems(): Promise<GalleryItem[]> {
 		return Promise.all(
-			gallery.map(async (item) =>
-				item.raw
-					? prepareGalleryImage(item.blob)
-					: { type: item.blob.type, image: new Uint8Array(await item.blob.arrayBuffer()), ...(item.slot && { slot: item.slot }) }
-			)
+			gallery.map(async (item) => {
+				const thumb = await prepareMiniThumb(item.blob);
+				if (item.raw) return { ...(await prepareGalleryImage(item.blob)), thumb };
+				const image = new Uint8Array(await item.blob.arrayBuffer());
+				return { type: item.blob.type, image, thumb, ...(item.slot && { slot: item.slot }) };
+			})
 		);
 	}
 

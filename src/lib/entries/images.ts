@@ -3,7 +3,7 @@
  * WebP si le navigateur sait l'encoder, sinon JPEG (Safari renvoie du PNG pour un type non supporté).
  */
 import type { Bytes } from '$lib/crypto/encoding';
-import { encodeUnderLimit, fitWithin } from './model';
+import { type MiniThumb, encodeUnderLimit, fitWithin } from './model';
 import type { PreparedImage } from './repository';
 
 const IMAGE_MAX_PX = 1600;
@@ -71,6 +71,21 @@ export async function prepareGalleryImage(file: Blob): Promise<{ type: string; i
 	try {
 		const type = await outputType();
 		return { type, image: await encodeImage(source, type) };
+	} finally {
+		source.close();
+	}
+}
+
+// Vignette d'une autre image (fiche agrandie, bande de la fiche) : ~5 à 10 Ko.
+const MINI_THUMB_PX = 200;
+const MINI_THUMB_QUALITY = 0.7;
+
+/** Vignette d'une autre image, au format que cet appareil encode (voir gallery.ts). */
+export async function prepareMiniThumb(file: Blob): Promise<MiniThumb> {
+	const source = await readBitmap(file);
+	try {
+		const type = await outputType();
+		return { type, bytes: await encode(source, MINI_THUMB_PX, type, MINI_THUMB_QUALITY) };
 	} finally {
 		source.close();
 	}

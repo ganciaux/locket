@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { type GalleryItem, MAX_GALLERY, galleryImageId, gallerySlots, planGallery } from './gallery';
+import { type GalleryItem, MAX_GALLERY, galleryImageId, gallerySlots, packThumbs, planGallery, unpackThumbs } from './gallery';
 
-const item = (seed: number, slot?: number): GalleryItem => ({ type: 'image/webp', image: new Uint8Array([seed]), ...(slot && { slot }) });
+const thumb = { type: 'image/jpeg', bytes: new Uint8Array([9]) };
+const item = (seed: number, slot?: number): GalleryItem => ({ type: 'image/webp', image: new Uint8Array([seed]), thumb, ...(slot && { slot }) });
 
 describe('autres images d’une fiche', () => {
 	it('rangées à côté de la couverture, cinq emplacements', () => {
@@ -35,5 +36,25 @@ describe('autres images d’une fiche', () => {
 
 	it('six images au plus, couverture comprise', () => {
 		expect(() => planGallery([1, 2, 3, 4, 5, 6].map((seed) => item(seed)), 0)).toThrow('6 images au plus');
+	});
+});
+
+describe('vignettes des autres images', () => {
+	it('emballées en un bloc et rendues telles quelles, dans l’ordre', () => {
+		const thumbs = [
+			{ type: 'image/webp', bytes: new Uint8Array([1, 2, 3]) },
+			{ type: 'image/jpeg', bytes: new Uint8Array([]) },
+			{ type: 'image/jpeg', bytes: new Uint8Array([4, 5]) }
+		];
+		expect(unpackThumbs(packThumbs(thumbs))).toEqual(thumbs);
+		expect(unpackThumbs(packThumbs([]))).toEqual([]);
+	});
+
+	it('refuse un bloc tronqué, allongé ou à l’en-tête abîmé', () => {
+		const packed = packThumbs([{ type: 'image/webp', bytes: new Uint8Array([1, 2, 3]) }]);
+		expect(() => unpackThumbs(packed.slice(0, -1))).toThrow('illisibles');
+		expect(() => unpackThumbs(new Uint8Array([...packed, 0]))).toThrow('illisibles');
+		expect(() => unpackThumbs(new Uint8Array([0, 0, 0, 2, 123, 125]))).toThrow('illisibles');
+		expect(() => unpackThumbs(new Uint8Array([0, 0, 0, 99]))).toThrow('illisibles');
 	});
 });

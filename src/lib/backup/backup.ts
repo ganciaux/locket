@@ -11,7 +11,7 @@ import { type Encrypted, encryptJson } from '$lib/crypto/crypto';
 import { deleteStoredEntriesExcept, hasEntries, readStoredEntries, writeStoredEntries } from '$lib/entries/repository';
 import { resetEntries } from '$lib/entries/store.svelte';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
-import { galleryImageId } from '$lib/entries/gallery';
+import { galleryImageId, galleryThumbsId } from '$lib/entries/gallery';
 import { type Backup, type BackupEntry, type BackupManifest, serializeBackup } from './format';
 import {
 	type BackupCheck,
@@ -73,7 +73,15 @@ export async function createBackup(includeImages: boolean): Promise<{ text: stri
 			}
 			gallery.push(kept);
 		}
-		entries.push({ id: entry.id, data, ...(thumb && { thumb }), ...(image && { image }), ...(gallery.length && { gallery }) });
+		const galleryThumbs = gallery.length ? await keep(entry.galleryThumbs, `${galleryThumbsId(entry.id)}/image`) : undefined;
+		entries.push({
+			id: entry.id,
+			data,
+			...(thumb && { thumb }),
+			...(image && { image }),
+			...(gallery.length && { gallery }),
+			...(galleryThumbs && { galleryThumbs })
+		});
 	}
 	const content: BackupContent = {
 		createdAt: new Date().toISOString(),

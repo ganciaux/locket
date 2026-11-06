@@ -15,8 +15,15 @@ export const BACKUP_VERSION = 5;
 
 type EncryptedText = { iv: string; data: string };
 
-/** `gallery` : autres images (voir gallery.ts), dans l'ordre, absentes d'une sauvegarde légère. */
-export type BackupEntry = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted; gallery?: Encrypted[] };
+/** `gallery` : autres images (voir gallery.ts), dans l'ordre, et `galleryThumbs` leurs vignettes ; absentes d'une sauvegarde légère. */
+export type BackupEntry = {
+	id: string;
+	data: Encrypted;
+	thumb?: Encrypted;
+	image?: Encrypted;
+	gallery?: Encrypted[];
+	galleryThumbs?: Encrypted;
+};
 
 export type BackupCounts = { entries: number; collections: number; tags: number };
 
@@ -64,7 +71,8 @@ export function serializeBackup(backup: Backup): string {
 			data: encode(e.data),
 			...(e.thumb && { thumb: encode(e.thumb) }),
 			...(e.image && { image: encode(e.image) }),
-			...(e.gallery?.length && { gallery: e.gallery.map(encode) })
+			...(e.gallery?.length && { gallery: e.gallery.map(encode) }),
+			...(e.galleryThumbs && { galleryThumbs: encode(e.galleryThumbs) })
 		}))
 	});
 }
@@ -125,7 +133,15 @@ export function parseBackup(text: string): Backup {
 		const image = decodeOptional(entry.image);
 		const thumb = decodeOptional(entry.thumb);
 		const gallery = decodeGallery(entry.gallery);
-		return { id: entry.id, data: decode(entry.data), ...(thumb && { thumb }), ...(image && { image }), ...(gallery && { gallery }) };
+		const galleryThumbs = decodeOptional(entry.galleryThumbs);
+		return {
+			id: entry.id,
+			data: decode(entry.data),
+			...(thumb && { thumb }),
+			...(image && { image }),
+			...(gallery && { gallery }),
+			...(galleryThumbs && { galleryThumbs })
+		};
 	});
 
 	return {

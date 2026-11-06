@@ -4,6 +4,7 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
+	import GalleryStrip from '$lib/components/GalleryStrip.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import LinkChips from '$lib/components/LinkChips.svelte';
 	import Rating from '$lib/components/Rating.svelte';
@@ -46,6 +47,8 @@
 	let dialog = $state<HTMLDialogElement>();
 	let image = $state<HTMLElement>();
 	let title = $state<HTMLElement>();
+	// Autre image affichée à la place de la miniature (bande `GalleryStrip`) : position (0 = couverture) et URL.
+	let shownImage = $state<{ index: number; url: string | null }>({ index: 0, url: null });
 
 	// Après le rendu de la fiche tirée : son image est en place.
 	$effect(() => {
@@ -198,7 +201,7 @@
 				{#if entry.thumbUrl}
 					<img
 						bind:this={image}
-						src={entry.thumbUrl}
+						src={shownImage.url ?? entry.thumbUrl}
 						alt=""
 						data-border={border}
 						class="object-contain {border ? 'rounded-box max-h-[calc(45dvh-2rem)] max-w-full' : 'max-h-[45dvh] w-full'}"
@@ -228,6 +231,18 @@
 					</span>
 				{/if}
 			</figure>
+			{#if entry.gallery?.length && entry.thumbUrl}
+				{#key entry.id}
+					<GalleryStrip
+						{entry}
+						thumbUrl={entry.thumbUrl}
+						shown={shownImage.index}
+						onshow={(index, url) => (shownImage = { index, url })}
+						onfail={(e) => (error = errorMessage(e))}
+						class="shrink-0 px-4"
+					/>
+				{/key}
+			{/if}
 
 			<div class="flex flex-col gap-3 p-4">
 				<ErrorAlert message={error} />

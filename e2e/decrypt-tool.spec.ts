@@ -9,8 +9,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
 
-const RECOVERY_KEY = 'QOPB-B5NB-RQIV-3OHS-LUHX-UDVF-PHXA-HYCA-BU6R-5NLP-SRKD-MEL5-3PUA';
-const EMAIL = 'temoin-1793964321216@example.com';
+const RECOVERY_KEY = 'WTSL-R5L4-FC36-IEVS-UTWE-DTYW-MVEA-PARB-3LEM-IVVR-C6BM-S72R-X3PQ';
+const EMAIL = 'temoin-1793970051167@example.com';
 const PASSWORD = 'mot-de-passe-temoin-v5';
 const WITNESS = 'src/lib/backup/fixtures/witness-v5.json';
 

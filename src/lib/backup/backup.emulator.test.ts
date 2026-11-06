@@ -8,7 +8,7 @@ import { checkRecoveryKey, readCurrentKeyring, rotateRecoveryKey, signUp } from 
 import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
-import { deleteEntry, getGalleryImages, listEntries, saveEntry } from '$lib/entries/repository';
+import { deleteEntry, getGalleryImages, getGalleryThumbs, listEntries, saveEntry } from '$lib/entries/repository';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
 import { deleteAllData } from '$lib/entries/store.svelte';
 import { OldKeyRequired, checkBackup, createBackup, restoreBackup } from './backup';
@@ -80,8 +80,8 @@ describe('sauvegarde (émulateurs)', () => {
 			...input,
 			image: cover,
 			gallery: [
-				{ type: 'image/jpeg', image: bytes(3) },
-				{ type: 'image/webp', image: bytes(4) }
+				{ type: 'image/jpeg', image: bytes(3), thumb: { type: 'image/webp', bytes: bytes(5) } },
+				{ type: 'image/webp', image: bytes(4), thumb: { type: 'image/webp', bytes: bytes(6) } }
 			]
 		});
 		const backup = parseBackup((await createBackup(true)).text);
@@ -90,11 +90,12 @@ describe('sauvegarde (émulateurs)', () => {
 		expect(parseBackup((await createBackup(false)).text).entries[0].gallery).toBeUndefined();
 
 		// Une image retirée après la sauvegarde revient à la restauration, à sa place.
-		await saveEntry(uid, dek, { ...input, gallery: [{ type: 'image/webp', image: bytes(4) }] }, saved);
+		await saveEntry(uid, dek, { ...input, gallery: [{ type: 'image/webp', image: bytes(4), thumb: { type: 'image/webp', bytes: bytes(6) } }] }, saved);
 		await restoreBackup(backup, PASSWORD);
 		const [restored] = await listEntries(uid, dek);
 		expect(restored.gallery).toEqual(['image/jpeg', 'image/webp']);
 		expect(await getGalleryImages(uid, dek, restored)).toEqual([bytes(3), bytes(4)]);
+		expect((await getGalleryThumbs(uid, dek, restored.id)).map((thumb) => thumb.bytes)).toEqual([bytes(5), bytes(6)]);
 	}, 60_000);
 
 	it('partage la date de dernière sauvegarde entre appareils, chiffrée', async () => {

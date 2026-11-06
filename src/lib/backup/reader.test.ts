@@ -8,9 +8,9 @@ import { parseBackup } from './format';
 import { unwrapBackupDek } from './keyring';
 import { readBackup } from './reader';
 
-const EMAIL = 'temoin-1793964321216@example.com';
+const EMAIL = 'temoin-1793970051167@example.com';
 const PASSWORD = 'mot-de-passe-temoin-v5';
-const RECOVERY_KEY = 'QOPB-B5NB-RQIV-3OHS-LUHX-UDVF-PHXA-HYCA-BU6R-5NLP-SRKD-MEL5-3PUA';
+const RECOVERY_KEY = 'WTSL-R5L4-FC36-IEVS-UTWE-DTYW-MVEA-PARB-3LEM-IVVR-C6BM-S72R-X3PQ';
 
 const text = readFileSync(new URL('./fixtures/witness-v5.json', import.meta.url), 'utf8');
 

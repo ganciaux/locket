@@ -495,6 +495,15 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
 	await expect(strip.getByRole('button')).toHaveCount(2);
+
+	// Fiche agrandie : la même bande (vignettes), l'image complète chargée au clic.
+	await goHome(page);
+	await page.locator('li.card').filter({ hasText: 'Album' }).getByRole('heading').click();
+	const zoom = page.getByRole('dialog');
+	const zoomStrip = zoom.getByRole('list', { name: 'Images de la fiche' });
+	await expect(zoomStrip.getByRole('button')).toHaveCount(2);
+	await zoomStrip.getByRole('button', { name: "Afficher l'image 2 de Album" }).click();
+	await expect.poll(() => zoom.locator('figure img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
 });
 
 test('autres images : collées par le bouton « Coller » ou par Ctrl+V dans leur partie, la couverture reste', async ({ page }) => {

@@ -163,15 +163,17 @@ Dans l'ordre de réalisation prévu.
 
 - [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
       le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
-- [x] **Plusieurs images par fiche** — fait le 2026-11-06 : 6 au plus (couverture + 5), les autres visibles seulement
-      sur la fiche (bande sous l'image, un clic l'affiche à la place). Formulaire : ajout (plusieurs fichiers, bouton « Coller » qui lit le presse-papiers, ou Ctrl+V après un clic dans la partie « Autres images » ; ailleurs Ctrl+V remplace la couverture), ordre
+- [x] **Plusieurs images par fiche** — fait le 2026-11-06 : 6 au plus (couverture + 5), les autres visibles sur la fiche
+      et dans la fiche agrandie (bande de vignettes sous l'image, un clic charge l'image complète à sa place). Formulaire : ajout (plusieurs fichiers, bouton « Coller » qui lit le presse-papiers, ou Ctrl+V après un clic dans la partie « Autres images » ; ailleurs Ctrl+V remplace la couverture), ordre
       (‹ ›), retrait, « En couverture » (l'ancienne couverture prend sa place ; cadrage remis au centre) ; couverture
       retirée = la suivante la remplace. Recadrage et cadrage pour la couverture seulement. Stockage : `images/{id}_{n}`
       (n de 1 à 5, sans trou), mêmes règles Firestore que la couverture ; types dans `data.gallery` ; une image déplacée
       est rechiffrée (AAD liée à l'emplacement). Suppression (corbeille, définitive, totale, illisibles) : les six
       emplacements effacés sans rien déchiffrer, pas d'orphelines. Sauvegarde **format v5** (`gallery` par fiche, absente
       d'une sauvegarde légère), témoin `witness-v5.json`, outil de lecture (vignettes, export en clair avec les images
-      complètes). Pas dans le cache local (images complètes), ni dans la fiche agrandie. *Avancé.*
+      complètes). Vignettes (~200 px, 5 à 10 Ko) toutes dans un document  (une lecture à l'ouverture du zoom ou de la fiche),
+      refaites à chaque enregistrement de la galerie. Pas dans le cache local. Quota Spark : 1 Go stocké, soit ~550 fiches
+      à 6 images de ~300 Ko ; à surveiller (console › Firestore › Utilisation), images à 1200 px si besoin (−40 %). *Avancé.*
 - [ ] **Lecture hors ligne** avec le cache (chiffrés seulement) : seulement si un vrai besoin apparaît (métro, avion).
       À trancher avant : purge iOS du stockage, cache effacé à la déconnexion, Face ID qui lit le trousseau en ligne
       (il faudrait un déverrouillage hors ligne par mot de passe). *Intermédiaire.*

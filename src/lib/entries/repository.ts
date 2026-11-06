@@ -30,8 +30,12 @@ import {
 	type GalleryItem,
 	type Link,
 	fitsInDoc,
+	type MiniThumb,
 	galleryImageId,
 	gallerySlots,
+	galleryThumbsId,
+	packThumbs,
+	unpackThumbs,
 	parseBirthYear,
 	parseCountry,
 	parseFraming,
@@ -173,6 +177,12 @@ export function getGalleryImages(uid: string, dek: CryptoKey, entry: Pick<Entry,
 	return Promise.all((entry.gallery ?? []).map((_, i) => getImage(uid, dek, galleryImageId(entry.id, i + 1))));
 }
 
+/** Vignettes des autres images, dans l'ordre ; [] si la fiche n'en a pas (ou plus). */
+export async function getGalleryThumbs(uid: string, dek: CryptoKey, id: string): Promise<MiniThumb[]> {
+	const packed = await getImage(uid, dek, galleryThumbsId(id));
+	return packed ? unpackThumbs(packed) : [];
+}
+
 export type EntryInput = {
 	collectionId: string;
 	name: string;
@@ -243,6 +253,10 @@ export async function saveEntry(
 
 	const image = input.image ? await encrypt(dek, input.image.image, `${id}/image`) : undefined;
 	if (image && !fitsInDoc(image.data)) throw new Error('Image trop volumineuse.');
+	// Vignettes des autres images : réécrites en un bloc dès que la galerie change, supprimées si elle est vide.
+	const thumbs = gallery?.types.length
+		? await encrypt(dek, packThumbs((input.gallery ?? []).map((item) => item.thumb)), `${galleryThumbsId(id)}/image`)
+		: undefined;
 	const galleryWrites = await Promise.all(
 		(gallery?.writes ?? []).map(async ({ slot, item }) => {
 			const imageId = galleryImageId(id, slot);
@@ -259,6 +273,8 @@ export async function saveEntry(
 			for (const { imageId, encrypted } of galleryWrites)
 				writes.set(imageRef(uid, imageId), { image: toStored(encrypted) } satisfies StoredImage);
 			for (const slot of gallery?.deletes ?? []) writes.delete(imageRef(uid, galleryImageId(id, slot)));
+			if (thumbs) writes.set(imageRef(uid, galleryThumbsId(id)), { image: toStored(thumbs) } satisfies StoredImage);
+			else if (gallery) writes.delete(imageRef(uid, galleryThumbsId(id)));
 			writes.set(entryRef(uid, id), stored);
 		},
 		{ put: [toCached(id, stored)] }
@@ -361,15 +377,26 @@ export async function deleteEntries(uid: string, ids: string[], checked = true):
 export const deleteEntry = (uid: string, id: string): Promise<void> => deleteEntries(uid, [id]);
 
 /** Documents d'images d'une fiche : couverture et emplacements des autres, existants ou non (supprimer est sans effet). */
-const imageIds = (id: string): string[] => [id, ...gallerySlots().map((slot) => galleryImageId(id, slot))];
+const imageIds = (id: string): string[] => [
+	id,
+	...gallerySlots().map((slot) => galleryImageId(id, slot)),
+	galleryThumbsId(id)
+];
 /** Documents par fiche au plus : la fiche et ses images. */
 const ENTRY_DOCS = 1 + imageIds('').length;
 
 // ---------------------------------------------------------------------------
 // Sauvegarde : documents bruts (toujours chiffrés), sans passer par la DEK.
 
-/** `gallery` : autres images, dans l'ordre des emplacements (1, 2…), sans trou. */
-export type StoredEntryCopy = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted; gallery?: Encrypted[] };
+/** `gallery` : autres images, dans l'ordre des emplacements (1, 2…), sans trou ; `galleryThumbs` : leurs vignettes. */
+export type StoredEntryCopy = {
+	id: string;
+	data: Encrypted;
+	thumb?: Encrypted;
+	image?: Encrypted;
+	gallery?: Encrypted[];
+	galleryThumbs?: Encrypted;
+};
 
 export async function readStoredEntries(uid: string, includeImages: boolean): Promise<StoredEntryCopy[]> {
 	const [entrySnaps, imageSnaps] = await Promise.all([
@@ -391,7 +418,8 @@ export async function readStoredEntries(uid: string, includeImages: boolean): Pr
 			data: fromStored(stored.data),
 			...(stored.thumb && { thumb: fromStored(stored.thumb) }),
 			...(image && { image }),
-			...(gallery.length && { gallery })
+			...(gallery.length && { gallery }),
+			...(images.has(galleryThumbsId(d.id)) && { galleryThumbs: images.get(galleryThumbsId(d.id)) })
 		};
 	});
 }
@@ -431,6 +459,9 @@ export async function writeStoredEntries(
 						if (extra) writes.set(ref, { image: toStored(extra) } satisfies StoredImage);
 						else writes.delete(ref);
 					});
+					const thumbsRef = imageRef(uid, galleryThumbsId(entry.id));
+					if (entry.galleryThumbs) writes.set(thumbsRef, { image: toStored(entry.galleryThumbs) } satisfies StoredImage);
+					else writes.delete(thumbsRef);
 				}
 			},
 			// Sans le champ image : le cache ne garde jamais d'image complète.
@@ -446,7 +477,8 @@ export async function writeStoredEntries(
 			entry.data.data.length +
 			(entry.thumb?.data.length ?? 0) +
 			(entry.image?.data.length ?? 0) +
-			(entry.gallery ?? []).reduce((total, extra) => total + extra.data.length, 0);
+			(entry.gallery ?? []).reduce((total, extra) => total + extra.data.length, 0) +
+			(entry.galleryThumbs?.data.length ?? 0);
 		if ((chunk.length + 1) * ENTRY_DOCS > MAX_BATCH_WRITES || (chunk.length > 0 && bytes + size > MAX_BATCH_BYTES)) {
 			await commit(chunk);
 			chunk = [];

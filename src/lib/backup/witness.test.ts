@@ -7,12 +7,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { decrypt, decryptJson, deriveKeys, deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
+import { unpackThumbs } from '$lib/entries/gallery';
 import { BACKUP_VERSION, type BackupManifest, parseBackup } from './format';
 
 // Compte d'émulateur jetable : ces secrets n'ouvrent rien d'autre que ce fichier.
-const EMAIL = 'temoin-1793964321216@example.com';
+const EMAIL = 'temoin-1793970051167@example.com';
 const PASSWORD = 'mot-de-passe-temoin-v5';
-const RECOVERY_KEY = 'QOPB-B5NB-RQIV-3OHS-LUHX-UDVF-PHXA-HYCA-BU6R-5NLP-SRKD-MEL5-3PUA';
+const RECOVERY_KEY = 'WTSL-R5L4-FC36-IEVS-UTWE-DTYW-MVEA-PARB-3LEM-IVVR-C6BM-S72R-X3PQ';
 
 const text = readFileSync(new URL('./fixtures/witness-v5.json', import.meta.url), 'utf8');
 const bytes = (n: number, seed: number) => Uint8Array.from({ length: n }, (_, i) => (i * 31 + seed) & 255);
@@ -66,6 +67,11 @@ describe('sauvegarde témoin (format v5)', () => {
 		expect(await decrypt(dek, entry.gallery![0], `${entry.id}_1/image`)).toEqual(bytes(1500, 3));
 		expect(await decrypt(dek, entry.gallery![1], `${entry.id}_2/image`)).toEqual(bytes(1200, 4));
 		await expect(decrypt(dek, entry.gallery![1], `${entry.id}_1/image`)).rejects.toThrow();
+		// Leurs vignettes, en un bloc à `{id}_t`.
+		expect(unpackThumbs(await decrypt(dek, entry.galleryThumbs!, `${entry.id}_t/image`))).toEqual([
+			{ type: 'image/webp', bytes: bytes(100, 5) },
+			{ type: 'image/jpeg', bytes: bytes(80, 6) }
+		]);
 		// AAD : le même chiffré ne s'ouvre pas à un autre emplacement.
 		await expect(decrypt(dek, entry.thumb!, `${entry.id}/image`)).rejects.toThrow();
 	});
