@@ -8,7 +8,7 @@ import { checkRecoveryKey, readCurrentKeyring, rotateRecoveryKey, signUp } from 
 import { session } from '$lib/auth/session.svelte';
 import { deriveRecoveryKek, unwrapDek } from '$lib/crypto/crypto';
 import { auth, db } from '$lib/firebase';
-import { deleteEntry, listEntries, saveEntry } from '$lib/entries/repository';
+import { deleteEntry, getGalleryImages, listEntries, saveEntry } from '$lib/entries/repository';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
 import { deleteAllData } from '$lib/entries/store.svelte';
 import { OldKeyRequired, checkBackup, createBackup, restoreBackup } from './backup';
@@ -67,6 +67,34 @@ describe('sauvegarde (émulateurs)', () => {
 		// L'ancienne clé de récupération est de nouveau la bonne.
 		const { recoveryDek } = await readCurrentKeyring();
 		await expect(unwrapDek(recoveryDek, await deriveRecoveryKek(oldRecoveryKey))).resolves.toBeDefined();
+	}, 60_000);
+
+	it('sauvegarde et restaure les autres images d’une fiche, dans l’ordre', async () => {
+		await signUp(`g${Date.now()}@example.com`, PASSWORD);
+		const { uid, dek } = current();
+		await collectionCatalog.save(uid, dek, [{ id: 'col-1', name: 'Photos' }]);
+		const bytes = (seed: number) => Uint8Array.from({ length: 800 }, (_, i) => (i + seed) & 255);
+		const cover = { type: 'image/webp', image: bytes(1), thumb: bytes(2) };
+		const input = { collectionId: 'col-1', name: 'Album', links: [], tagIds: [] };
+		const saved = await saveEntry(uid, dek, {
+			...input,
+			image: cover,
+			gallery: [
+				{ type: 'image/jpeg', image: bytes(3) },
+				{ type: 'image/webp', image: bytes(4) }
+			]
+		});
+		const backup = parseBackup((await createBackup(true)).text);
+		expect(backup.entries[0].gallery).toHaveLength(2);
+		// Sauvegarde légère : sans les autres images non plus.
+		expect(parseBackup((await createBackup(false)).text).entries[0].gallery).toBeUndefined();
+
+		// Une image retirée après la sauvegarde revient à la restauration, à sa place.
+		await saveEntry(uid, dek, { ...input, gallery: [{ type: 'image/webp', image: bytes(4) }] }, saved);
+		await restoreBackup(backup, PASSWORD);
+		const [restored] = await listEntries(uid, dek);
+		expect(restored.gallery).toEqual(['image/jpeg', 'image/webp']);
+		expect(await getGalleryImages(uid, dek, restored)).toEqual([bytes(3), bytes(4)]);
 	}, 60_000);
 
 	it('partage la date de dernière sauvegarde entre appareils, chiffrée', async () => {

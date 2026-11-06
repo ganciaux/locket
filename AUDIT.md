@@ -163,8 +163,15 @@ Dans l'ordre de réalisation prévu.
 
 - [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
       le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
-- [ ] **Plusieurs images par fiche** (idée du 2026-11-05, gardée pour plus tard) : un document Firestore par image,
-      règles, sauvegarde (format v5 et nouveau témoin), corbeille et cache à reprendre. *Avancé.*
+- [x] **Plusieurs images par fiche** — fait le 2026-11-06 : 6 au plus (couverture + 5), les autres visibles seulement
+      sur la fiche (bande sous l'image, un clic l'affiche à la place). Formulaire : ajout (plusieurs fichiers), ordre
+      (‹ ›), retrait, « En couverture » (l'ancienne couverture prend sa place ; cadrage remis au centre) ; couverture
+      retirée = la suivante la remplace. Recadrage et cadrage pour la couverture seulement. Stockage : `images/{id}_{n}`
+      (n de 1 à 5, sans trou), mêmes règles Firestore que la couverture ; types dans `data.gallery` ; une image déplacée
+      est rechiffrée (AAD liée à l'emplacement). Suppression (corbeille, définitive, totale, illisibles) : les six
+      emplacements effacés sans rien déchiffrer, pas d'orphelines. Sauvegarde **format v5** (`gallery` par fiche, absente
+      d'une sauvegarde légère), témoin `witness-v5.json`, outil de lecture (vignettes, export en clair avec les images
+      complètes). Pas dans le cache local (images complètes), ni dans la fiche agrandie. *Avancé.*
 - [ ] **Lecture hors ligne** avec le cache (chiffrés seulement) : seulement si un vrai besoin apparaît (métro, avion).
       À trancher avant : purge iOS du stockage, cache effacé à la déconnexion, Face ID qui lit le trousseau en ligne
       (il faudrait un déverrouillage hors ligne par mot de passe). *Intermédiaire.*

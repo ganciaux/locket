@@ -11,6 +11,7 @@ import { type Encrypted, encryptJson } from '$lib/crypto/crypto';
 import { deleteStoredEntriesExcept, hasEntries, readStoredEntries, writeStoredEntries } from '$lib/entries/repository';
 import { resetEntries } from '$lib/entries/store.svelte';
 import { collectionCatalog, tagCatalog } from '$lib/entries/catalog';
+import { galleryImageId } from '$lib/entries/gallery';
 import { type Backup, type BackupEntry, type BackupManifest, serializeBackup } from './format';
 import {
 	type BackupCheck,
@@ -60,7 +61,19 @@ export async function createBackup(includeImages: boolean): Promise<{ text: stri
 		if (!data) continue;
 		const thumb = await keep(entry.thumb, `${entry.id}/thumb`);
 		const image = await keep(entry.image, `${entry.id}/image`);
-		entries.push({ id: entry.id, data, ...(thumb && { thumb }), ...(image && { image }) });
+		// Autres images : l'AAD dépend de l'emplacement, les suivantes ne peuvent pas avancer d'un rang. Une illisible
+		// écarte donc aussi celles d'après (comptées), pour ne pas laisser de trou.
+		const gallery: Encrypted[] = [];
+		const extras = entry.gallery ?? [];
+		for (const [i, extra] of extras.entries()) {
+			const kept = await keep(extra, `${galleryImageId(entry.id, i + 1)}/image`);
+			if (!kept) {
+				skipped += extras.length - i - 1;
+				break;
+			}
+			gallery.push(kept);
+		}
+		entries.push({ id: entry.id, data, ...(thumb && { thumb }), ...(image && { image }), ...(gallery.length && { gallery }) });
 	}
 	const content: BackupContent = {
 		createdAt: new Date().toISOString(),

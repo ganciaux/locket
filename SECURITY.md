@@ -27,7 +27,7 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 | Bien | Où il vit | Protection |
 |---|---|---|
 | Contenu des fiches (nom, liens, dates, tags associés, note, pays, remarques, validation, cadrage) | Firestore `users/{uid}/entries/{id}.data` | AES-GCM-256 avec la DEK |
-| Images et miniatures | `users/{uid}/images/{id}.image`, `entries/{id}.thumb` | AES-GCM-256 avec la DEK |
+| Images et miniatures | `users/{uid}/images/{id}.image` (couverture), `images/{id}_{n}.image` (autres images, AAD `<id>_<n>/image`), `entries/{id}.thumb` | AES-GCM-256 avec la DEK |
 | Noms et ordre des collections, modèles d'URL de leurs sites, classement de leurs fiches (ids) | `users/{uid}/meta/collections.data` | AES-GCM-256 avec la DEK |
 | Noms des tags (et couleur de bordure) | `users/{uid}/meta/tags.data` | AES-GCM-256 avec la DEK |
 | Date de la dernière sauvegarde (2026-11-04) | `users/{uid}/meta/backup.data` | AES-GCM-256 avec la DEK |
@@ -38,7 +38,8 @@ Rédigé le 2026-10-29. À mettre à jour à chaque changement de la crypto, de 
 **Restent visibles en clair** pour qui a accès à Firebase :
 - l'email du compte et les uid ;
 - les identifiants de documents (aléatoires) et le nombre de fiches ;
-- la taille des chiffrés, la présence ou non d'une image ;
+- la taille des chiffrés, la présence ou non d'une image, et le nombre d'images d'une fiche (autres images rangées en
+  `images/{id}_1` à `{id}_5`, 2026-11-06 : rattachées à leur fiche par l'id, comme la couverture) ;
 - les dates d'écriture tenues par Firestore ;
 - `meta/version` : un aléa de 16 octets, sans contenu, changé à chaque écriture de fiche ;
 - l'existence de `meta/backup` et sa date d'écriture Firestore, donc le moment des exports (déjà visible par les

@@ -11,8 +11,8 @@ const sample: Backup = {
 	collections: enc(),
 	tags: enc(),
 	entries: [
-		{ id: 'abc123', data: enc(), thumb: enc(500), image: enc(5000) },
-		{ id: 'def-456_x', data: enc() }
+		{ id: 'abc123', data: enc(), thumb: enc(500), image: enc(5000), gallery: [enc(4000), enc(3000)] },
+		{ id: 'def-456', data: enc() }
 	],
 	manifest: enc()
 };
@@ -54,7 +54,7 @@ describe('sauvegarde', () => {
 	});
 
 	it('refuse un identifiant qui ressemble à un chemin, ou en double', () => {
-		for (const id of ['a/b', '../users', '', 'x'.repeat(65)]) {
+		for (const id of ['a/b', '../users', '', 'x'.repeat(65), 'abc123_1']) {
 			const raw = JSON.parse(serializeBackup(sample));
 			raw.entries[0].id = id;
 			expect(() => parseBackup(JSON.stringify(raw)), id).toThrow(/invalide/);
@@ -75,5 +75,15 @@ describe('sauvegarde', () => {
 
 	it('nomme le fichier avec la date', () => {
 		expect(backupFileName(new Date('2026-10-29T12:00:00Z'))).toBe('stash-sauvegarde-2026-10-29.json');
+	});
+});
+
+describe('autres images dans la sauvegarde', () => {
+	it('refuse une liste vide, trop longue ou abîmée', () => {
+		for (const gallery of [[], Array.from({ length: 6 }, () => ({ iv: 'AAAAAAAAAAAAAAAA', data: 'AA==' })), 'x', [{}]]) {
+			const raw = JSON.parse(serializeBackup(sample));
+			raw.entries[0].gallery = gallery;
+			expect(() => parseBackup(JSON.stringify(raw)), JSON.stringify(gallery)).toThrow(/invalide/);
+		}
 	});
 });

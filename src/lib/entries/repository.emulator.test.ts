@@ -7,7 +7,7 @@ import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Bytes, collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { encryptJson, generateDek, randomBytes } from '$lib/crypto/crypto';
 import { auth, db, toStored } from '$lib/firebase';
-import { createEntries, deleteEntries, deleteEntry, getImage, listEntries, patchStoredEntries, saveEntry, saveThumbs } from './repository';
+import { createEntries, deleteEntries, deleteEntry, getGalleryImages, getImage, listEntries, patchStoredEntries, saveEntry, saveThumbs } from './repository';
 import { collectionCatalog, tagCatalog } from './catalog';
 import { StaleDataError } from './stale';
 
@@ -98,6 +98,41 @@ describe('fiches (émulateurs)', () => {
 
 		await deleteEntry(uid, created.id);
 		expect(await listEntries(uid, dek)).toEqual([]);
+	}, 60_000);
+
+	it('autres images : enregistrées à part, réordonnées, retirées, supprimées avec la fiche', async () => {
+		const extra = (seed: number) => ({ type: 'image/jpeg', image: randomBytes(1_000 + seed) });
+		const [a, b, c] = [extra(1), extra(2), extra(3)];
+		const input = { collectionId: 'col-1', name: 'Galerie', links: [], tagIds: [] };
+		const created = await saveEntry(uid, dek, { ...input, image, gallery: [a, b, c] });
+		expect(created.gallery).toEqual(['image/jpeg', 'image/jpeg', 'image/jpeg']);
+		expect(await getGalleryImages(uid, dek, created)).toEqual([a.image, b.image, c.image]);
+		const imageDoc = (n: number) => getDoc(doc(db, 'users', uid, 'images', `${created.id}_${n}`));
+		expect((await imageDoc(1)).data()!.image.iv).toBeInstanceOf(Bytes);
+
+		// c en tête, b retirée : c (du 3) et a (du 1) sont rechiffrées au 1 et au 2, le 3 est supprimé.
+		const reordered = await saveEntry(
+			uid,
+			dek,
+			{ ...input, gallery: [{ ...c, slot: 3 }, { ...a, slot: 1 }] },
+			created
+		);
+		expect(await getGalleryImages(uid, dek, reordered)).toEqual([c.image, a.image]);
+		expect((await imageDoc(3)).exists()).toBe(false);
+		// Galerie non fournie : inchangée.
+		const renamed = await saveEntry(uid, dek, { ...input, name: 'Galerie bis' }, reordered);
+		expect(renamed.gallery).toHaveLength(2);
+
+		// Plus de couverture : plus d'autres images non plus.
+		const bare = await saveEntry(uid, dek, { ...input, image: null }, renamed);
+		expect(bare.gallery).toBeUndefined();
+		expect((await imageDoc(1)).exists()).toBe(false);
+
+		// Suppression de la fiche : couverture et autres images partent avec.
+		const again = await saveEntry(uid, dek, { ...input, image, gallery: [a, b] }, bare);
+		await deleteEntry(uid, again.id);
+		for (const n of [1, 2]) expect((await imageDoc(n)).exists()).toBe(false);
+		expect(await getImage(uid, dek, again.id)).toBeNull();
 	}, 60_000);
 
 	it('importe une liste de noms en plusieurs lots', async () => {

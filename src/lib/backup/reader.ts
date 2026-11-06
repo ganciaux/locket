@@ -6,11 +6,15 @@
 import { decrypt, decryptJson, type Encrypted } from '$lib/crypto/crypto';
 import type { Bytes } from '$lib/crypto/encoding';
 import { type Collection, type Entry, type EntryData, type Tag, withRecoveredCollections } from '$lib/entries/model';
+import { galleryImageId } from '$lib/entries/gallery';
 import type { Backup } from './format';
 import { COLLECTIONS_CONTEXT, TAGS_CONTEXT, inspectBackup, integrityProblems } from './verify';
 
 /** Une fiche lue : ses données, et ses images si elles sont lisibles (l'image complète manque d'une sauvegarde légère). */
-export type ReadEntry = Entry & { thumb?: Bytes; image?: Bytes };
+/** Autre image lue, avec le type que la fiche donne à sa position. */
+export type ExtraImage = { type: string; bytes: Bytes };
+
+export type ReadEntry = Entry & { thumb?: Bytes; image?: Bytes; extraImages?: ExtraImage[] };
 
 export type BackupReading = {
 	collections: Collection[];
@@ -42,7 +46,15 @@ export async function readBackup(backup: Backup, dek: CryptoKey): Promise<Backup
 			readBytes(dek, stored.thumb, `${stored.id}/thumb`),
 			readBytes(dek, stored.image, `${stored.id}/image`)
 		]);
-		entries.push({ ...data, id: stored.id, ...(thumb && { thumb }), ...(image && { image }) });
+		// Autres images lisibles, dans l'ordre (une abîmée est laissée de côté).
+		const extras = await Promise.all(
+			(stored.gallery ?? []).map(async (extra, i) => ({
+				type: data.gallery?.[i],
+				bytes: await readBytes(dek, extra, `${galleryImageId(stored.id, i + 1)}/image`)
+			}))
+		);
+		const extraImages = extras.filter((extra): extra is ExtraImage => !!extra.type && !!extra.bytes);
+		entries.push({ ...data, id: stored.id, ...(thumb && { thumb }), ...(image && { image }), ...(extraImages.length && { extraImages }) });
 	}
 	return {
 		// Une fiche dont le catalogue des collections est perdu reste visible, sous un nom provisoire.

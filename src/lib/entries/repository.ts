@@ -2,6 +2,7 @@
  * Fiches dans Firestore, toujours chiffrées par la DEK :
  *   users/{uid}/entries/{id} : { data, thumb? }  (lu pour la liste)
  *   users/{uid}/images/{id}  : { image }         (lu seulement à l'ouverture d'une fiche)
+ *   users/{uid}/images/{id}_{n} : { image }      (autres images, n de 1 à 5 : voir gallery.ts)
  * Le SDK web lit les documents en entier : l'image à part évite de la télécharger pour afficher la liste.
  * AAD = "<id>/<champ>" : un chiffré déplacé vers une autre fiche ou un autre champ ne se déchiffre plus.
  *   users/{uid}/meta/version : { token }         (aléa changé à chaque écriture de fiche, voir `commitEntries`)
@@ -23,7 +24,21 @@ import { type Encrypted, decrypt, decryptJson, encrypt, encryptJson, randomBytes
 import type { Bytes } from '$lib/crypto/encoding';
 import { auth, db, fromStored, toStored, type StoredEncrypted } from '$lib/firebase';
 import { type CacheChanges, type CachedEntry, applyToCache, cachedToken, clearCache, fillCache, readCache } from './cache';
-import { type Entry, type EntryData, type Link, fitsInDoc, parseBirthYear, parseCountry, parseFraming, parseRating, parseRemarks } from './model';
+import {
+	type Entry,
+	type EntryData,
+	type GalleryItem,
+	type Link,
+	fitsInDoc,
+	galleryImageId,
+	gallerySlots,
+	parseBirthYear,
+	parseCountry,
+	parseFraming,
+	parseRating,
+	parseRemarks,
+	planGallery
+} from './model';
 import { StaleDataError, guardStale } from './stale';
 
 type StoredEntry = { data: StoredEncrypted; thumb?: StoredEncrypted };
@@ -153,6 +168,11 @@ export async function getImage(uid: string, dek: CryptoKey, id: string): Promise
 	return decrypt(dek, fromStored((snapshot.data() as StoredImage).image), `${id}/image`);
 }
 
+/** Autres images d'une fiche, dans l'ordre (null : absente, après une restauration sans images par exemple). */
+export function getGalleryImages(uid: string, dek: CryptoKey, entry: Pick<Entry, 'id' | 'gallery'>): Promise<(Bytes | null)[]> {
+	return Promise.all((entry.gallery ?? []).map((_, i) => getImage(uid, dek, galleryImageId(entry.id, i + 1))));
+}
+
 export type EntryInput = {
 	collectionId: string;
 	name: string;
@@ -170,6 +190,8 @@ export type EntryInput = {
 	framing?: number;
 	/** undefined : image inchangée ; null : supprimée ; sinon : remplacée. */
 	image?: PreparedImage | null;
+	/** Autres images, dans l'ordre ; undefined : inchangées. Sans couverture, toutes retirées. */
+	gallery?: GalleryItem[];
 };
 
 /**
@@ -186,6 +208,13 @@ export async function saveEntry(
 	const now = Date.now();
 	const keepImage = input.image === undefined;
 	const imageType = keepImage ? existing?.imageType : input.image?.type;
+	const previousGallery = existing?.gallery?.length ?? 0;
+	const gallery = !imageType
+		? planGallery([], previousGallery)
+		: input.gallery
+			? planGallery(input.gallery, previousGallery)
+			: null;
+	const galleryTypes = gallery ? gallery.types : (existing?.gallery ?? []);
 	const data: EntryData = {
 		collectionId: input.collectionId,
 		name: input.name.trim(),
@@ -193,6 +222,7 @@ export async function saveEntry(
 		createdAt: existing?.createdAt ?? now,
 		updatedAt: now,
 		...(imageType && { imageType }),
+		...(galleryTypes.length && { gallery: galleryTypes }),
 		...(input.tagIds.length && { tagIds: input.tagIds }),
 		...(input.siteTerms && Object.keys(input.siteTerms).length && { siteTerms: input.siteTerms }),
 		...(input.hiddenSites?.length && { hiddenSites: input.hiddenSites }),
@@ -213,11 +243,22 @@ export async function saveEntry(
 
 	const image = input.image ? await encrypt(dek, input.image.image, `${id}/image`) : undefined;
 	if (image && !fitsInDoc(image.data)) throw new Error('Image trop volumineuse.');
+	const galleryWrites = await Promise.all(
+		(gallery?.writes ?? []).map(async ({ slot, item }) => {
+			const imageId = galleryImageId(id, slot);
+			const encrypted = await encrypt(dek, item.image, `${imageId}/image`);
+			if (!fitsInDoc(encrypted.data)) throw new Error('Image trop volumineuse.');
+			return { imageId, encrypted };
+		})
+	);
 	await commitEntries(
 		uid,
 		(writes) => {
 			if (image) writes.set(imageRef(uid, id), { image: toStored(image) } satisfies StoredImage);
 			else if (input.image === null) writes.delete(imageRef(uid, id));
+			for (const { imageId, encrypted } of galleryWrites)
+				writes.set(imageRef(uid, imageId), { image: toStored(encrypted) } satisfies StoredImage);
+			for (const slot of gallery?.deletes ?? []) writes.delete(imageRef(uid, galleryImageId(id, slot)));
 			writes.set(entryRef(uid, id), stored);
 		},
 		{ put: [toCached(id, stored)] }
@@ -301,7 +342,7 @@ export async function saveThumbs(uid: string, dek: CryptoKey, thumbs: { id: stri
 
 /** `checked` : voir `commitEntries` (faux pour la restauration et la suppression totale). */
 export async function deleteEntries(uid: string, ids: string[], checked = true): Promise<void> {
-	const size = MAX_BATCH_WRITES / 2; // fiche + image
+	const size = Math.floor(MAX_BATCH_WRITES / ENTRY_DOCS);
 	for (let start = 0; start < ids.length; start += size) {
 		const chunk = ids.slice(start, start + size);
 		await commitEntries(
@@ -309,7 +350,7 @@ export async function deleteEntries(uid: string, ids: string[], checked = true):
 			(writes) =>
 				chunk.forEach((id) => {
 					writes.delete(entryRef(uid, id));
-					writes.delete(imageRef(uid, id));
+					imageIds(id).forEach((imageId) => writes.delete(imageRef(uid, imageId)));
 				}),
 			{ remove: chunk },
 			checked
@@ -319,10 +360,16 @@ export async function deleteEntries(uid: string, ids: string[], checked = true):
 
 export const deleteEntry = (uid: string, id: string): Promise<void> => deleteEntries(uid, [id]);
 
+/** Documents d'images d'une fiche : couverture et emplacements des autres, existants ou non (supprimer est sans effet). */
+const imageIds = (id: string): string[] => [id, ...gallerySlots().map((slot) => galleryImageId(id, slot))];
+/** Documents par fiche au plus : la fiche et ses images. */
+const ENTRY_DOCS = 1 + imageIds('').length;
+
 // ---------------------------------------------------------------------------
 // Sauvegarde : documents bruts (toujours chiffrés), sans passer par la DEK.
 
-export type StoredEntryCopy = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted };
+/** `gallery` : autres images, dans l'ordre des emplacements (1, 2…), sans trou. */
+export type StoredEntryCopy = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted; gallery?: Encrypted[] };
 
 export async function readStoredEntries(uid: string, includeImages: boolean): Promise<StoredEntryCopy[]> {
 	const [entrySnaps, imageSnaps] = await Promise.all([
@@ -333,11 +380,18 @@ export async function readStoredEntries(uid: string, includeImages: boolean): Pr
 	return entrySnaps.docs.map((d) => {
 		const stored = d.data() as StoredEntry;
 		const image = images.get(d.id);
+		const gallery: Encrypted[] = [];
+		for (const slot of gallerySlots()) {
+			const extra = images.get(galleryImageId(d.id, slot));
+			if (!extra) break;
+			gallery.push(extra);
+		}
 		return {
 			id: d.id,
 			data: fromStored(stored.data),
 			...(stored.thumb && { thumb: fromStored(stored.thumb) }),
-			...(image && { image })
+			...(image && { image }),
+			...(gallery.length && { gallery })
 		};
 	});
 }
@@ -369,6 +423,14 @@ export async function writeStoredEntries(
 					writes.set(entryRef(uid, entry.id), stored);
 					if (entry.image) writes.set(imageRef(uid, entry.id), { image: toStored(entry.image) } satisfies StoredImage);
 					else if (includesImages) writes.delete(imageRef(uid, entry.id));
+					// Autres images : comme la couverture, remplacées seulement par une sauvegarde complète.
+					if (!includesImages) continue;
+					gallerySlots().forEach((slot) => {
+						const extra = entry.gallery?.[slot - 1];
+						const ref = imageRef(uid, galleryImageId(entry.id, slot));
+						if (extra) writes.set(ref, { image: toStored(extra) } satisfies StoredImage);
+						else writes.delete(ref);
+					});
 				}
 			},
 			// Sans le champ image : le cache ne garde jamais d'image complète.
@@ -380,8 +442,12 @@ export async function writeStoredEntries(
 	let chunk: StoredEntryCopy[] = [];
 	let bytes = 0;
 	for (const entry of entries) {
-		const size = entry.data.data.length + (entry.thumb?.data.length ?? 0) + (entry.image?.data.length ?? 0);
-		if ((chunk.length + 1) * 2 > MAX_BATCH_WRITES || (chunk.length > 0 && bytes + size > MAX_BATCH_BYTES)) {
+		const size =
+			entry.data.data.length +
+			(entry.thumb?.data.length ?? 0) +
+			(entry.image?.data.length ?? 0) +
+			(entry.gallery ?? []).reduce((total, extra) => total + extra.data.length, 0);
+		if ((chunk.length + 1) * ENTRY_DOCS > MAX_BATCH_WRITES || (chunk.length > 0 && bytes + size > MAX_BATCH_BYTES)) {
 			await commit(chunk);
 			chunk = [];
 			bytes = 0;

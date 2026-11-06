@@ -26,6 +26,8 @@ export type ViewEntry = {
 	framing: string;
 	thumb?: Bytes;
 	image?: Bytes;
+	/** Autres images lisibles, de type connu (comme l'image). */
+	extras: { type: string; bytes: Bytes }[];
 };
 
 export type ViewCollection = {
@@ -72,7 +74,8 @@ export function backupView(reading: BackupReading): ViewCollection[] {
 				...(imageType && { imageType }),
 				framing: framingClass(entry.framing),
 				...(imageType && entry.thumb && { thumb: entry.thumb }),
-				...(imageType && entry.image && { image: entry.image })
+				...(imageType && entry.image && { image: entry.image }),
+				extras: (entry.extraImages ?? []).filter((extra) => IMAGE_TYPES.includes(extra.type))
 			};
 		};
 		return {

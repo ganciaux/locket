@@ -6,6 +6,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
 	import FullImage from '$lib/components/FullImage.svelte';
+	import GalleryStrip from '$lib/components/GalleryStrip.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
@@ -48,6 +49,8 @@
 	// même liste. Les flèches quittent le tirage.
 	const drawn = $derived(page.url.searchParams.has('tirage'));
 	let figure = $state<HTMLElement>();
+	// Autre image affichée à la place de la couverture (bande `GalleryStrip`) ; null : la couverture.
+	let shownImage = $state<string | null>(null);
 	let title = $state<HTMLElement>();
 	$effect(() => {
 		void id;
@@ -180,19 +183,35 @@
 		{#if entry.imageType}
 			<!-- Avec bordure, le cadre épouse l'image, posée sur le fond avec une marge pour son halo. -->
 			{@const border = entries.borderOf(entry)}
+			{@const imageClass = `object-contain ${border ? 'rounded-box max-h-[calc(60vh-2rem)] max-w-full' : 'max-h-[60vh] w-full'}`}
 			<figure bind:this={figure} class="bg-base-200 relative {border ? 'flex justify-center p-4' : ''}">
+				{#if shownImage}
+					<img src={shownImage} alt={entry.name} data-border={border} class={imageClass} />
+				{:else}
+					{#key id}
+						<FullImage
+							{id}
+							type={entry.imageType}
+							thumbUrl={entry.thumbUrl}
+							alt={entry.name}
+							{border}
+							class={imageClass}
+							onfail={(e) => (error = errorMessage(e))}
+						/>
+					{/key}
+				{/if}
+			</figure>
+			{#if entry.gallery?.length}
 				{#key id}
-					<FullImage
-						{id}
-						type={entry.imageType}
+					<GalleryStrip
+						{entry}
 						thumbUrl={entry.thumbUrl}
-						alt={entry.name}
-						{border}
-						class="object-contain {border ? 'rounded-box max-h-[calc(60vh-2rem)] max-w-full' : 'max-h-[60vh] w-full'}"
+						shown={shownImage}
+						onshow={(url) => (shownImage = url)}
 						onfail={(e) => (error = errorMessage(e))}
 					/>
 				{/key}
-			</figure>
+			{/if}
 		{/if}
 		<div class="card-body gap-4">
 			<div class="flex items-center gap-2">

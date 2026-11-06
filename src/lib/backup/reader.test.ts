@@ -8,11 +8,11 @@ import { parseBackup } from './format';
 import { unwrapBackupDek } from './keyring';
 import { readBackup } from './reader';
 
-const EMAIL = 'temoin-1793793418441@example.com';
-const PASSWORD = 'mot-de-passe-temoin-v4';
-const RECOVERY_KEY = 'A2DO-LXHX-FOCE-2PD2-M65K-FP5K-JAI4-LU7I-3A7T-FZRZ-46YX-5EVM-7Q7Q';
+const EMAIL = 'temoin-1793964321216@example.com';
+const PASSWORD = 'mot-de-passe-temoin-v5';
+const RECOVERY_KEY = 'QOPB-B5NB-RQIV-3OHS-LUHX-UDVF-PHXA-HYCA-BU6R-5NLP-SRKD-MEL5-3PUA';
 
-const text = readFileSync(new URL('./fixtures/witness-v4.json', import.meta.url), 'utf8');
+const text = readFileSync(new URL('./fixtures/witness-v5.json', import.meta.url), 'utf8');
 
 describe('lecture d’une sauvegarde', () => {
 	it('s’ouvre avec la clé de récupération seule, ou le mot de passe et son email, en DEK non extractible', async () => {
@@ -36,6 +36,10 @@ describe('lecture d’une sauvegarde', () => {
 		expect(entry).toMatchObject({ name: 'Fiche témoin', country: 'FR', birthYear: 1990, rating: 7 });
 		expect(entry.thumb).toHaveLength(300);
 		expect(entry.image).toHaveLength(2000);
+		expect(entry.extraImages?.map((extra) => [extra.type, extra.bytes.length])).toEqual([
+			['image/jpeg', 1500],
+			['image/webp', 1200]
+		]);
 	});
 
 	it('lit un fichier altéré malgré tout : la pièce abîmée manque, les défauts sont signalés', async () => {

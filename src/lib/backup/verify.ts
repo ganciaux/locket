@@ -5,6 +5,7 @@
  */
 import { type Encrypted, decrypt, decryptJson, sha256 } from '$lib/crypto/crypto';
 import { type Bytes, toBase64, utf8 } from '$lib/crypto/encoding';
+import { galleryImageId } from '$lib/entries/gallery';
 import type { Backup, BackupCounts, BackupManifest } from './format';
 
 export type BackupContent = Omit<Backup, 'manifest'>;
@@ -26,6 +27,7 @@ export function encryptedParts(backup: BackupContent): EncryptedPart[] {
 		add(entry.data, `${entry.id}/data`);
 		add(entry.thumb, `${entry.id}/thumb`);
 		add(entry.image, `${entry.id}/image`);
+		entry.gallery?.forEach((extra, i) => add(extra, `${galleryImageId(entry.id, i + 1)}/image`));
 	}
 	add(backup.collections, COLLECTIONS_CONTEXT);
 	add(backup.tags, TAGS_CONTEXT);

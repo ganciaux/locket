@@ -13,6 +13,8 @@ export type EntryData = {
 	updatedAt: number;
 	/** Type MIME de l'image et de la miniature, absent si la fiche n'a pas d'image. */
 	imageType?: string;
+	/** Types MIME des autres images, dans l'ordre (voir gallery.ts) ; jamais sans couverture. */
+	gallery?: string[];
 	/** Tags de sa collection ; un identifiant inconnu (tag supprimé) est ignoré. */
 	tagIds?: string[];
 	/** Par site de la collection : terme à chercher s'il diffère du nom de la fiche. */

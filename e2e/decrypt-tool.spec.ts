@@ -1,6 +1,6 @@
 /**
  * Outil autonome de lecture d'une sauvegarde : le fichier généré, ouvert depuis le disque (file://), sans serveur.
- * Témoin v4, clé de récupération, page en clair enregistrée puis rouverte. Aucune erreur de CSP ne doit apparaître.
+ * Témoin v5, clé de récupération, page en clair enregistrée puis rouverte. Aucune erreur de CSP ne doit apparaître.
  */
 import { execSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -9,10 +9,10 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type Page, expect, test } from '@playwright/test';
 
-const RECOVERY_KEY = 'A2DO-LXHX-FOCE-2PD2-M65K-FP5K-JAI4-LU7I-3A7T-FZRZ-46YX-5EVM-7Q7Q';
-const EMAIL = 'temoin-1793793418441@example.com';
-const PASSWORD = 'mot-de-passe-temoin-v4';
-const WITNESS = 'src/lib/backup/fixtures/witness-v4.json';
+const RECOVERY_KEY = 'QOPB-B5NB-RQIV-3OHS-LUHX-UDVF-PHXA-HYCA-BU6R-5NLP-SRKD-MEL5-3PUA';
+const EMAIL = 'temoin-1793964321216@example.com';
+const PASSWORD = 'mot-de-passe-temoin-v5';
+const WITNESS = 'src/lib/backup/fixtures/witness-v5.json';
 
 let dir = '';
 test.beforeAll(() => {

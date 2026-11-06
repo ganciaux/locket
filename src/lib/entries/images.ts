@@ -40,21 +40,37 @@ async function encode(source: ImageBitmap, maxPx: number, type: string, quality:
 	return new Uint8Array(await (await canvasToBlob(canvas, type, quality)).arrayBuffer());
 }
 
-export async function prepareImage(file: File): Promise<PreparedImage> {
-	let source: ImageBitmap;
+async function readBitmap(file: Blob): Promise<ImageBitmap> {
 	try {
 		// L'orientation EXIF des photos est appliquée par défaut.
-		source = await createImageBitmap(file);
+		return await createImageBitmap(file);
 	} catch {
 		throw new Error('Ce fichier n’est pas une image lisible.');
 	}
+}
+
+const encodeImage = (source: ImageBitmap, type: string) =>
+	encodeUnderLimit((quality, scale) => encode(source, Math.round(IMAGE_MAX_PX * scale), type, quality));
+
+/** Couverture d'une fiche : image et miniature. */
+export async function prepareImage(file: Blob): Promise<PreparedImage> {
+	const source = await readBitmap(file);
 	try {
 		const type = await outputType();
-		const image = await encodeUnderLimit((quality, scale) =>
-			encode(source, Math.round(IMAGE_MAX_PX * scale), type, quality)
-		);
+		const image = await encodeImage(source, type);
 		const thumb = await encode(source, THUMB_MAX_PX, type, THUMB_QUALITY);
 		return { type, image, thumb };
+	} finally {
+		source.close();
+	}
+}
+
+/** Autre image d'une fiche : sans miniature (voir gallery.ts). */
+export async function prepareGalleryImage(file: Blob): Promise<{ type: string; image: Bytes }> {
+	const source = await readBitmap(file);
+	try {
+		const type = await outputType();
+		return { type, image: await encodeImage(source, type) };
 	} finally {
 		source.close();
 	}

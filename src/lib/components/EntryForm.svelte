@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Création et modification d'une fiche. L'image est préparée (redimensionnée) puis chiffrée à l'enregistrement.
 	import { goto } from '$app/navigation';
+	import { onDestroy } from 'svelte';
 	import { session } from '$lib/auth/session.svelte';
 	import ActionBar from '$lib/components/ActionBar.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
@@ -10,9 +11,9 @@
 	import CountryPicker from '$lib/components/CountryPicker.svelte';
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
-	import { prepareImage } from '$lib/entries/images';
-	import { FRAMING_CENTER, FRAMING_STEP, type Link, MAX_NAME_LENGTH, framingClass, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
-	import { getImage, saveEntry } from '$lib/entries/repository';
+	import { prepareGalleryImage, prepareImage } from '$lib/entries/images';
+	import { FRAMING_CENTER, FRAMING_STEP, type GalleryItem, type Link, MAX_GALLERY, MAX_IMAGES, MAX_NAME_LENGTH, framingClass, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
+	import { getGalleryImages, getImage, saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
@@ -142,9 +143,109 @@
 	}
 
 	function removeImage() {
-		file = null;
 		fileInput.value = '';
+		// Pas d'autres images sans couverture : la suivante prend sa place.
+		const [next, ...rest] = gallery;
+		if (next) {
+			gallery = rest;
+			galleryTouched = true;
+			URL.revokeObjectURL(next.url);
+			setCover(next.blob);
+			return;
+		}
+		file = null;
 		imageRemoved = true;
+	}
+
+	// Autres images (voir gallery.ts) : chargées à l'ouverture, réordonnées, promues en couverture, enregistrées avec la
+	// fiche. `slot` : déjà enregistrée à cet emplacement (octets inchangés) ; `raw` : fichier choisi, à préparer.
+	type Pic = { blob: Blob; url: string; slot?: number; raw: boolean };
+	let gallery = $state<Pic[]>([]);
+	// Rien n'est réécrit tant que la galerie n'a pas changé (ni si elle n'a pas pu être chargée).
+	let galleryTouched = $state(false);
+	// svelte-ignore state_referenced_locally
+	let galleryLoading = $state(!!entry?.gallery?.length);
+	const pic = (blob: Blob, raw: boolean, slot?: number): Pic => ({ blob, url: URL.createObjectURL(blob), raw, ...(slot && { slot }) });
+
+	$effect(() => {
+		const { user, dek } = session;
+		if (!entry?.gallery?.length || !user || !dek) return;
+		const types = entry.gallery;
+		getGalleryImages(user.uid, dek, entry)
+			.then((images) => {
+				gallery = images.flatMap((bytes, i) => (bytes ? [pic(new Blob([bytes], { type: types[i] }), false, i + 1)] : []));
+			})
+			.catch((e) => (loadError = errorMessage(e)))
+			.finally(() => (galleryLoading = false));
+	});
+	onDestroy(() => gallery.forEach((item) => URL.revokeObjectURL(item.url)));
+
+	/** Nouvelle couverture (fichier, image collée ou autre image promue) : cadrage remis au centre. */
+	function setCover(blob: Blob) {
+		file = blob instanceof File ? blob : new File([blob], 'image', { type: blob.type });
+		imageRemoved = false;
+		framing = FRAMING_CENTER;
+	}
+
+	function addToGallery(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const files = [...(input.files ?? [])].filter((f) => f.type.startsWith('image/'));
+		input.value = '';
+		const room = MAX_GALLERY - gallery.length;
+		if (files.length > room) loadError = `${MAX_IMAGES} images au plus par fiche : ${files.length - room} non ajoutée(s).`;
+		gallery = [...gallery, ...files.slice(0, room).map((f) => pic(f, true))];
+		galleryTouched = true;
+	}
+
+	function moveInGallery(from: number, to: number) {
+		const next = [...gallery];
+		[next[from], next[to]] = [next[to], next[from]];
+		gallery = next;
+		galleryTouched = true;
+	}
+
+	function removeFromGallery(index: number) {
+		URL.revokeObjectURL(gallery[index].url);
+		gallery = gallery.filter((_, i) => i !== index);
+		galleryTouched = true;
+	}
+
+	/** L'image choisie devient la couverture ; l'ancienne couverture prend sa place parmi les autres. */
+	let promoting = $state(false);
+	async function makeCover(index: number) {
+		const { user, dek } = session;
+		if (!user || !dek) return;
+		promoting = true;
+		loadError = '';
+		try {
+			let previous: Pic | null = null;
+			if (file) previous = pic(file, true);
+			else if (!imageRemoved && entry?.imageType) {
+				const bytes = await getImage(user.uid, dek, entry.id);
+				if (!bytes) throw new Error('Image introuvable.');
+				previous = pic(new Blob([bytes], { type: entry.imageType }), false);
+			}
+			const chosen = gallery[index];
+			gallery = previous ? gallery.map((item, i) => (i === index ? previous : item)) : gallery.filter((_, i) => i !== index);
+			galleryTouched = true;
+			fileInput.value = '';
+			setCover(chosen.blob);
+			URL.revokeObjectURL(chosen.url);
+		} catch (e) {
+			loadError = errorMessage(e);
+		} finally {
+			promoting = false;
+		}
+	}
+
+	async function galleryItems(): Promise<GalleryItem[]> {
+		return Promise.all(
+			gallery.map(async (item) =>
+				item.raw
+					? prepareGalleryImage(item.blob)
+					: { type: item.blob.type, image: new Uint8Array(await item.blob.arrayBuffer()), ...(item.slot && { slot: item.slot }) }
+			)
+		);
 	}
 
 	// Les tags et les sites appartiennent à une collection : en changer les retire de la fiche.
@@ -193,6 +294,7 @@
 		// Les identifiants de tags supprimés entre-temps sont oubliés ici.
 		const knownTagIds = entries.tagsOf({ collectionId, tagIds }).map((tag) => tag.id);
 		const image = file ? await prepareImage(file) : imageRemoved ? null : undefined;
+		const extraImages = galleryTouched ? await galleryItems() : undefined;
 		const saved = await saveEntry(
 			user.uid,
 			dek,
@@ -210,7 +312,8 @@
 				birthYear: birthYear ?? undefined,
 				remarks,
 				framing,
-				image
+				image,
+				gallery: extraImages
 			},
 			entry
 		);
@@ -357,6 +460,51 @@
 			<p class="text-base-content/60 text-xs">
 				Choisissez un fichier, glissez-le ici ou collez une image. Redimensionnée et chiffrée sur cet appareil avant l'envoi.
 			</p>
+			{#if preview && !editing}
+				<!-- Autres images : seulement sur la fiche, sans recadrage ; l'une d'elles peut passer en couverture. -->
+				<div class="border-base-200 flex flex-col gap-2 border-t pt-3">
+					<h3 class="text-sm font-medium">
+						Autres images <span class="text-base-content/60 font-normal">({gallery.length} / {MAX_GALLERY}, affichées sur la fiche)</span>
+					</h3>
+					{#if galleryLoading}
+						<span class="loading loading-dots loading-sm"></span>
+					{:else}
+						{#if gallery.length}
+							<ul class="flex flex-wrap gap-3" aria-label="Autres images">
+								{#each gallery as item, i (item.url)}
+									<li class="flex flex-col items-center gap-1">
+										<img src={item.url} alt="Image {i + 2}" class="rounded-box size-20 object-cover shadow-sm" />
+										<div class="flex">
+											<button type="button" class="btn btn-ghost btn-xs btn-square" disabled={i === 0} onclick={() => moveInGallery(i, i - 1)} aria-label="Avancer l'image {i + 2}" title="Avancer">
+												<Icon name="back" class="size-3.5" />
+											</button>
+											<button type="button" class="btn btn-ghost btn-xs btn-square" onclick={() => removeFromGallery(i)} aria-label="Retirer l'image {i + 2}" title="Retirer">
+												<Icon name="close" class="size-3.5" />
+											</button>
+											<button type="button" class="btn btn-ghost btn-xs btn-square" disabled={i === gallery.length - 1} onclick={() => moveInGallery(i, i + 1)} aria-label="Reculer l'image {i + 2}" title="Reculer">
+												<Icon name="forward" class="size-3.5" />
+											</button>
+										</div>
+										<button type="button" class="btn btn-ghost btn-xs" disabled={promoting} onclick={() => makeCover(i)} aria-label="Mettre l'image {i + 2} en couverture">
+											En couverture
+										</button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if gallery.length < MAX_GALLERY}
+							<input
+								type="file"
+								accept="image/*"
+								multiple
+								class="file-input file-input-sm w-full"
+								aria-label="Ajouter d'autres images"
+								onchange={addToGallery}
+							/>
+						{/if}
+					{/if}
+				</div>
+			{/if}
 		</div>
 	</section>
 

@@ -1,5 +1,5 @@
 /**
- * Fichier témoin : une vraie sauvegarde v4 exportée par l'app (contre les émulateurs, compte jetable), versionnée.
+ * Fichier témoin : une vraie sauvegarde v5 exportée par l'app (contre les émulateurs, compte jetable), versionnée.
  * Elle doit rester lisible de bout en bout : format, dérivation du mot de passe et de la clé de récupération, AAD,
  * manifeste. Un échec ici = format ou crypto changé. Si c'est voulu : nouvelle version de format, nouveau témoin,
  * et les anciennes sauvegardes deviennent illisibles (voir MEMORY.md, Sauvegarde) ; sinon, c'est une régression.
@@ -10,14 +10,14 @@ import { decrypt, decryptJson, deriveKeys, deriveRecoveryKek, unwrapDek } from '
 import { BACKUP_VERSION, type BackupManifest, parseBackup } from './format';
 
 // Compte d'émulateur jetable : ces secrets n'ouvrent rien d'autre que ce fichier.
-const EMAIL = 'temoin-1793793418441@example.com';
-const PASSWORD = 'mot-de-passe-temoin-v4';
-const RECOVERY_KEY = 'A2DO-LXHX-FOCE-2PD2-M65K-FP5K-JAI4-LU7I-3A7T-FZRZ-46YX-5EVM-7Q7Q';
+const EMAIL = 'temoin-1793964321216@example.com';
+const PASSWORD = 'mot-de-passe-temoin-v5';
+const RECOVERY_KEY = 'QOPB-B5NB-RQIV-3OHS-LUHX-UDVF-PHXA-HYCA-BU6R-5NLP-SRKD-MEL5-3PUA';
 
-const text = readFileSync(new URL('./fixtures/witness-v4.json', import.meta.url), 'utf8');
+const text = readFileSync(new URL('./fixtures/witness-v5.json', import.meta.url), 'utf8');
 const bytes = (n: number, seed: number) => Uint8Array.from({ length: n }, (_, i) => (i * 31 + seed) & 255);
 
-describe('sauvegarde témoin (format v4)', () => {
+describe('sauvegarde témoin (format v5)', () => {
 	const backup = parseBackup(text);
 
 	it('est au format courant', () => {
@@ -56,10 +56,16 @@ describe('sauvegarde témoin (format v4)', () => {
 			country: 'FR',
 			birthYear: 1990,
 			rating: 7,
-			imageType: 'image/webp'
+			imageType: 'image/webp',
+			gallery: ['image/jpeg', 'image/webp']
 		});
 		expect(await decrypt(dek, entry.thumb!, `${entry.id}/thumb`)).toEqual(bytes(300, 2));
 		expect(await decrypt(dek, entry.image!, `${entry.id}/image`)).toEqual(bytes(2000, 1));
+		// Autres images : à leur emplacement `{id}_{n}`, dans l'ordre.
+		expect(entry.gallery).toHaveLength(2);
+		expect(await decrypt(dek, entry.gallery![0], `${entry.id}_1/image`)).toEqual(bytes(1500, 3));
+		expect(await decrypt(dek, entry.gallery![1], `${entry.id}_2/image`)).toEqual(bytes(1200, 4));
+		await expect(decrypt(dek, entry.gallery![1], `${entry.id}_1/image`)).rejects.toThrow();
 		// AAD : le même chiffré ne s'ouvre pas à un autre emplacement.
 		await expect(decrypt(dek, entry.thumb!, `${entry.id}/image`)).rejects.toThrow();
 	});

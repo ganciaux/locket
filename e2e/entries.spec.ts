@@ -1,6 +1,6 @@
 /** Fiches : formulaire, image, liens, sites, nom unique, note, pays, naissance. */
 import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
-import { addSite, createEntry, lockAndUnlock, openIndex, swipeOn } from './helpers';
+import { addSite, createEntry, createEntryWithImage, lockAndUnlock, openIndex, swipeOn } from './helpers';
 
 test('site de collection : lien calculé, nom custom, masquage', async ({ page }) => {
 	await signUp(page);
@@ -447,4 +447,52 @@ test('recadrer et pivoter : nouvelle image puis image enregistrée, remplacée �
 	await expect(page.locator('svg[preserveAspectRatio]')).toHaveAttribute('viewBox', `0 0 ${width} ${height}`);
 	await page.getByRole('button', { name: 'Annuler', exact: true }).first().click();
 	await expect(preview).toBeVisible();
+});
+
+test('autres images : ajoutées, réordonnées, une passe en couverture, affichées sur la fiche, retirées', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	await createEntryWithImage(page, 'Album', 400);
+	// Images de tailles différentes, pour les reconnaître (largeur × hauteur).
+	const png = (width: number, height: number) =>
+		page.evaluate(
+			([w, h]) => Object.assign(document.createElement('canvas'), { width: w, height: h }).toDataURL('image/png').split(',')[1],
+			[width, height]
+		);
+	const file = async (name: string, width: number, height: number) => ({
+		name,
+		mimeType: 'image/png',
+		buffer: Buffer.from(await png(width, height), 'base64')
+	});
+
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await page.getByLabel("Ajouter d'autres images").setInputFiles([await file('a.png', 500, 200), await file('b.png', 200, 500)]);
+	const extras = page.getByRole('list', { name: 'Autres images' }).getByRole('img');
+	await expect(extras).toHaveCount(2);
+	const sizes = () => extras.evaluateAll((imgs) => imgs.map((img) => (img as HTMLImageElement).naturalWidth));
+	await expect.poll(sizes).toEqual([500, 200]);
+	await page.getByRole('button', { name: "Reculer l'image 2" }).click();
+	await expect.poll(sizes).toEqual([200, 500]);
+	// La 500 × 200 passe en couverture ; l'ancienne couverture (400) prend sa place.
+	await page.getByRole('button', { name: "Mettre l'image 3 en couverture" }).click();
+	const preview = page.getByAltText('Aperçu', { exact: true });
+	await expect.poll(() => preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(500);
+	await expect.poll(sizes).toEqual([200, 400]);
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
+
+	// Sur la fiche : la couverture, puis les deux autres ; un clic en affiche une à la place.
+	const strip = page.getByRole('list', { name: 'Images de la fiche' });
+	await expect(strip.getByRole('button')).toHaveCount(3);
+	await strip.getByRole('button', { name: "Afficher l'image 2 de Album" }).click();
+	await expect(strip.getByRole('button', { name: "Afficher l'image 2 de Album" })).toHaveAttribute('aria-pressed', 'true');
+	await expect.poll(() => page.locator('figure img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(200);
+
+	// Rouvertes (déchiffrées) dans le formulaire ; une retirée.
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	await expect.poll(sizes).toEqual([200, 400]);
+	await page.getByRole('button', { name: "Retirer l'image 2" }).click();
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
+	await expect(strip.getByRole('button')).toHaveCount(2);
 });

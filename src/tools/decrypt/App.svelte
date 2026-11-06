@@ -104,6 +104,14 @@
 			else img.remove();
 			img.removeAttribute('data-entry');
 		}
+		// Autres images : sans miniature, elles ne sont gardées qu'avec les images complètes.
+		for (const img of clone.querySelectorAll<HTMLImageElement>('img[data-extra]')) {
+			const [id, index] = (img.dataset.extra ?? '').split(':');
+			const extra = byId.get(id)?.extras[Number(index)];
+			if (fullImages && extra) img.src = `data:${extra.type};base64,${toBase64(extra.bytes)}`;
+			else img.remove();
+			img.removeAttribute('data-extra');
+		}
 		const css = [...document.querySelectorAll('style')].map((style) => style.textContent).join('\n');
 		const date = sealedAt ? formatDate(sealedAt) : `${formatDate(backup.createdAt)} (date non vérifiée)`;
 		const page = await plainPage({ title: `Stash — sauvegarde du ${date}`, body: clone.outerHTML, css });
@@ -119,6 +127,11 @@
 		const bytes = entry.image ?? entry.thumb;
 		if (!bytes || !entry.imageType) return;
 		zoom = { url: urlOf(bytes, entry.imageType), name: entry.name };
+		zoomDialog?.showModal();
+	}
+
+	function showExtra(entry: ViewEntry, extra: ViewEntry['extras'][number]) {
+		zoom = { url: urlOf(extra.bytes, extra.type), name: entry.name };
 		zoomDialog?.showModal();
 	}
 </script>
@@ -169,6 +182,15 @@
 				<button type="button" class="btn btn-ghost btn-xs self-start" data-noexport onclick={() => showImage(entry)}>
 					Image complète
 				</button>
+			{/if}
+			{#if entry.extras.length}
+				<div class="flex flex-wrap gap-1" aria-label="Autres images">
+					{#each entry.extras as extra, i (i)}
+						<button type="button" class="cursor-zoom-in" onclick={() => showExtra(entry, extra)} aria-label="Image {i + 2} de {entry.name}">
+							<img src={urlOf(extra.bytes, extra.type)} alt="" loading="lazy" data-extra="{entry.id}:{i}" class="rounded-box size-14 object-cover" />
+						</button>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</li>

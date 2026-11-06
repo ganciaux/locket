@@ -4,14 +4,19 @@
  */
 import type { Encrypted } from '$lib/crypto/crypto';
 import { fromBase64, toBase64 } from '$lib/crypto/encoding';
+import { MAX_GALLERY } from '$lib/entries/gallery';
 
 export const BACKUP_FORMAT = 'locket-backup';
-/** 4 : manifeste chiffré, empreinte avec longueurs. Les versions précédentes ne sont pas lues : aucune n'est à conserver. */
-export const BACKUP_VERSION = 4;
+/**
+ * 4 : manifeste chiffré, empreinte avec longueurs. 5 : autres images des fiches (`gallery`).
+ * Les versions précédentes ne sont pas lues : une nouvelle sauvegarde est refaite à chaque changement de format.
+ */
+export const BACKUP_VERSION = 5;
 
 type EncryptedText = { iv: string; data: string };
 
-export type BackupEntry = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted };
+/** `gallery` : autres images (voir gallery.ts), dans l'ordre, absentes d'une sauvegarde légère. */
+export type BackupEntry = { id: string; data: Encrypted; thumb?: Encrypted; image?: Encrypted; gallery?: Encrypted[] };
 
 export type BackupCounts = { entries: number; collections: number; tags: number };
 
@@ -58,7 +63,8 @@ export function serializeBackup(backup: Backup): string {
 			id: e.id,
 			data: encode(e.data),
 			...(e.thumb && { thumb: encode(e.thumb) }),
-			...(e.image && { image: encode(e.image) })
+			...(e.image && { image: encode(e.image) }),
+			...(e.gallery?.length && { gallery: e.gallery.map(encode) })
 		}))
 	});
 }
@@ -69,8 +75,11 @@ export function serializeBackup(backup: Backup): string {
 const INVALID = 'Fichier de sauvegarde invalide ou endommagé.';
 const IV_LENGTH = 12;
 
-/** Identifiants Firestore générés par l'app : un chemin (« / ») permettrait d'écrire ailleurs. */
-const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+/**
+ * Identifiants de fiche générés par l'app : un chemin (« / ») permettrait d'écrire ailleurs. Sans « _ », réservé aux
+ * autres images (`{id}_{n}`), qu'une fiche ne doit pas pouvoir écraser.
+ */
+const SAFE_ENTRY_ID = /^[A-Za-z0-9-]{1,64}$/;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
 	typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -88,7 +97,13 @@ function decode(value: unknown): Encrypted {
 }
 
 const decodeOptional = (value: unknown): Encrypted | undefined => (value === undefined ? undefined : decode(value));
-const decodeNullable = (value: unknown): Encrypted | null => (value === null || value === undefined ? null : decode(value));
+/** Autres images d'une fiche : une liste de chiffrés, `MAX_GALLERY` au plus (leurs ids en découlent). */
+function decodeGallery(value: unknown): Encrypted[] | undefined {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value) || !value.length || value.length > MAX_GALLERY) throw new Error(INVALID);
+	return value.map(decode);
+}
+const decodeNullable =(value: unknown): Encrypted | null => (value === null || value === undefined ? null : decode(value));
 
 export function parseBackup(text: string): Backup {
 	let raw: unknown;
@@ -104,12 +119,13 @@ export function parseBackup(text: string): Backup {
 
 	const ids = new Set<string>();
 	const entries = raw.entries.map((entry): BackupEntry => {
-		if (!isObject(entry) || typeof entry.id !== 'string' || !SAFE_ID.test(entry.id) || ids.has(entry.id))
+		if (!isObject(entry) || typeof entry.id !== 'string' || !SAFE_ENTRY_ID.test(entry.id) || ids.has(entry.id))
 			throw new Error(INVALID);
 		ids.add(entry.id);
 		const image = decodeOptional(entry.image);
 		const thumb = decodeOptional(entry.thumb);
-		return { id: entry.id, data: decode(entry.data), ...(thumb && { thumb }), ...(image && { image }) };
+		const gallery = decodeGallery(entry.gallery);
+		return { id: entry.id, data: decode(entry.data), ...(thumb && { thumb }), ...(image && { image }), ...(gallery && { gallery }) };
 	});
 
 	return {
