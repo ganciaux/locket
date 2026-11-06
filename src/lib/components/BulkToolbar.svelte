@@ -6,6 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { TRASH_DAYS, notValidated } from '$lib/entries/model';
+	import { dock } from '$lib/dock.svelte';
 	import {
 		type ListItem,
 		bulkUndo,
@@ -65,7 +66,10 @@
 		const timer = setTimeout(forgetBulk, UNDO_SECONDS * 1000);
 		return () => clearTimeout(timer);
 	});
-	onDestroy(forgetBulk);
+	onDestroy(() => {
+		forgetBulk();
+		dock.height = 0;
+	});
 
 	const fiches = (list: ListItem[]) => `${list.length} fiche${list.length > 1 ? 's' : ''}`;
 	const agreed = (list: ListItem[], word: string) => `${word}${list.length > 1 ? 's' : ''}`;
@@ -107,6 +111,7 @@
 </script>
 
 <div
+	bind:offsetHeight={dock.height}
 	role="toolbar"
 	aria-label="Actions sur la sélection"
 	class="bg-base-100 fixed inset-x-0 bottom-0 z-20 flex flex-col gap-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgb(0_0_0/0.15)]"

@@ -452,3 +452,19 @@ test('tirage au hasard : mode et durée réglés dans Paramètres, aperçu anim�
 	await goSettings(page);
 	await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('page longue : le bouton « Revenir en haut » apparaît en défilant et remonte en douceur', async ({ page }) => {
+	await signUp(page);
+	await goSettings(page);
+	await page.setViewportSize({ width: 390, height: 500 });
+	// Bandeau « emulator mode » de Firebase (absent en production) : il recouvre le bas de l'écran.
+	await page.locator('.firebase-emulator-warning').evaluate((banner) => banner.remove());
+	const back = page.getByRole('button', { name: 'Revenir en haut' });
+	await expect(back).toBeHidden();
+	await expect(page.getByRole('heading', { name: 'Corbeille' })).toBeAttached();
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	await expect(back).toBeVisible();
+	await back.click();
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+	await expect(back).toBeHidden();
+});

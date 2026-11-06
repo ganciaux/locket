@@ -5,6 +5,7 @@
 	import { lock, session } from '$lib/auth/session.svelte';
 	import AutoLock from '$lib/components/AutoLock.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ScrollTop from '$lib/components/ScrollTop.svelte';
 	import Unlock from '$lib/components/Unlock.svelte';
 	import UpdateBanner from '$lib/components/UpdateBanner.svelte';
 	import type { Snippet } from 'svelte';
@@ -64,8 +65,10 @@
 				<Icon name="lock" />
 			</button>
 		</header>
-		<main class="mx-auto max-w-3xl px-4 pt-6 pb-28">{@render children()}</main>
+		<!-- tabindex : le retour en haut y place le focus (bouton disparu), sans contour au clic. -->
+		<main class="mx-auto max-w-3xl px-4 pt-6 pb-28 outline-none" tabindex="-1">{@render children()}</main>
 	</div>
+	<ScrollTop />
 {/if}
 
 <UpdateBanner />
