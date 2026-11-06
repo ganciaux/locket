@@ -47,7 +47,6 @@ describe('sauvegarde (émulateurs)', () => {
 		// 2. Compte supprimé puis recréé (même email) : nouvelle DEK, la sauvegarde ne s'ouvre plus directement.
 		await deleteUser(auth.currentUser!);
 		await signUp(email, PASSWORD);
-		({ uid, dek } = current());
 		await expect(restoreBackup(backup, PASSWORD)).rejects.toBeInstanceOf(OldKeyRequired);
 		await expect(restoreBackup(backup, 'faux-mot-de-passe', PASSWORD)).rejects.toThrow(
 			/incorrect/

@@ -196,6 +196,8 @@ Dans l'ordre de réalisation prévu.
 - Déplacer plusieurs fiches d'un coup : non retenu (2026-10-30).
 - Changement d'email : l'email sert de sel à la dérivation, il faudrait refaire tout le trousseau.
 - Partage depuis Safari vers l'app : iOS ne le permet pas aux PWA (non retenu le 2026-10-29).
+- Prettier : le style est déjà homogène, un reformatage complet brouillerait `git blame` ; ESLint seul (2026-11-06).
+  À revoir si le style dérive ou si d'autres personnes contribuent.
 
 ## Actions console Firebase (à faire à la main)
 

@@ -387,7 +387,7 @@ export async function recoverWithKey(recoveryKey: string, newPassword: string): 
 	} catch (error) {
 		// La connexion par le lien n'est « récente » que quelques minutes.
 		if (error instanceof FirebaseError && error.code === 'auth/requires-recent-login')
-			throw new Error('Le lien a expiré. Demandez-en un nouveau depuis « Mot de passe oublié ».');
+			throw new Error('Le lien a expiré. Demandez-en un nouveau depuis « Mot de passe oublié ».', { cause: error });
 		throw error;
 	}
 	setUnlocked(user, await unwrapDek(rewrapped, next.kek));

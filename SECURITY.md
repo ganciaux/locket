@@ -201,6 +201,9 @@ faites par l'IA qui a co-écrit le code ne comptent pas comme telles.
 
 ### Niveau 2 : outils automatiques (gratuit)
 - [x] `npm audit` : voir le journal (§ 7).
+- [x] ESLint (`npm run lint`, en CI) : invariants vérifiés à chaque commit (aucun `console.*`, pas de
+      `sendPasswordResetEmail`, `crypto.subtle` seulement dans `src/lib/crypto/`, ni style en ligne ni `{@html}`).
+      Contournable exprès (`globalThis.crypto.subtle`, commentaire `eslint-disable`) : un garde-fou, pas une preuve.
 - [x] Dependabot : `.github/dependabot.yml`, mises à jour npm proposées chaque semaine.
 - [x] [Mozilla Observatory](https://developer.mozilla.org/en-US/observatory) et
       [securityheaders.com](https://securityheaders.com) sur https://locket-403b5.web.app : voir le journal (§ 7).

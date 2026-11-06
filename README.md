@@ -43,6 +43,7 @@ npm test                 # tests unitaires (crypto, modèle, format de sauvegard
 npm run test:emulators   # intégration Firestore + règles, émulateurs lancés à part
 npm run test:e2e         # parcours complets dans Chrome (Playwright) ; démarre les émulateurs et le serveur de test
 npm run check            # types (svelte-check)
+npm run lint             # ESLint (bugs, Svelte 5, invariants de sécurité)
 ```
 
 Les tests `test:e2e` ne visent que les émulateurs (`--mode test`, port 5174), jamais le vrai projet. Ils utilisent le

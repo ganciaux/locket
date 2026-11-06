@@ -13,7 +13,6 @@
 	let { value = $bindable(), frequent = [] }: { value?: string; frequent?: string[] } = $props();
 
 	const id = $props.id();
-	// svelte-ignore state_referenced_locally
 	let text = $state(value ? countryLabel(value) : '');
 
 	// En tête : les pays déjà utilisés puis les favoris ; ensuite tous les autres, par nom.

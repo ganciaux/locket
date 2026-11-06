@@ -21,8 +21,10 @@ clé `locket.prefs`) : ne pas le renommer, ce serait casser les clés et les sau
 - `npm run test:emulators` : tests d'intégration (`*.emulator.test.ts`) contre les émulateurs lancés à part (`.env.test`)
 - `npm run test:e2e` : parcours Playwright dans Chrome (`e2e/`), démarre les émulateurs ; jamais contre la prod
 - `npm run check` : svelte-check (types)
+- `npm run lint` : ESLint (`eslint.config.js`), dont les invariants de sécurité ci-dessous vérifiés automatiquement
+  (`console.*`, `sendPasswordResetEmail`, `crypto.subtle` hors `src/lib/crypto/`, style en ligne, `{@html}`)
 - `npm run build` : build statique dans `build/`
-- CI (`.github/workflows/ci.yml`) : job `check` (types, tests unitaires, build) et job `e2e` (intégration + Playwright sur émulateurs)
+- CI (`.github/workflows/ci.yml`) : job `check` (types, lint, tests unitaires, build) et job `e2e` (intégration + Playwright sur émulateurs)
 
 ## Environnement
 - Node ≥ 24.12 exigé par le SDK `firebase` (`.nvmrc`).

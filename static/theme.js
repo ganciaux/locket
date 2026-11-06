@@ -3,4 +3,6 @@
 try {
 	var theme = JSON.parse(localStorage.getItem('locket.prefs') || '{}').theme;
 	if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-} catch (e) {}
+} catch {
+	// Stockage indisponible : thème par défaut.
+}
