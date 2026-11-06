@@ -83,6 +83,8 @@ Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEM
 ### Sélection multiple
 - [x] **« Tout » en bascule** : tout sélectionner, puis tout désélectionner ; état visible quand tout est sélectionné. *Simple.*
 - [x] **Cartes sélectionnées** : bordure plus fine, ou espace entre les cartes pour qu'elles ne se collent pas. *Simple.*
+      Le 2026-11-06, plus de cadre (confondu avec les bordures de catégorie) : la carte s'incline vers le lecteur,
+      soulevée, avec un reflet irisé (`card-picked`, app.css ; pas d'inclinaison si le système réduit les animations).
 - [x] **Liens des fiches sélectionnées** : précisé le 2026-10-30, c'est le filtre « avec / sans liens » et la bascule
       déplier / replier ci-dessus.
 
@@ -109,13 +111,14 @@ Dans l'ordre de réalisation prévu.
       parmi la liste filtrée, jamais deux fois la même de suite, ouvre comme un clic sur une carte (agrandie ou fiche). *Simple.*
       Révélation de la carte tirée (`reveal.ts`), trois modes au choix dans Paramètres › Affichage (2026-11-06) :
       Paquet (floue, elle tremble puis éclate), Retournement (de dos, elle se retourne), Éclat (elle surgit d'une lumière
-      blanche), puis le 2026-11-06 Grattage (voile gris métallisé effacé en trois coups), Polaroïd (blanche, sépia, puis
+      blanche), puis le 2026-11-06 Grattage (voile gris métallisé effacé d'un geste continu), Polaroïd (blanche, sépia, puis
       en couleurs), Chute (tombe cachée, rebondit), Tourbillon (tourne en grandissant), Rideau (velours rouge qui
-      s'ouvre) ; ou au hasard (icône Remélanger à côté du titre, grise éteinte, rouge allumée : l'une des trois, jamais
+      s'ouvre) ; ou au hasard (icône Remélanger à côté du titre, grise éteinte, rouge allumée : l'une des huit, jamais
       deux fois la même de suite), durée de 0,5 à 3 s, aperçu sur une carte d'exemple (bordure au choix) ; simple fondu
       si le système réduit les animations. Selon la rareté de la bordure : bronze +5 % de durée et 5 paillettes, argent
-      +15 % et 9, or +30 % et 16 ; les autres couleurs restent sobres. Paquet et dos du Retournement partagent le même
-      voile (flou 22 px, presque gris, assombri) : la carte n'est pas reconnaissable avant d'être révélée.
+      +15 % et 9, or +30 % et 16 ; les autres couleurs restent sobres. Flou et assombrissement communs à toutes
+      (flou 22 px, presque gris, assombri, qui se dissipe progressivement jusqu'à 90 % de l'animation, le nom suit la
+      même courbe), séparés du mouvement propre à chaque mode ; sauf Éclat et Polaroïd, qui ont leur propre lumière.
 - [x] **Fiche « Validée »** — fait le 2026-11-05 : `validatedAt` dans `data` chiffré, coche pâle juste avant le bouton copier
       (carte, zoom, fiche : même place partout, légère puisque presque toutes le seront), rosette « Validée le … » sur la
       fiche seulement, bouton Valider / Retirer la validation sur la fiche et dans la sélection. Protégée :

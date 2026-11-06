@@ -11,7 +11,7 @@ export const REVEAL_MODES: { value: RevealMode; label: string; hint: string }[] 
 	{ value: 'pack', label: 'Paquet', hint: 'Floue et sombre, la carte tremble puis se dévoile d’un éclat.' },
 	{ value: 'flip', label: 'Retournement', hint: 'La carte arrive de dos et se retourne.' },
 	{ value: 'glow', label: 'Éclat', hint: 'La carte surgit d’une lumière blanche.' },
-	{ value: 'scratch', label: 'Grattage', hint: 'Un voile gris s’efface en trois coups, comme un ticket à gratter.' },
+	{ value: 'scratch', label: 'Grattage', hint: 'Un voile gris s’efface d’un geste, comme un ticket à gratter.' },
 	{ value: 'polaroid', label: 'Polaroïd', hint: 'La carte se développe : blanche, puis sépia, puis en couleurs.' },
 	{ value: 'drop', label: 'Chute', hint: 'La carte tombe, rebondit et se pose.' },
 	{ value: 'spin', label: 'Tourbillon', hint: 'La carte arrive en tournant, comme distribuée par un croupier.' },
@@ -41,49 +41,66 @@ export const parseRevealMode = (value: unknown): RevealMode =>
 	REVEAL_MODES.find((mode) => mode.value === value)?.value ?? 'pack';
 
 /**
- * Images clés de la carte, et moment (de 0 à 1) où elle devient nette : le nom, le reflet et les paillettes s'y
- * calent. `cover` : voile posé sur l'image (Grattage, Rideau). Courbes par segment quand `easing` est linéaire.
+ * Mouvement de la carte, et moment (de 0 à 1) de son temps fort : le reflet et les paillettes s'y calent. Le flou et
+ * l'assombrissement ne sont pas ici : la même courbe (`unveil`) pour toutes, sauf `light` (Éclat, Polaroïd) qui
+ * ont leur propre lumière. `cover` : voile posé sur l'image (Grattage, Rideau). Courbes par segment quand `easing`
+ * est linéaire.
  */
-type Reveal = { frames: Keyframe[]; easing: string; at: number; cover?: (image: HTMLElement, duration: number) => void };
+type Reveal = {
+	frames: Keyframe[];
+	easing: string;
+	at: number;
+	light?: true;
+	cover?: (image: HTMLElement, duration: number) => void;
+};
 
-// Carte encore cachée : assez floue et terne pour ne pas la reconnaître.
-const hidden = { filter: 'blur(22px) saturate(0.1) brightness(0.55)' };
-const back = hidden.filter;
-const sharp = 'blur(0px) saturate(1) brightness(1)';
+// Carte encore cachée : assez floue et terne pour ne pas la reconnaître ; nette un peu avant la fin, pour le reflet.
+const HIDDEN = 'blur(22px) saturate(0.1) brightness(0.55)';
+const SHARP = 'blur(0px) saturate(1) brightness(1)';
+const UNVEILED_AT = 0.9;
+
+/** De cachée à nette, progressivement, du début à la fin de l'animation. */
+const unveil = (from: Keyframe, to: Keyframe): Keyframe[] => [
+	{ offset: 0, ...from, easing: 'ease-in-out' },
+	{ offset: UNVEILED_AT, ...to },
+	{ offset: 1, ...to }
+];
 
 const REVEALS: Record<RevealMode, Reveal> = {
+	// La carte tremble, puis se dévoile d'un éclat.
 	pack: {
 		easing: 'ease-in-out',
 		at: 0.58,
 		frames: [
-			{ offset: 0, transform: 'scale(0.92) rotate(0deg)', ...hidden },
-			{ offset: 0.12, transform: 'scale(0.93) rotate(-4deg)', ...hidden },
-			{ offset: 0.22, transform: 'scale(0.94) rotate(4deg)', ...hidden },
-			{ offset: 0.32, transform: 'scale(0.94) rotate(-3deg)', ...hidden },
-			{ offset: 0.42, transform: 'scale(0.95) rotate(3deg)', ...hidden },
-			{ offset: 0.52, transform: 'scale(0.95) rotate(-1.5deg)', ...hidden },
-			{ offset: 0.58, transform: 'scale(0.95) rotate(0deg)', ...hidden },
-			{ offset: 0.72, transform: 'scale(1.05) rotate(0deg)', filter: 'blur(0px) saturate(1.1) brightness(1.35)' },
-			{ offset: 1, transform: 'scale(1) rotate(0deg)', filter: sharp }
+			{ offset: 0, transform: 'scale(0.92) rotate(0deg)' },
+			{ offset: 0.12, transform: 'scale(0.93) rotate(-4deg)' },
+			{ offset: 0.22, transform: 'scale(0.94) rotate(4deg)' },
+			{ offset: 0.32, transform: 'scale(0.94) rotate(-3deg)' },
+			{ offset: 0.42, transform: 'scale(0.95) rotate(3deg)' },
+			{ offset: 0.52, transform: 'scale(0.95) rotate(-1.5deg)' },
+			{ offset: 0.58, transform: 'scale(0.95) rotate(0deg)' },
+			{ offset: 0.72, transform: 'scale(1.05) rotate(0deg)' },
+			{ offset: 1, transform: 'scale(1) rotate(0deg)' }
 		]
 	},
-	// De dos (sombre), la carte pivote jusqu'à la tranche, puis montre sa face en finissant de tourner.
+	// De dos, la carte pivote jusqu'à la tranche, puis montre sa face en finissant de tourner.
 	flip: {
 		easing: 'ease-in-out',
 		at: 0.45,
 		frames: [
-			{ offset: 0, transform: 'perspective(900px) rotateY(0deg) scale(0.94)', filter: back },
-			{ offset: 0.15, transform: 'perspective(900px) rotateY(-12deg) scale(0.94)', filter: back },
-			{ offset: 0.45, transform: 'perspective(900px) rotateY(90deg) scale(0.97)', filter: back },
-			{ offset: 0.4501, transform: 'perspective(900px) rotateY(-90deg) scale(0.97)', filter: 'blur(0px) saturate(1.1) brightness(1.4)' },
-			{ offset: 0.8, transform: 'perspective(900px) rotateY(0deg) scale(1.04)', filter: 'blur(0px) saturate(1.05) brightness(1.15)' },
-			{ offset: 1, transform: 'perspective(900px) rotateY(0deg) scale(1)', filter: sharp }
+			{ offset: 0, transform: 'perspective(900px) rotateY(0deg) scale(0.94)' },
+			{ offset: 0.15, transform: 'perspective(900px) rotateY(-12deg) scale(0.94)' },
+			{ offset: 0.45, transform: 'perspective(900px) rotateY(90deg) scale(0.97)' },
+			{ offset: 0.4501, transform: 'perspective(900px) rotateY(-90deg) scale(0.97)' },
+			{ offset: 0.8, transform: 'perspective(900px) rotateY(0deg) scale(1.04)' },
+			{ offset: 1, transform: 'perspective(900px) rotateY(0deg) scale(1)' }
 		]
 	},
 	// Petite et surexposée, la carte grandit en perdant sa lumière.
 	glow: {
 		easing: 'linear',
 		at: 0.35,
+		light: true,
 		frames: [
 			{ offset: 0, transform: 'scale(0.6)', filter: 'blur(10px) brightness(3) saturate(0)', opacity: 0, easing: 'ease-out' },
 			{ offset: 0.2, transform: 'scale(0.8)', filter: 'blur(6px) brightness(2.6) saturate(0.3)', opacity: 1, easing: 'ease-in' },
@@ -91,22 +108,23 @@ const REVEALS: Record<RevealMode, Reveal> = {
 			{ offset: 1, transform: 'scale(1)', filter: 'blur(0px) brightness(1) saturate(1)', opacity: 1 }
 		]
 	},
-	// Sous un voile gris (voir `scratchCover`) ; la carte ressort d'un petit coup une fois grattée.
+	// Sous un voile gris gratté d'un geste continu (voir `scratchCover`) ; la carte ressort d'un petit coup à la fin.
 	scratch: {
 		easing: 'linear',
-		at: 0.8,
+		at: 0.85,
 		cover: (image, duration) => scratchCover(image, duration),
 		frames: [
-			{ offset: 0, transform: 'scale(1)', filter: sharp },
-			{ offset: 0.8, transform: 'scale(1)', filter: sharp, easing: 'ease-out' },
-			{ offset: 0.88, transform: 'scale(1.04)', filter: 'blur(0px) saturate(1.1) brightness(1.2)', easing: 'ease-in-out' },
-			{ offset: 1, transform: 'scale(1)', filter: sharp }
+			{ offset: 0, transform: 'scale(1)' },
+			{ offset: 0.85, transform: 'scale(1)', easing: 'ease-out' },
+			{ offset: 0.92, transform: 'scale(1.04)', easing: 'ease-in-out' },
+			{ offset: 1, transform: 'scale(1)' }
 		]
 	},
 	// Une photo instantanée qui se développe : blanche et pâle, puis sépia, puis ses vraies couleurs.
 	polaroid: {
 		easing: 'linear',
 		at: 0.75,
+		light: true,
 		frames: [
 			{ offset: 0, filter: 'blur(3px) brightness(2.4) contrast(0.35) saturate(0) sepia(0)', easing: 'ease-in' },
 			{ offset: 0.4, filter: 'blur(1px) brightness(1.5) contrast(0.6) saturate(0.6) sepia(0.9)', easing: 'ease-in-out' },
@@ -114,30 +132,30 @@ const REVEALS: Record<RevealMode, Reveal> = {
 			{ offset: 1, filter: 'blur(0px) brightness(1) contrast(1) saturate(1) sepia(0)' }
 		]
 	},
-	// Tombe cachée, se dévoile au choc, rebondit deux fois en s'écrasant un peu.
+	// Tombe, rebondit deux fois en s'écrasant un peu.
 	drop: {
 		easing: 'linear',
 		at: 0.45,
 		frames: [
-			{ offset: 0, transform: 'translateY(-130%) scale(1, 1)', opacity: 0, ...hidden, easing: 'ease-in' },
-			{ offset: 0.12, transform: 'translateY(-100%) scale(1, 1)', opacity: 1, ...hidden, easing: 'ease-in' },
-			{ offset: 0.45, transform: 'translateY(0) scale(1.06, 0.92)', opacity: 1, filter: 'blur(0px) saturate(1.1) brightness(1.25)', easing: 'ease-out' },
-			{ offset: 0.6, transform: 'translateY(-14%) scale(0.98, 1.03)', opacity: 1, filter: sharp, easing: 'ease-in' },
-			{ offset: 0.74, transform: 'translateY(0) scale(1.03, 0.96)', opacity: 1, filter: sharp, easing: 'ease-out' },
-			{ offset: 0.84, transform: 'translateY(-4%) scale(1, 1)', opacity: 1, filter: sharp, easing: 'ease-in' },
-			{ offset: 0.93, transform: 'translateY(0) scale(1.01, 0.99)', opacity: 1, filter: sharp, easing: 'ease-out' },
-			{ offset: 1, transform: 'translateY(0) scale(1, 1)', opacity: 1, filter: sharp }
+			{ offset: 0, transform: 'translateY(-130%) scale(1, 1)', opacity: 0, easing: 'ease-in' },
+			{ offset: 0.12, transform: 'translateY(-100%) scale(1, 1)', opacity: 1, easing: 'ease-in' },
+			{ offset: 0.45, transform: 'translateY(0) scale(1.06, 0.92)', opacity: 1, easing: 'ease-out' },
+			{ offset: 0.6, transform: 'translateY(-14%) scale(0.98, 1.03)', opacity: 1, easing: 'ease-in' },
+			{ offset: 0.74, transform: 'translateY(0) scale(1.03, 0.96)', opacity: 1, easing: 'ease-out' },
+			{ offset: 0.84, transform: 'translateY(-4%) scale(1, 1)', opacity: 1, easing: 'ease-in' },
+			{ offset: 0.93, transform: 'translateY(0) scale(1.01, 0.99)', opacity: 1, easing: 'ease-out' },
+			{ offset: 1, transform: 'translateY(0) scale(1, 1)', opacity: 1 }
 		]
 	},
-	// Petite et cachée, la carte tourne sur elle-même en grandissant, puis se pose nette.
+	// Toute petite, la carte tourne sur elle-même en grandissant, puis se pose.
 	spin: {
 		easing: 'linear',
 		at: 0.62,
 		frames: [
-			{ offset: 0, transform: 'rotate(-720deg) scale(0.15)', opacity: 0, ...hidden, easing: 'ease-out' },
-			{ offset: 0.15, transform: 'rotate(-480deg) scale(0.4)', opacity: 1, ...hidden, easing: 'ease-out' },
-			{ offset: 0.62, transform: 'rotate(0deg) scale(1.06)', opacity: 1, filter: 'blur(0px) saturate(1.1) brightness(1.25)', easing: 'ease-in-out' },
-			{ offset: 1, transform: 'rotate(0deg) scale(1)', opacity: 1, filter: sharp }
+			{ offset: 0, transform: 'rotate(-720deg) scale(0.15)', opacity: 0, easing: 'ease-out' },
+			{ offset: 0.15, transform: 'rotate(-480deg) scale(0.4)', opacity: 1, easing: 'ease-out' },
+			{ offset: 0.62, transform: 'rotate(0deg) scale(1.06)', opacity: 1, easing: 'ease-in-out' },
+			{ offset: 1, transform: 'rotate(0deg) scale(1)', opacity: 1 }
 		]
 	},
 	// Deux pans de rideau (voir `curtainCover`) ; la carte avance d'un rien quand ils s'ouvrent.
@@ -146,20 +164,26 @@ const REVEALS: Record<RevealMode, Reveal> = {
 		at: 0.6,
 		cover: (image, duration) => curtainCover(image, duration),
 		frames: [
-			{ offset: 0, transform: 'scale(0.97)', filter: 'blur(0px) saturate(1) brightness(0.7)' },
-			{ offset: 0.3, transform: 'scale(0.97)', filter: 'blur(0px) saturate(1) brightness(0.7)', easing: 'ease-out' },
-			{ offset: 0.75, transform: 'scale(1.03)', filter: 'blur(0px) saturate(1.05) brightness(1.15)', easing: 'ease-in-out' },
-			{ offset: 1, transform: 'scale(1)', filter: sharp }
+			{ offset: 0, transform: 'scale(0.97)' },
+			{ offset: 0.3, transform: 'scale(0.97)', easing: 'ease-out' },
+			{ offset: 0.75, transform: 'scale(1.03)', easing: 'ease-in-out' },
+			{ offset: 1, transform: 'scale(1)' }
 		]
 	}
 };
-// Courbes sur le seul segment en mouvement : posée sur toute l'animation, elle décalerait le moment t.
-const titleFrames = (at: number): Keyframe[] => [
-	{ offset: 0, filter: 'blur(6px)', opacity: 0.4 },
-	{ offset: at, filter: 'blur(6px)', opacity: 0.4, easing: 'ease-out' },
-	{ offset: Math.min(at + 0.17, 1), filter: 'blur(0px)', opacity: 1 },
-	{ offset: 1, filter: 'blur(0px)', opacity: 1 }
-];
+
+// Nom de la carte : suit la même courbe que l'image, ou se pose au temps fort pour Éclat et Polaroïd.
+const BLURRED_TITLE = { filter: 'blur(6px)', opacity: 0.4 };
+const SHARP_TITLE = { filter: 'blur(0px)', opacity: 1 };
+const titleFrames = (reveal: Reveal): Keyframe[] =>
+	reveal.light
+		? [
+				{ offset: 0, ...BLURRED_TITLE },
+				{ offset: reveal.at, ...BLURRED_TITLE, easing: 'ease-out' },
+				{ offset: Math.min(reveal.at + 0.17, 1), ...SHARP_TITLE },
+				{ offset: 1, ...SHARP_TITLE }
+			]
+		: unveil(BLURRED_TITLE, SHARP_TITLE);
 
 /** Élément posé sur l'image le temps de l'animation (`reveal-sheen`, `reveal-spark` : app.css), retiré à la fin. */
 function overlay(image: HTMLElement, className: string, color: string): HTMLSpanElement | null {
@@ -184,26 +208,17 @@ function covering(image: HTMLElement, className: string, color = '', from = 0, w
 	return element;
 }
 
-/** Grattage : un voile gris effacé de gauche à droite en trois coups, avec une pause entre chacun. */
+/** Grattage : un voile gris effacé de gauche à droite d'un seul geste continu. */
 function scratchCover(image: HTMLElement, duration: number): void {
 	const veil = covering(image, 'reveal-veil');
 	if (!veil) return;
-	const at = (offset: number, left: number, easing?: string): Keyframe => ({
-		offset,
-		clipPath: `inset(0 0 0 ${left}%)`,
-		...(easing && { easing })
-	});
 	veil
 		.animate(
 			[
-				at(0, 0),
-				at(0.12, 0, 'ease-in-out'),
-				at(0.32, 38),
-				at(0.4, 38, 'ease-in-out'),
-				at(0.58, 72),
-				at(0.64, 72, 'ease-in-out'),
-				at(0.8, 101),
-				at(1, 101)
+				{ offset: 0, clipPath: 'inset(0 0 0 0%)' },
+				{ offset: 0.08, clipPath: 'inset(0 0 0 0%)', easing: 'ease-in-out' },
+				{ offset: 0.85, clipPath: 'inset(0 0 0 101%)' },
+				{ offset: 1, clipPath: 'inset(0 0 0 101%)' }
 			],
 			{ duration }
 		)
@@ -322,8 +337,10 @@ export function playReveal(
 	// Paillettes de la couleur franche du cadre : la teinte claire du reflet disparaîtrait sur un fond clair.
 	const sparkColor = style.getPropertyValue('--frame-color').trim() || color;
 	image.animate(reveal.frames, { duration: ms, easing: reveal.easing });
+	// Flou et assombrissement à part du mouvement : les deux animations se cumulent (propriétés différentes).
+	if (!reveal.light) image.animate(unveil({ filter: HIDDEN }, { filter: SHARP }), { duration: ms });
 	reveal.cover?.(image, ms);
-	title?.animate(titleFrames(reveal.at), { duration: ms });
+	title?.animate(titleFrames(reveal), { duration: ms });
 	sweep(image, color, ms, reveal.at);
 	const sparks = RARITY[border ?? '']?.sparks ?? 0;
 	if (sparks) sparkle(image, sparkColor, sparks, ms, reveal.at);
