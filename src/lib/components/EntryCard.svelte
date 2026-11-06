@@ -43,12 +43,11 @@
 	data-border={border}
 	class="card bg-base-100 relative overflow-hidden shadow-sm transition hover:shadow-md {entry.hidden
 		? 'opacity-50 hover:opacity-100'
-		: ''} {selected
-		? 'after:border-primary after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border-2'
-		: ''}"
+		: ''} {selected ? 'card-picked' : ''}"
 >
 	<!--
-		Bordure de sélection en ::after du <li> : un outline passerait sous l'image.
+		Carte sélectionnée : inclinée, avec un reflet irisé (`card-picked`, app.css), plutôt qu'un cadre que l'on
+		confondrait avec les bordures de catégorie.
 		En-tête : le bouton (agrandir) ou le lien (ouvrir, cocher) porte le nom, et son ::after couvre toute la zone,
 		image comprise. Le bouton de copie passe au-dessus : deux éléments cliquables ne peuvent pas s'imbriquer.
 	-->

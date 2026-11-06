@@ -233,6 +233,43 @@
 }
 
 /*
+ * Carte sélectionnée (sélection multiple) : un cadre de couleur se confondrait avec les bordures de catégorie ; elle
+ * pivote un peu vers le lecteur, soulevée, avec un reflet irisé, comme une carte de collection qu'on incline.
+ * Hors couche pour passer devant les ombres de Tailwind et des bordures.
+ */
+.card.card-picked {
+	z-index: 1;
+	transform: perspective(700px) rotateY(-8deg) rotateX(5deg) scale(1.03);
+	box-shadow:
+		0 0 0 1px color-mix(in oklab, var(--color-primary) 35%, transparent),
+		-10px 16px 26px -12px rgb(0 0 0 / 0.5);
+}
+
+.card.card-picked::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 10;
+	pointer-events: none;
+	border-radius: inherit;
+	background: linear-gradient(
+		115deg,
+		transparent 20%,
+		rgb(255 120 200 / 0.28) 36%,
+		rgb(120 220 255 / 0.3) 50%,
+		rgb(255 240 140 / 0.28) 64%,
+		transparent 80%
+	);
+	mix-blend-mode: soft-light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.card.card-picked {
+		transform: none;
+	}
+}
+
+/*
  * Reflet du tirage au hasard (reveal.ts) : une bande claire qui balaie la carte, de la couleur de sa bordure si elle
  * en a une (`--sheen`, lue sur l'image). Position et taille posées par le script, animation par l'API Web Animations.
  */
