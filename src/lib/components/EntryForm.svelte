@@ -37,6 +37,7 @@
 	// Valeurs initiales seulement : le formulaire édite sa propre copie.
 	// svelte-ignore state_referenced_locally
 	let name = $state(entry?.name ?? '');
+	let nameInput = $state<HTMLInputElement>();
 	// svelte-ignore state_referenced_locally
 	let links = $state((entry?.links ?? []).map((l) => ({ url: l.url, label: l.label ?? '', hidden: !!l.hidden })));
 	// svelte-ignore state_referenced_locally
@@ -385,14 +386,29 @@
 					<!-- svelte-ignore a11y_autofocus -->
 					<input
 						class="grow"
+						bind:this={nameInput}
 						bind:value={name}
 						maxlength={MAX_NAME_LENGTH}
 						required
 						aria-describedby="name-status"
 						autofocus={!entry}
 					/>
-					{#if nameChecked}
-						<Icon name={sameName ? 'close' : 'check'} class="size-5 shrink-0 {sameName ? 'text-error' : 'text-success'}" />
+					<!-- Nom déjà pris : la croix efface le champ pour en saisir un autre. -->
+					{#if nameChecked && sameName}
+						<button
+							type="button"
+							class="btn btn-ghost btn-sm btn-circle text-error -mr-2 shrink-0"
+							aria-label="Effacer le nom"
+							title="Effacer le nom"
+							onclick={() => {
+								name = '';
+								nameInput?.focus();
+							}}
+						>
+							<Icon name="close" class="size-5" />
+						</button>
+					{:else if nameChecked}
+						<Icon name="check" class="text-success size-5 shrink-0" />
 					{/if}
 				</div>
 			</Field>

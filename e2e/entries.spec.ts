@@ -170,6 +170,11 @@ test('nom unique dans la collection : signalé à la saisie, refusé à l’enre
 	await expect(page.getByText('Déjà pris dans cette collection')).toBeVisible();
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByText('« École » existe déjà dans cette collection.')).toBeVisible();
+	// La croix efface le nom pris, pour en saisir un autre.
+	await page.getByRole('button', { name: 'Effacer le nom' }).click();
+	await expect(name).toHaveValue('');
+	await expect(name).toBeFocused();
+	await name.fill('École');
 
 	// La fiche modifiée ne se compte pas elle-même.
 	await page.getByRole('link', { name: 'voir « École »' }).click();
