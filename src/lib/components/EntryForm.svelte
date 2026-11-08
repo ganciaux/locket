@@ -111,6 +111,8 @@
 		event.preventDefault();
 		if (preview && pastingInGallery()) {
 			if (!galleryLocked) addImages([image]);
+			// Collée depuis la zone : le clavier du téléphone se referme.
+			if (document.activeElement === pasteZone) pasteZone?.blur();
 			return;
 		}
 		fileInput.value = '';
@@ -226,6 +228,9 @@
 	// Ctrl+V dans la partie « Autres images » (focus sur un de ses boutons ou champs) : ajoutée à la suite.
 	let gallerySection = $state<HTMLElement>();
 	const pastingInGallery = () => !!gallerySection?.contains(document.activeElement);
+	// Zone de collage : sur iPhone, le bouton « Coller » ne lit pas toujours le presse-papiers, un champ texte si
+	// (appui long, « Coller ») ; le collage passe alors par `onPaste`, comme Ctrl+V.
+	let pasteZone = $state<HTMLInputElement>();
 
 	/** Bouton « Coller » : lit l'image du presse-papiers (bulle « Coller » de Safari, autorisation de Chrome). */
 	async function pasteToGallery() {
@@ -240,10 +245,10 @@
 			if (!blobs.length) throw new Error("Aucune image dans le presse-papiers : copiez d'abord une image.");
 			addImages(blobs);
 		} catch (e) {
-			loadError =
-				e instanceof DOMException
-					? 'Presse-papiers inaccessible : autorisez-le dans le navigateur, ou utilisez Ctrl+V après un clic ici.'
-					: errorMessage(e);
+			if (e instanceof DOMException) {
+				loadError = 'Presse-papiers inaccessible depuis ce bouton : appuyez longuement dans la zone en pointillés, puis « Coller ».';
+				pasteZone?.focus();
+			} else loadError = errorMessage(e);
 		}
 	}
 
@@ -582,8 +587,19 @@
 									<Icon name="copy" class="size-4" /> Coller
 								</button>
 							</div>
+							<!-- Le texte collé par erreur ne reste pas : la zone ne sert qu'aux images. -->
+							<input
+								bind:this={pasteZone}
+								type="text"
+								class="input input-sm w-full border-dashed text-center"
+								placeholder="Ou appui long ici, puis « Coller »"
+								aria-label="Zone de collage des autres images"
+								autocomplete="off"
+								oninput={(event) => (event.currentTarget.value = '')}
+							/>
 							<p class="text-base-content/60 text-xs">
-								Ajoutées à la suite ; Ctrl+V les colle ici après un clic dans cette partie (sinon, il remplace la couverture).
+								Ajoutées à la suite. Sur ordinateur, Ctrl+V les colle ici après un clic dans cette partie (sinon, il remplace
+								la couverture).
 							</p>
 						{/if}
 					{/if}

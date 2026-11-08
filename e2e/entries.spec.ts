@@ -525,7 +525,7 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await expect.poll(() => zoom.locator('figure img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
 });
 
-test('autres images : collées par le bouton « Coller » ou par Ctrl+V dans leur partie, la couverture reste', async ({ page }) => {
+test('autres images : collées par le bouton « Coller », par Ctrl+V dans leur partie ou dans la zone de collage, la couverture reste', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
 	await createEntryWithImage(page, 'Collage', 400);
@@ -555,5 +555,21 @@ test('autres images : collées par le bouton « Coller » ou par Ctrl+V dans leu
 	});
 	await expect(extras).toHaveCount(2);
 	await expect.poll(() => extras.evaluateAll((imgs) => imgs.map((img) => (img as HTMLImageElement).naturalWidth))).toEqual([300, 250]);
+	expect(await cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
+
+	// Zone de collage (iPhone : appui long, « Coller ») : l'image s'ajoute, la zone se referme ; un texte n'y reste pas.
+	const zone = page.getByLabel('Zone de collage des autres images');
+	await zone.focus();
+	await zone.evaluate(async (node) => {
+		const canvas = Object.assign(document.createElement('canvas'), { width: 220, height: 220 });
+		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+		const data = new DataTransfer();
+		data.items.add(new File([blob!], 'photo.png', { type: 'image/png' }));
+		node.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+	});
+	await expect(extras).toHaveCount(3);
+	await expect(zone).not.toBeFocused();
+	await zone.fill('du texte');
+	await expect(zone).toHaveValue('');
 	expect(await cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
 });
