@@ -133,7 +133,7 @@
 							class="frame-thin bg-primary/10 rounded-box flex size-full items-center justify-center overflow-hidden"
 						>
 							{#if card.thumbUrl}
-								<img src={card.thumbUrl} alt="" class="size-full object-cover {framingClass(card.framing)}" />
+								<img src={card.thumbUrl} alt="" loading="lazy" decoding="async" class="size-full object-cover {framingClass(card.framing)}" />
 							{:else}
 								<span class="text-primary text-2xl font-bold" aria-hidden="true">{card.name.charAt(0).toUpperCase()}</span>
 							{/if}

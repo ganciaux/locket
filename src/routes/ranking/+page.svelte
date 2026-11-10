@@ -65,6 +65,8 @@
 			<img
 				src={item.thumbUrl}
 				alt=""
+				loading="lazy"
+				decoding="async"
 				data-border={entries.borderOf(item)}
 				class="frame-thin rounded-box size-10 shrink-0 object-cover {framingClass(item.framing)}"
 			/>

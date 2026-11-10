@@ -297,7 +297,7 @@
 										onclick={() => onchange(item.id)}
 									>
 										{#if item.thumbUrl}
-											<img src={item.thumbUrl} alt="" class="size-full object-cover {framingClass(item.framing)}" />
+											<img src={item.thumbUrl} alt="" loading="lazy" decoding="async" class="size-full object-cover {framingClass(item.framing)}" />
 										{:else}
 											<span class="text-primary font-bold" aria-hidden="true">{item.name.charAt(0).toUpperCase()}</span>
 										{/if}

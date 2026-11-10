@@ -57,6 +57,23 @@ vont dans [MEMORY.md](MEMORY.md).
 - [x] **Corbeille** : suppression réversible, purge après 30 jours à l'ouverture de l'app. *Intermédiaire.*
 - [x] **Sélection multiple** : cacher, afficher, ajouter ou retirer des tags, mettre à la corbeille. *Intermédiaire.*
 
+**Grosse collection** (2026-11-10, ~1000 fiches, 3 à 4 images chacune). Toutes les fiches sont chargées avec leur
+miniature 640 px (estimé 30 à 60 Mo) ; le cache IndexedDB évite le réseau tant que le jeton `meta/version` n'a pas
+changé, mais une écriture depuis un autre appareil fait tout relire (1000 lectures, quota Spark 50 000 par jour).
+Mesurer d'abord : poids du cache (`navigator.storage.estimate()`), temps d'un rechargement complet en 4G.
+
+- [x] **Miniatures paresseuses** : `loading="lazy"` et `decoding="async"` sur les cartes, l'index, le classement,
+      l'album et les similaires : seules celles proches de l'écran sont décodées. *Simple.*
+- [ ] **`content-visibility: auto` sur les cartes**, si le défilement reste lourd : saute le rendu hors écran, mais
+      la hauteur estimée des cartes non rendues fausse le retour à la position dans la liste. *Simple, à tester.*
+- [ ] **Affichage par paquets** (60 cartes, la suite à l'approche du bas), si les 1000 cartes pèsent encore :
+      complique le dé, le retour à la position et la sélection multiple. *Intermédiaire.*
+- [ ] **Synchronisation partielle**, si le rechargement complet devient pénible : catalogue chiffré id → version
+      dans `meta/`, mis à jour dans la transaction de `commitEntries` ; au chargement, ne relire que les fiches
+      changées (lots de 30). Pas d'horodatage en clair (invariant). Touche aux règles et à la sauvegarde. *Avancé.*
+- Écarté pour l'instant : une deuxième miniature 200 px pour les listes (migration de toutes les fiches, et les
+  cartes moyennes ou grandes ont besoin des 640 px).
+
 ## 4. Retours d'usage (2026-10-30)
 
 Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEMORY.md. Par thème, du plus simple au plus long.

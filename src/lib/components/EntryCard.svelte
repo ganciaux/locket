@@ -97,7 +97,7 @@
 		</h2>
 		<figure class="bg-primary/10 relative aspect-square">
 			{#if entry.thumbUrl}
-				<img src={entry.thumbUrl} alt="" class="size-full object-cover {framingClass(entry.framing)}" />
+				<img src={entry.thumbUrl} alt="" loading="lazy" decoding="async" class="size-full object-cover {framingClass(entry.framing)}" />
 			{:else}
 				<span class="text-primary font-bold {prefs.cardSize === 'small' ? 'text-3xl' : 'text-5xl'}" aria-hidden="true">
 					{entry.name.charAt(0).toUpperCase()}

@@ -402,6 +402,8 @@
 											<img
 												src={item.thumbUrl}
 												alt=""
+												loading="lazy"
+												decoding="async"
 												data-border={entries.borderOf(item)}
 												class="rounded-box block object-cover {large ? 'size-24 sm:size-28' : 'frame-thin size-10'} {framingClass(item.framing)}"
 											/>
