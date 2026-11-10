@@ -28,19 +28,20 @@ function scrolledToEnd(target: EventTarget | null, root: HTMLElement): boolean {
 type SwipeHandlers = { onleft?: () => void; onright?: () => void; onup?: () => void };
 
 /**
- * Action Svelte : `use:swipe={{ onleft, onright, onup }}`. Deux doigts (zoom du navigateur) ne comptent pas, ni un geste
- * parti d'une zone qui défile à l'horizontale (`data-no-swipe`). Vers le haut : seulement depuis le bas du contenu.
+ * Action Svelte : `use:swipe={{ onleft, onright, onup }}`. Deux doigts (zoom du navigateur) ne comptent pas. Parti d'une
+ * zone qui défile à l'horizontale (`data-no-swipe` : bande, carrousel d'images), un geste horizontal lui revient ; vers
+ * le haut, il compte encore. Vers le haut : seulement depuis le bas du contenu.
  */
 export function swipe(node: HTMLElement, initial: SwipeHandlers) {
 	let handlers = initial;
-	let start: { x: number; y: number; atEnd: boolean } | null = null;
+	let start: { x: number; y: number; atEnd: boolean; sideways: boolean } | null = null;
 
 	function onStart(event: TouchEvent) {
 		const touch = event.touches[0];
-		const scrolls = event.target instanceof Element && event.target.closest('[data-no-swipe]');
+		const scrolls = event.target instanceof Element && !!event.target.closest('[data-no-swipe]');
 		start =
-			event.touches.length === 1 && !scrolls
-				? { x: touch.clientX, y: touch.clientY, atEnd: !!handlers.onup && scrolledToEnd(event.target, node) }
+			event.touches.length === 1
+				? { x: touch.clientX, y: touch.clientY, atEnd: !!handlers.onup && scrolledToEnd(event.target, node), sideways: !scrolls }
 				: null;
 	}
 
@@ -48,10 +49,10 @@ export function swipe(node: HTMLElement, initial: SwipeHandlers) {
 		const touch = event.changedTouches[0];
 		if (!start || !touch) return;
 		const direction = swipeDirection(touch.clientX - start.x, touch.clientY - start.y);
-		const atEnd = start.atEnd;
+		const { atEnd, sideways } = start;
 		start = null;
-		if (direction === 'left') handlers.onleft?.();
-		if (direction === 'right') handlers.onright?.();
+		if (direction === 'left' && sideways) handlers.onleft?.();
+		if (direction === 'right' && sideways) handlers.onright?.();
 		if (direction === 'up' && atEnd) handlers.onup?.();
 	}
 

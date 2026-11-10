@@ -245,9 +245,11 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
 - Révélations : même dévoilement flou/sombre pour tous les modes (sauf Éclat et Polaroïd), grattage fluide, rideau qui
   dévoile la carte ; sélection multiple = carte inclinée à reflet irisé (plus de cadre rouge).
 - Bouton « remonter en haut » sur toutes les pages (après une demi-hauteur d'écran) ; clic sur la miniature de l'index.
-- Plusieurs images par fiche : couverture + 5, vignettes en un bloc (`_t`) pour la bande de la fiche et du zoom,
+- Plusieurs images par fiche : couverture + 5, vignettes en un bloc (`_t`) pour la fiche et le zoom,
   coller (bouton ou Ctrl+V), sauvegarde **format v5**. Revue `security-reviewer` faite, corrections appliquées.
   Le 2026-11-10 : un seul champ « Images » dans le formulaire (la première = couverture, ajout toujours à la suite).
+  Le 2026-11-10 aussi : carrousel dans l'image (fiche et zoom) à la place de la bande de vignettes ; glisser sur
+  l'image change d'image, ailleurs de fiche (`data-no-swipe` ne bloque plus que l'horizontal). Similaires : plus tard.
 - Album de la collection (`/album`) : fiches face cachée par classement, découvertes au dé sans remise, ids découverts
   dans le catalogue chiffré des collections (`Collection.discovered`), fiche agrandie en lecture seule, remise à zéro.
   Dos des cartes au choix dans Paramètres (bordeaux nuit par défaut, papier ivoire, ardoise et or ; rouge vif rejeté).

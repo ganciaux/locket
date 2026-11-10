@@ -4,8 +4,8 @@
 	import ActionBar from '$lib/components/ActionBar.svelte';
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import ExternalLink from '$lib/components/ExternalLink.svelte';
+	import ImageCarousel from '$lib/components/ImageCarousel.svelte';
 	import FullImage from '$lib/components/FullImage.svelte';
-	import GalleryStrip from '$lib/components/GalleryStrip.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
@@ -41,9 +41,6 @@
 
 	// Remplace l'adresse : le retour du navigateur ramène à la page d'origine, pas à chaque fiche parcourue.
 	const open = (other: string | undefined) => other && goto(`/entry/${other}`, { replaceState: true });
-
-	// Autre image affichée à la place de la couverture (bande `GalleryStrip`) : position (0 = couverture) et URL.
-	let shownImage = $state<{ index: number; url: string | null }>({ index: 0, url: null });
 
 	function onKeydown(event: KeyboardEvent) {
 		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -165,34 +162,22 @@
 			{@const border = entries.borderOf(entry)}
 			{@const imageClass = `object-contain ${border ? 'rounded-box max-h-[calc(60vh-2rem)] max-w-full' : 'max-h-[60vh] w-full'}`}
 			<figure class="bg-base-200 relative {border ? 'flex justify-center p-4' : ''}">
-				{#if shownImage.url}
-					<img src={shownImage.url} alt={entry.name} data-border={border} class={imageClass} />
-				{:else}
-					{#key id}
-						<FullImage
-							{id}
-							type={entry.imageType}
-							thumbUrl={entry.thumbUrl}
-							alt={entry.name}
-							{border}
-							class={imageClass}
-							onfail={(e) => (error = errorMessage(e))}
-						/>
-					{/key}
-				{/if}
-			</figure>
-			{#if entry.gallery?.length}
 				{#key id}
-					<GalleryStrip
-						{entry}
-						thumbUrl={entry.thumbUrl}
-						shown={shownImage.index}
-						onshow={(index, url) => (shownImage = { index, url })}
-						class="px-4 sm:px-6"
-						onfail={(e) => (error = errorMessage(e))}
-					/>
+					<ImageCarousel {entry} {imageClass} {border} onfail={(e) => (error = errorMessage(e))}>
+						{#snippet cover()}
+							<FullImage
+								{id}
+								type={entry.imageType}
+								thumbUrl={entry.thumbUrl}
+								alt={entry.name}
+								{border}
+								class={imageClass}
+								onfail={(e) => (error = errorMessage(e))}
+							/>
+						{/snippet}
+					</ImageCarousel>
 				{/key}
-			{/if}
+			</figure>
 		{/if}
 		<div class="card-body gap-4">
 			<div class="flex items-center gap-2">

@@ -490,12 +490,12 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
 
-	// Sur la fiche : la couverture, puis les deux autres ; un clic en affiche une à la place.
+	// Sur la fiche : carrousel de la couverture et des deux autres ; un point amène à son image, chargée en entier.
 	const strip = page.getByRole('list', { name: 'Images de la fiche' });
 	await expect(strip.getByRole('button')).toHaveCount(3);
 	await strip.getByRole('button', { name: "Afficher l'image 2 de Album" }).click();
 	await expect(strip.getByRole('button', { name: "Afficher l'image 2 de Album" })).toHaveAttribute('aria-pressed', 'true');
-	await expect.poll(() => page.locator('figure img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(200);
+	await expect.poll(() => page.getByRole('img', { name: 'Album, image 2' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(200);
 
 	// Rouvertes (déchiffrées) dans le formulaire ; une retirée.
 	await page.getByRole('link', { name: 'Modifier' }).click();
@@ -520,14 +520,19 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await page.getByRole('button', { name: 'Effacer', exact: true }).click();
 	await expect(page.getByRole('link', { name: 'Seule', exact: true })).toBeVisible();
 
-	// Fiche agrandie : la même bande (vignettes), l'image complète chargée au clic.
+	// Fiche agrandie : le même carrousel ; glisser sur les images ne change pas de fiche, glisser ailleurs si.
 	await goHome(page);
 	await page.locator('li.card').filter({ hasText: 'Album' }).getByRole('heading').click();
 	const zoom = page.getByRole('dialog');
 	const zoomStrip = zoom.getByRole('list', { name: 'Images de la fiche' });
 	await expect(zoomStrip.getByRole('button')).toHaveCount(2);
 	await zoomStrip.getByRole('button', { name: "Afficher l'image 2 de Album" }).click();
-	await expect.poll(() => zoom.locator('figure img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
+	await expect.poll(() => zoom.getByRole('img', { name: 'Album, image 2' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
+	await swipeOn(zoom.getByRole('img', { name: 'Album, image 2' }), -150);
+	await expect(zoom.getByRole('heading', { name: 'Album' })).toBeVisible();
+	const first = (await zoom.getByRole('status').filter({ hasText: '/ 2' }).textContent())?.trim() === '1 / 2';
+	await swipeOn(zoom.getByRole('heading', { name: 'Album' }), first ? -150 : 150);
+	await expect(zoom.getByRole('heading', { name: 'Seule' })).toBeVisible();
 });
 
 test('images : collées par le bouton « Coller », par Ctrl+V ou dans la zone de collage, à la suite de la couverture', async ({ page }) => {

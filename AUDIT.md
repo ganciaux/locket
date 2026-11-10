@@ -173,7 +173,8 @@ Dans l'ordre de réalisation prévu.
 - [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
       le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
 - [x] **Plusieurs images par fiche** — fait le 2026-11-06 : 6 au plus (couverture + 5), les autres visibles sur la fiche
-      et dans la fiche agrandie (bande de vignettes sous l'image, un clic charge l'image complète à sa place). Formulaire : un seul champ « Images » depuis le 2026-11-10
+      et dans la fiche agrandie (carrousel dans l'image depuis le 2026-11-10 : glisser sur l'image change d'image, ailleurs de fiche ; points pour
+      naviguer ; vignettes en attente, image complète chargée à l'approche). Formulaire : un seul champ « Images » depuis le 2026-11-10
       (la première est la couverture ; fichiers, glisser-déposer, bouton « Coller », Ctrl+V n'importe où ou zone de
       collage pour l'iPhone, toujours à la suite), ordre (‹ ›, avancer l'image 2 en fait la couverture, l'ancienne
       prend sa place ; cadrage remis au centre), retrait ; couverture retirée = la suivante la remplace. Changer de
