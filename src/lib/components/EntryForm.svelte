@@ -250,12 +250,15 @@
 				const type = item.types.find((t) => t.startsWith('image/'));
 				if (type) blobs.push(await item.getType(type));
 			}
-			if (!blobs.length)
-				throw new Error(
-					types.size
-						? `Aucune image dans le presse-papiers (il contient : ${[...types].join(', ')}) : copiez d'abord une image.`
-						: "Presse-papiers vide pour ce bouton : copiez d'abord une image, ou " + fallback
-				);
+			// Safari (iPhone) ne donne souvent au bouton que le lien de l'image (text/uri-list), alors que le collage
+			// natif, dans la zone, reçoit le fichier : on y renvoie plutôt que d'aller chercher le lien sur le réseau.
+			if (!blobs.length) {
+				loadError = types.size
+					? `Ce navigateur ne donne au bouton que le lien ou le texte copié (${[...types].join(', ')}), pas l'image : ${fallback}`
+					: `Presse-papiers vide pour ce bouton : copiez d'abord une image, ou ${fallback}`;
+				pasteZone?.focus();
+				return;
+			}
 			addImages(blobs);
 		} catch (e) {
 			if (e instanceof DOMException) {
@@ -615,6 +618,7 @@
 					<input
 						bind:this={pasteZone}
 						type="text"
+						inputmode="none"
 						class="input input-sm w-full border-dashed text-center"
 						placeholder="Ou appui long ici, puis « Coller »"
 						aria-label="Zone de collage des images"
