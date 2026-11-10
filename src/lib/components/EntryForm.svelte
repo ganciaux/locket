@@ -88,7 +88,6 @@
 
 	// Catalogue de tags (et fiches) : déjà en mémoire le plus souvent, sinon chargé ici.
 	loadEntries().catch((e) => (loadError = errorMessage(e)));
-	let fileInput: HTMLInputElement;
 	let imageRemoved = $state(false);
 
 	const newPreview = $derived(file ? URL.createObjectURL(file) : null);
@@ -97,28 +96,14 @@
 	});
 	const preview = $derived(newPreview ?? (imageRemoved ? undefined : entry?.thumbUrl));
 
-	function onFileChange(event: Event) {
-		const input = event.currentTarget as HTMLInputElement;
-		file = input.files?.[0] ?? null;
-		imageRemoved = false;
-		framing = FRAMING_CENTER;
-	}
-
-	/** Coller une image (capture d'écran, image copiée) ; un collage de texte suit son cours normal. */
+	/** Coller une image (capture d'écran, image copiée), n'importe où : ajoutée à la suite ; un collage de texte suit son cours normal. */
 	function onPaste(event: ClipboardEvent) {
-		const image = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
-		if (!image) return;
+		const images = [...(event.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+		if (!images.length) return;
 		event.preventDefault();
-		if (preview && pastingInGallery()) {
-			if (!galleryLocked) addImages([image]);
-			// Collée depuis la zone : le clavier du téléphone se referme.
-			if (document.activeElement === pasteZone) pasteZone?.blur();
-			return;
-		}
-		fileInput.value = '';
-		file = image;
-		imageRemoved = false;
-		framing = FRAMING_CENTER;
+		addImages(images);
+		// Collée depuis la zone : le clavier du téléphone se referme.
+		if (document.activeElement === pasteZone) pasteZone?.blur();
 	}
 
 	// Recadrer ou pivoter : la nouvelle image si elle vient d'être choisie, sinon l'image complète enregistrée (déchiffrée).
@@ -143,14 +128,12 @@
 
 	function applyEdit(edited: File) {
 		editing = null;
-		fileInput.value = '';
 		file = edited;
 		imageRemoved = false;
 		framing = FRAMING_CENTER;
 	}
 
 	function removeImage() {
-		fileInput.value = '';
 		// Pas d'autres images sans couverture : la suivante prend sa place.
 		const [next, ...rest] = gallery;
 		if (next) {
@@ -177,6 +160,8 @@
 	/** Images annoncées mais illisibles ou absentes : retirées si la galerie est modifiée. */
 	let galleryMissing = $state(0);
 	const galleryLocked = $derived(galleryLoading || galleryFailed);
+	// Couverture comprise ; tant que les autres ne sont pas chargées, celles annoncées par la fiche.
+	const imageCount = $derived((preview ? 1 : 0) + (galleryLocked ? (entry?.gallery?.length ?? 0) : gallery.length));
 	const pic = (blob: Blob, raw: boolean, slot?: number): Pic => ({ blob, url: URL.createObjectURL(blob), raw, ...(slot && { slot }) });
 
 	// Une seule fois, à l'ouverture (pas d'effet qui suivrait la session : la page est démontée au verrouillage).
@@ -211,29 +196,38 @@
 		framing = FRAMING_CENTER;
 	}
 
-	function addToGallery(event: Event) {
+	function onFilesChosen(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
 		addImages([...(input.files ?? [])]);
 		input.value = '';
 	}
 
+	/** Un seul point d'entrée (fichiers, glisser, coller) : la première image devient la couverture, les suivantes la suivent. */
 	function addImages(blobs: Blob[]) {
-		const images = blobs.filter((blob) => blob.type.startsWith('image/'));
+		let images = blobs.filter((blob) => blob.type.startsWith('image/'));
+		loadError = '';
+		if (!images.length) return;
+		if (!preview) {
+			setCover(images[0]);
+			images = images.slice(1);
+			if (!images.length) return;
+		}
+		if (galleryLocked) {
+			loadError = 'Les autres images de la fiche ne sont pas chargées : rien ajouté à la suite.';
+			return;
+		}
 		const room = MAX_GALLERY - gallery.length;
-		loadError = images.length > room ? `${MAX_IMAGES} images au plus par fiche : ${images.length - room} non ajoutée(s).` : '';
+		if (images.length > room) loadError = `${MAX_IMAGES} images au plus par fiche : ${images.length - room} non ajoutée(s).`;
 		gallery = [...gallery, ...images.slice(0, room).map((blob) => pic(blob, true))];
 		galleryTouched = true;
 	}
 
-	// Ctrl+V dans la partie « Autres images » (focus sur un de ses boutons ou champs) : ajoutée à la suite.
-	let gallerySection = $state<HTMLElement>();
-	const pastingInGallery = () => !!gallerySection?.contains(document.activeElement);
 	// Zone de collage : sur iPhone, le bouton « Coller » ne lit pas toujours le presse-papiers, un champ texte si
 	// (appui long, « Coller ») ; le collage passe alors par `onPaste`, comme Ctrl+V.
 	let pasteZone = $state<HTMLInputElement>();
 
 	/** Bouton « Coller » : lit l'image du presse-papiers (bulle « Coller » de Safari, autorisation de Chrome). */
-	async function pasteToGallery() {
+	async function pasteImages() {
 		loadError = '';
 		try {
 			const items = await navigator.clipboard.read();
@@ -283,7 +277,6 @@
 			const chosen = gallery[index];
 			gallery = previous ? gallery.map((item, i) => (i === index ? previous : item)) : gallery.filter((_, i) => i !== index);
 			galleryTouched = true;
-			fileInput.value = '';
 			setCover(chosen.blob);
 			URL.revokeObjectURL(chosen.url);
 		} catch (e) {
@@ -381,6 +374,31 @@
 </script>
 
 <svelte:window onpaste={onPaste} />
+
+<!-- Avancer (vers la couverture), retirer, reculer : l'image `n` dans l'ordre de la fiche. -->
+{#snippet controls(
+	n: number,
+	actions: {
+		back?: () => void;
+		backDisabled?: boolean;
+		remove: () => void;
+		removeDisabled?: boolean;
+		forward?: () => void;
+		forwardDisabled?: boolean;
+	}
+)}
+	<div class="flex">
+		<button type="button" class="btn btn-ghost btn-xs btn-square" disabled={!actions.back || actions.backDisabled} onclick={actions.back} aria-label="Avancer l'image {n}" title={n === 2 ? 'Mettre en couverture' : 'Avancer'}>
+			<Icon name="back" class="size-3.5" />
+		</button>
+		<button type="button" class="btn btn-ghost btn-xs btn-square" disabled={actions.removeDisabled} onclick={actions.remove} aria-label="Retirer l'image {n}" title="Retirer">
+			<Icon name="close" class="size-3.5" />
+		</button>
+		<button type="button" class="btn btn-ghost btn-xs btn-square" disabled={!actions.forward || actions.forwardDisabled} onclick={actions.forward} aria-label="Reculer l'image {n}" title="Reculer">
+			<Icon name="forward" class="size-3.5" />
+		</button>
+	</div>
+{/snippet}
 
 <form class="flex flex-col gap-4" onsubmit={form.submit}>
 	<section class="card bg-base-100 shadow-sm">
@@ -480,130 +498,115 @@
 
 	<section class="card bg-base-100 shadow-sm">
 		<div class="card-body gap-3">
-			<h2 class="card-title text-base"><Icon name="image" /> Image</h2>
+			<!-- Un seul champ : la première image est la couverture (carte, liste), les suivantes sont affichées sur la fiche. -->
+			<h2 class="card-title text-base">
+				<Icon name="image" /> Images
+				{#if preview}<span class="text-base-content/60 text-sm font-normal">({imageCount} / {MAX_IMAGES})</span>{/if}
+			</h2>
 			{#if editing}
 				<ImageEditor source={editing} onapply={applyEdit} oncancel={() => (editing = null)} />
-			{:else if preview}
-				<div class="relative self-start">
-					<img class="rounded-box max-h-56 w-auto" src={preview} alt="Aperçu" onload={readShape} />
-					<button
-						type="button"
-						class="btn btn-circle btn-sm absolute top-2 right-2"
-						onclick={removeImage}
-						disabled={galleryLocked}
-						aria-label="Retirer l'image"
-						title="Retirer l'image"
-					>
-						<Icon name="close" class="size-4" />
-					</button>
-				</div>
-			{/if}
-			{#if preview && !editing}
-				<button type="button" class="btn btn-outline btn-primary btn-sm self-start" disabled={openingEditor} onclick={openEditor}>
-					{#if openingEditor}<span class="loading loading-spinner loading-xs"></span>{:else}<Icon name="crop" class="size-4" />{/if}
-					Recadrer ou pivoter
-				</button>
-			{/if}
-			{#if preview && !editing && (shape === 'tall' || shape === 'wide')}
-				<!-- Cadrage : la carte carrée ne montre qu'une partie de l'image ; on choisit laquelle. -->
-				<div class="flex items-center gap-4">
-					<img
-						class="rounded-box size-24 shrink-0 object-cover shadow-sm {framingClass(framing)}"
-						src={preview}
-						alt="Aperçu de la carte"
-					/>
-					<label class="flex min-w-0 flex-1 flex-col gap-1">
-						<span class="text-sm font-medium">Cadrage de la carte</span>
-						<input
-							type="range"
-							class="range range-primary range-sm"
-							min="0"
-							max="100"
-							step={FRAMING_STEP}
-							bind:value={framing}
-						/>
-						<span class="text-base-content/60 flex justify-between text-xs" aria-hidden="true">
-							<span>{shape === 'tall' ? 'Haut' : 'Gauche'}</span>
-							<span>{shape === 'tall' ? 'Bas' : 'Droite'}</span>
-						</span>
-					</label>
-				</div>
-			{/if}
-			<input type="file" accept="image/*" class="file-input w-full" bind:this={fileInput} onchange={onFileChange} />
-			<p class="text-base-content/60 text-xs">
-				Choisissez un fichier, glissez-le ici ou collez une image. Redimensionnée et chiffrée sur cet appareil avant l'envoi.
-			</p>
-			{#if preview && !editing}
-				<!-- Autres images : seulement sur la fiche, sans recadrage ; l'une d'elles peut passer en couverture. -->
-				<!-- tabindex : un clic dans la partie y met le focus, pour que Ctrl+V colle ici. -->
-				<div class="border-base-200 flex flex-col gap-2 border-t pt-3 outline-none" tabindex="-1" bind:this={gallerySection}>
-					<h3 class="text-sm font-medium">
-						Autres images <span class="text-base-content/60 font-normal">({gallery.length} / {MAX_GALLERY}, affichées sur la fiche)</span>
-					</h3>
-					{#if galleryLoading}
-						<span class="loading loading-dots loading-sm"></span>
-					{:else if galleryFailed}
-						<p class="text-base-content/60 text-xs">Non chargées : elles restent telles quelles.</p>
-					{:else}
-						{#if galleryMissing}
-							<p role="status" class="text-warning text-xs">
-								{galleryMissing} image(s) illisible(s) ou absente(s) : retirée(s) si vous modifiez les autres images.
-							</p>
-						{/if}
-						{#if gallery.length}
-							<ul class="flex flex-wrap gap-3" aria-label="Autres images">
-								{#each gallery as item, i (item.url)}
-									<li class="flex flex-col items-center gap-1">
-										<img src={item.url} alt="Image {i + 2}" class="rounded-box size-20 object-cover shadow-sm" />
-										<div class="flex">
-											<button type="button" class="btn btn-ghost btn-xs btn-square" disabled={i === 0} onclick={() => moveInGallery(i, i - 1)} aria-label="Avancer l'image {i + 2}" title="Avancer">
-												<Icon name="back" class="size-3.5" />
-											</button>
-											<button type="button" class="btn btn-ghost btn-xs btn-square" onclick={() => removeFromGallery(i)} aria-label="Retirer l'image {i + 2}" title="Retirer">
-												<Icon name="close" class="size-3.5" />
-											</button>
-											<button type="button" class="btn btn-ghost btn-xs btn-square" disabled={i === gallery.length - 1} onclick={() => moveInGallery(i, i + 1)} aria-label="Reculer l'image {i + 2}" title="Reculer">
-												<Icon name="forward" class="size-3.5" />
-											</button>
-										</div>
-										<button type="button" class="btn btn-ghost btn-xs" disabled={promoting} onclick={() => makeCover(i)} aria-label="Mettre l'image {i + 2} en couverture">
-											En couverture
-										</button>
-									</li>
-								{/each}
-							</ul>
-						{/if}
-						{#if gallery.length < MAX_GALLERY}
-							<div class="flex gap-2">
-								<input
-									type="file"
-									accept="image/*"
-									multiple
-									class="file-input file-input-sm min-w-0 flex-1"
-									aria-label="Ajouter d'autres images"
-									onchange={addToGallery}
-								/>
-								<button type="button" class="btn btn-outline btn-primary btn-sm shrink-0" onclick={pasteToGallery}>
-									<Icon name="copy" class="size-4" /> Coller
-								</button>
-							</div>
-							<!-- Le texte collé par erreur ne reste pas : la zone ne sert qu'aux images. -->
-							<input
-								bind:this={pasteZone}
-								type="text"
-								class="input input-sm w-full border-dashed text-center"
-								placeholder="Ou appui long ici, puis « Coller »"
-								aria-label="Zone de collage des autres images"
-								autocomplete="off"
-								oninput={(event) => (event.currentTarget.value = '')}
+			{:else}
+				{#if preview}
+					<ul class="flex flex-wrap items-start gap-3" aria-label="Images">
+						<li class="flex flex-col items-center gap-1">
+							<img
+								src={preview}
+								alt="Couverture"
+								class="rounded-box ring-primary size-24 object-cover shadow-sm ring-2 ring-offset-2"
+								onload={readShape}
 							/>
-							<p class="text-base-content/60 text-xs">
-								Ajoutées à la suite. Sur ordinateur, Ctrl+V les colle ici après un clic dans cette partie (sinon, il remplace
-								la couverture).
-							</p>
+							<span class="badge badge-primary badge-xs">Couverture</span>
+							{@render controls(1, {
+								remove: removeImage,
+								removeDisabled: galleryLocked,
+								forward: gallery.length ? () => makeCover(0) : undefined,
+								forwardDisabled: galleryLocked || promoting
+							})}
+						</li>
+						{#if galleryLoading}
+							<li class="flex size-20 items-center justify-center"><span class="loading loading-dots loading-sm"></span></li>
 						{/if}
+						{#each gallery as item, i (item.url)}
+							<li class="flex flex-col items-center gap-1">
+								<img src={item.url} alt="Image {i + 2}" class="rounded-box size-20 object-cover shadow-sm" />
+								{@render controls(i + 2, {
+									back: () => (i === 0 ? makeCover(0) : moveInGallery(i, i - 1)),
+									backDisabled: i === 0 && promoting,
+									remove: () => removeFromGallery(i),
+									forward: i < gallery.length - 1 ? () => moveInGallery(i, i + 1) : undefined
+								})}
+							</li>
+						{/each}
+					</ul>
+					{#if galleryFailed}
+						<p class="text-base-content/60 text-xs">Les autres images n'ont pas pu être chargées : elles restent telles quelles.</p>
+					{:else if galleryMissing}
+						<p role="status" class="text-warning text-xs">
+							{galleryMissing} image(s) illisible(s) ou absente(s) : retirée(s) si vous modifiez les images.
+						</p>
 					{/if}
-				</div>
+					<div class="flex flex-wrap gap-2">
+						<button type="button" class="btn btn-outline btn-primary btn-sm" disabled={openingEditor} onclick={openEditor}>
+							{#if openingEditor}<span class="loading loading-spinner loading-xs"></span>{:else}<Icon name="crop" class="size-4" />{/if}
+							Recadrer ou pivoter la couverture
+						</button>
+					</div>
+					{#if shape === 'tall' || shape === 'wide'}
+						<!-- Cadrage : la carte carrée ne montre qu'une partie de la couverture ; on choisit laquelle. -->
+						<div class="flex items-center gap-4">
+							<img
+								class="rounded-box size-24 shrink-0 object-cover shadow-sm {framingClass(framing)}"
+								src={preview}
+								alt="Aperçu de la carte"
+							/>
+							<label class="flex min-w-0 flex-1 flex-col gap-1">
+								<span class="text-sm font-medium">Cadrage de la carte</span>
+								<input
+									type="range"
+									class="range range-primary range-sm"
+									min="0"
+									max="100"
+									step={FRAMING_STEP}
+									bind:value={framing}
+								/>
+								<span class="text-base-content/60 flex justify-between text-xs" aria-hidden="true">
+									<span>{shape === 'tall' ? 'Haut' : 'Gauche'}</span>
+									<span>{shape === 'tall' ? 'Bas' : 'Droite'}</span>
+								</span>
+							</label>
+						</div>
+					{/if}
+				{/if}
+				{#if imageCount < MAX_IMAGES}
+					<div class="flex gap-2">
+						<input
+							type="file"
+							accept="image/*"
+							multiple
+							class="file-input min-w-0 flex-1"
+							aria-label="Ajouter des images"
+							onchange={onFilesChosen}
+						/>
+						<button type="button" class="btn btn-outline btn-primary shrink-0" onclick={pasteImages}>
+							<Icon name="copy" class="size-4" /> Coller
+						</button>
+					</div>
+					<!-- Le texte collé par erreur ne reste pas : la zone ne sert qu'aux images. -->
+					<input
+						bind:this={pasteZone}
+						type="text"
+						class="input input-sm w-full border-dashed text-center"
+						placeholder="Ou appui long ici, puis « Coller »"
+						aria-label="Zone de collage des images"
+						autocomplete="off"
+						oninput={(event) => (event.currentTarget.value = '')}
+					/>
+				{/if}
+				<p class="text-base-content/60 text-xs">
+					{#if preview}Ajoutées à la suite (fichiers, glisser-déposer ou Ctrl+V) ; les flèches changent l'ordre, la première sert de couverture.
+					{:else}Choisissez, glissez ou collez une ou plusieurs images : la première sert de couverture.{/if}
+					Redimensionnées et chiffrées sur cet appareil avant l'envoi.
+				</p>
 			{/if}
 		</div>
 	</section>

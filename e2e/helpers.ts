@@ -102,7 +102,7 @@ export async function createEntryWithImage(page: Page, name: string, size = 800)
 		data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
 		window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
 	}, size);
-	await expect(page.getByAltText('Aperçu')).toBeVisible();
+	await expect(page.getByAltText('Couverture', { exact: true })).toBeVisible();
 	await page.getByLabel('Nom', { exact: true }).fill(name);
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name })).toBeVisible();

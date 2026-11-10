@@ -173,9 +173,11 @@ Dans l'ordre de réalisation prévu.
 - [x] **Déverrouillage par Face ID** — fait le 2026-11-04 : WebAuthn PRF, 3e copie de la DEK sur l'appareil, poivre dans
       le trousseau, repli sur le mot de passe, relu par le security-reviewer (voir [SECURITY.md](SECURITY.md)). *Avancé.*
 - [x] **Plusieurs images par fiche** — fait le 2026-11-06 : 6 au plus (couverture + 5), les autres visibles sur la fiche
-      et dans la fiche agrandie (bande de vignettes sous l'image, un clic charge l'image complète à sa place). Formulaire : ajout (plusieurs fichiers, bouton « Coller » qui lit le presse-papiers, ou Ctrl+V après un clic dans la partie « Autres images » ; ailleurs Ctrl+V remplace la couverture), ordre
-      (‹ ›), retrait, « En couverture » (l'ancienne couverture prend sa place ; cadrage remis au centre) ; couverture
-      retirée = la suivante la remplace. Recadrage et cadrage pour la couverture seulement. Stockage : `images/{id}_{n}`
+      et dans la fiche agrandie (bande de vignettes sous l'image, un clic charge l'image complète à sa place). Formulaire : un seul champ « Images » depuis le 2026-11-10
+      (la première est la couverture ; fichiers, glisser-déposer, bouton « Coller », Ctrl+V n'importe où ou zone de
+      collage pour l'iPhone, toujours à la suite), ordre (‹ ›, avancer l'image 2 en fait la couverture, l'ancienne
+      prend sa place ; cadrage remis au centre), retrait ; couverture retirée = la suivante la remplace. Changer de
+      couverture : ajouter puis avancer, ou retirer l'ancienne. Recadrage et cadrage pour la couverture seulement. Stockage : `images/{id}_{n}`
       (n de 1 à 5, sans trou), mêmes règles Firestore que la couverture ; types dans `data.gallery` ; une image déplacée
       est rechiffrée (AAD liée à l'emplacement). Suppression (corbeille, définitive, totale, illisibles) : les six
       emplacements effacés sans rien déchiffrer, pas d'orphelines. Sauvegarde **format v5** (`gallery` par fiche, absente

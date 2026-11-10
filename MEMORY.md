@@ -247,6 +247,7 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
 - Bouton « remonter en haut » sur toutes les pages (après une demi-hauteur d'écran) ; clic sur la miniature de l'index.
 - Plusieurs images par fiche : couverture + 5, vignettes en un bloc (`_t`) pour la bande de la fiche et du zoom,
   coller (bouton ou Ctrl+V), sauvegarde **format v5**. Revue `security-reviewer` faite, corrections appliquées.
+  Le 2026-11-10 : un seul champ « Images » dans le formulaire (la première = couverture, ajout toujours à la suite).
 - Album de la collection (`/album`) : fiches face cachée par classement, découvertes au dé sans remise, ids découverts
   dans le catalogue chiffré des collections (`Collection.discovered`), fiche agrandie en lecture seule, remise à zéro.
   Dos des cartes au choix dans Paramètres (bordeaux nuit par défaut, papier ivoire, ardoise et or ; rouge vif rejeté).

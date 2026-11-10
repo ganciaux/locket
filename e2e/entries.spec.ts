@@ -41,9 +41,9 @@ test('colle une image dans le formulaire, sans gêner le collage de texte', asyn
 		}, withImage);
 
 	await paste(false);
-	await expect(page.getByAltText('Aperçu')).toHaveCount(0);
+	await expect(page.getByAltText('Couverture', { exact: true })).toHaveCount(0);
 	await paste(true);
-	await expect(page.getByAltText('Aperçu')).toBeVisible();
+	await expect(page.getByAltText('Couverture', { exact: true })).toBeVisible();
 
 	await page.getByLabel('Nom', { exact: true }).fill('Avec image');
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
@@ -380,10 +380,11 @@ test('cadrage de la carte : seulement pour une image non carrée, appliqué à l
 
 	// Carrée : rien à cadrer.
 	await paste(300, 300);
-	await expect(page.getByAltText('Aperçu', { exact: true })).toBeVisible();
+	await expect(page.getByAltText('Couverture', { exact: true })).toBeVisible();
 	await expect(page.getByLabel('Cadrage de la carte')).toHaveCount(0);
 
-	// En hauteur : de haut en bas.
+	// En hauteur : de haut en bas (la carrée retirée d'abord, sinon la nouvelle viendrait à la suite).
+	await page.getByRole('button', { name: "Retirer l'image 1" }).click();
 	await paste(300, 600);
 	const framing = page.getByLabel('Cadrage de la carte');
 	await expect(framing).toHaveValue('50');
@@ -412,7 +413,7 @@ test('recadrer et pivoter : nouvelle image puis image enregistrée, remplacée �
 		data.items.add(new File([blob!], 'capture.png', { type: 'image/png' }));
 		window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
 	});
-	const preview = page.getByAltText('Aperçu', { exact: true });
+	const preview = page.getByAltText('Couverture', { exact: true });
 	const naturalSize = () => preview.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]);
 	await expect(preview).toBeVisible();
 
@@ -470,17 +471,21 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	});
 
 	await page.getByRole('link', { name: 'Modifier' }).click();
-	await page.getByLabel("Ajouter d'autres images").setInputFiles([await file('a.png', 500, 200), await file('b.png', 200, 500)]);
-	const extras = page.getByRole('list', { name: 'Autres images' }).getByRole('img');
+	await page.getByLabel('Ajouter des images').setInputFiles([await file('a.png', 500, 200), await file('b.png', 200, 500)]);
+	const extras = page.getByRole('list', { name: 'Images' }).getByRole('img', { name: /^Image \d/ });
 	await expect(extras).toHaveCount(2);
 	const sizes = () => extras.evaluateAll((imgs) => imgs.map((img) => (img as HTMLImageElement).naturalWidth));
 	await expect.poll(sizes).toEqual([500, 200]);
 	await page.getByRole('button', { name: "Reculer l'image 2" }).click();
 	await expect.poll(sizes).toEqual([200, 500]);
-	// La 500 × 200 passe en couverture ; l'ancienne couverture (400) prend sa place.
-	await page.getByRole('button', { name: "Mettre l'image 3 en couverture" }).click();
-	const preview = page.getByAltText('Aperçu', { exact: true });
+	// La 500 × 200 avancée jusqu'en couverture : l'ancienne couverture (400) prend sa place, puis recule.
+	await page.getByRole('button', { name: "Avancer l'image 3" }).click();
+	await expect.poll(sizes).toEqual([500, 200]);
+	await page.getByRole('button', { name: "Avancer l'image 2" }).click();
+	const preview = page.getByAltText('Couverture', { exact: true });
 	await expect.poll(() => preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(500);
+	await expect.poll(sizes).toEqual([400, 200]);
+	await page.getByRole('button', { name: "Reculer l'image 2" }).click();
 	await expect.poll(sizes).toEqual([200, 400]);
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
@@ -525,13 +530,13 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await expect.poll(() => zoom.locator('figure img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
 });
 
-test('autres images : collées par le bouton « Coller », par Ctrl+V dans leur partie ou dans la zone de collage, la couverture reste', async ({ page }) => {
+test('images : collées par le bouton « Coller », par Ctrl+V ou dans la zone de collage, à la suite de la couverture', async ({ page }) => {
 	await signUp(page);
 	await addFirstCollection(page);
 	await createEntryWithImage(page, 'Collage', 400);
 	await page.getByRole('link', { name: 'Modifier' }).click();
-	const extras = page.getByRole('list', { name: 'Autres images' }).getByRole('img');
-	const cover = page.getByAltText('Aperçu', { exact: true });
+	const extras = page.getByRole('list', { name: 'Images' }).getByRole('img', { name: /^Image \d/ });
+	const cover = page.getByAltText('Couverture', { exact: true });
 	await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
 
 	// Bouton « Coller » : l'image du presse-papiers, à la suite.
@@ -544,8 +549,7 @@ test('autres images : collées par le bouton « Coller », par Ctrl+V dans leur 
 	await page.getByRole('button', { name: 'Coller', exact: true }).click();
 	await expect(extras).toHaveCount(1);
 
-	// Ctrl+V après un clic dans la partie : ajoutée aussi, la couverture ne change pas.
-	await page.getByRole('heading', { name: /Autres images/ }).click();
+	// Ctrl+V n'importe où : ajoutée aussi, la couverture ne change pas.
 	await page.evaluate(async () => {
 		const canvas = Object.assign(document.createElement('canvas'), { width: 250, height: 250 });
 		const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
@@ -558,7 +562,7 @@ test('autres images : collées par le bouton « Coller », par Ctrl+V dans leur 
 	expect(await cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
 
 	// Zone de collage (iPhone : appui long, « Coller ») : l'image s'ajoute, la zone se referme ; un texte n'y reste pas.
-	const zone = page.getByLabel('Zone de collage des autres images');
+	const zone = page.getByLabel('Zone de collage des images');
 	await zone.focus();
 	await zone.evaluate(async (node) => {
 		const canvas = Object.assign(document.createElement('canvas'), { width: 220, height: 220 });
