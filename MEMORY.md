@@ -250,6 +250,9 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
   Le 2026-11-10 : un seul champ « Images » dans le formulaire (la première = couverture, ajout toujours à la suite).
   Le 2026-11-10 aussi : carrousel dans l'image (fiche et zoom) à la place de la bande de vignettes ; glisser sur
   l'image change d'image, ailleurs de fiche (`data-no-swipe` ne bloque plus que l'horizontal). Similaires : plus tard.
+- Retour vers l'index ou le classement après un verrouillage (2026-11-10) : `onLock` efface les ids de `entryNav` mais
+  garde le retour (page, libellé) pour la fiche ouverte et ses voisines ; flèches par nom jusqu'au retour à la liste.
+  Les remises à zéro de `onLock` tournent hors suivi (`untrack`) : lire son propre état n'y boucle plus.
 - Album de la collection (`/album`) : fiches face cachée par classement, découvertes au dé sans remise, ids découverts
   dans le catalogue chiffré des collections (`Collection.discovered`), fiche agrandie en lecture seule, remise à zéro.
   Dos des cartes au choix dans Paramètres (bordeaux nuit par défaut, papier ivoire, ardoise et or ; rouge vif rejeté).

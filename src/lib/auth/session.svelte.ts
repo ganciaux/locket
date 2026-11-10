@@ -3,6 +3,7 @@
  *  - connecté : session Firebase, conservée par le SDK d'une ouverture à l'autre ;
  *  - déverrouillé : DEK en mémoire uniquement, perdue à la fermeture → écran « Déverrouiller ».
  */
+import { untrack } from 'svelte';
 import { onAuthStateChanged, signOut as firebaseSignOut, type User } from 'firebase/auth';
 import { clearCache } from '$lib/entries/cache';
 import { auth } from '$lib/firebase';
@@ -72,7 +73,8 @@ export function onLock(reset: () => void): void {
 
 $effect.root(() => {
 	$effect(() => {
-		if (!session.dek) for (const reset of lockHandlers) reset();
+		// Hors suivi : une remise à zéro qui lit son propre état ne relance pas l'effet.
+		if (!session.dek) untrack(() => lockHandlers.forEach((reset) => reset()));
 	});
 });
 

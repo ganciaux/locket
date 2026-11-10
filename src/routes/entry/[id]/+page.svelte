@@ -12,7 +12,7 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import ValidatedMark from '$lib/components/ValidatedMark.svelte';
-	import { entryNav } from '$lib/entries/entryNav.svelte';
+	import { followEntryNav, originOf } from '$lib/entries/entryNav.svelte';
 	import { TRASH_DAYS, countryFlag, countryName, formatAge, formatRating, groupTags, neighbours } from '$lib/entries/model';
 	import { deleteForever, entries, loadEntries, rateEntry, setEntriesValidated, trashEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
@@ -31,7 +31,7 @@
 	const tagSections = $derived(entry ? groupTags(entries.tagsOf(entry), entries.tagGroupsIn(entry.collectionId)) : []);
 
 	// Liste d'origine si la fiche y figure (voir entryNav) ; sinon sa collection, par nom.
-	const origin = $derived(entryNav.current?.ids.includes(id) ? entryNav.current : null);
+	const origin = $derived(originOf(id));
 	const navIds = $derived(
 		(origin?.ids ?? (entry ? entries.siblings(entry).map((item) => item.id) : [])).filter((other) => entries.find(other))
 	);
@@ -40,7 +40,11 @@
 	const backLabel = $derived(origin?.backLabel ?? 'Mes fiches');
 
 	// Remplace l'adresse : le retour du navigateur ramène à la page d'origine, pas à chaque fiche parcourue.
-	const open = (other: string | undefined) => other && goto(`/entry/${other}`, { replaceState: true });
+	function open(other: string | undefined) {
+		if (!other) return;
+		followEntryNav(id, other);
+		goto(`/entry/${other}`, { replaceState: true });
+	}
 
 	function onKeydown(event: KeyboardEvent) {
 		if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;

@@ -1,5 +1,5 @@
 /** Index (backoffice) : liste par initiale, « Il manque », import, comparaison, statistiques. */
-import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
+import { addFirstCollection, expect, goHome, PASSWORD, signUp, test } from './fixtures';
 import { addTagGroups, createEntry, goIndex, importTable, openIndex } from './helpers';
 
 test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche', async ({ page }) => {
@@ -59,6 +59,11 @@ test('index : fiches par initiale, recherche sur le nom, retour depuis une fiche
 
 	await page.getByRole('link', { name: 'Écho', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Écho' })).toBeVisible();
+	// Verrouillée puis rouverte sur la fiche : le retour mène encore à l'index.
+	await page.getByRole('button', { name: 'Verrouiller' }).click();
+	await page.getByLabel('Mot de passe').fill(PASSWORD);
+	await page.getByRole('button', { name: 'Déverrouiller' }).click();
+	await expect(page.getByRole('link', { name: 'Index', exact: true })).toBeVisible();
 	// Fiche, puis modification : le retour mène toujours à l'index.
 	await page.getByRole('link', { name: 'Modifier' }).click();
 	await expect(page.getByRole('heading', { name: 'Modifier la fiche' })).toBeVisible();

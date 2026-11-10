@@ -4,7 +4,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
-	import { entryNav } from '$lib/entries/entryNav.svelte';
+	import { originOf } from '$lib/entries/entryNav.svelte';
 	import { entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
@@ -15,7 +15,7 @@
 	const entry = $derived(entries.find(id));
 
 	// Retour vers la liste d'origine (index, classement…), comme sur la fiche (voir entryNav).
-	const origin = $derived(entryNav.current?.ids.includes(id) ? entryNav.current : null);
+	const origin = $derived(originOf(id));
 	const backHref = $derived(origin?.backHref ?? '/');
 	const backLabel = $derived(origin?.backLabel ?? 'Mes fiches');
 	// Ouverte directement depuis une liste (`?from=list`) : Annuler et Enregistrer y ramènent, sans passer par la fiche.
