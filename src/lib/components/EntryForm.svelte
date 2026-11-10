@@ -226,21 +226,41 @@
 	// (appui long, « Coller ») ; le collage passe alors par `onPaste`, comme Ctrl+V.
 	let pasteZone = $state<HTMLInputElement>();
 
-	/** Bouton « Coller » : lit l'image du presse-papiers (bulle « Coller » de Safari, autorisation de Chrome). */
+	/**
+	 * Bouton « Coller » : lit l'image du presse-papiers (bulle « Coller » de Safari, autorisation de Chrome). Sur iPhone,
+	 * il échoue souvent : le message donne l'étape et l'erreur exacte (diagnostic), et renvoie à la zone de collage.
+	 * Seuls les types du presse-papiers sont affichés, jamais son contenu.
+	 */
 	async function pasteImages() {
 		loadError = '';
+		const fallback = 'appuyez longuement dans la zone en pointillés, puis « Coller ».';
+		if (!navigator.clipboard?.read) {
+			loadError = `Ce navigateur ne lit pas le presse-papiers depuis un bouton : ${fallback}`;
+			pasteZone?.focus();
+			return;
+		}
+		let step = 'lecture';
 		try {
 			const items = await navigator.clipboard.read();
+			const types = new Set<string>();
 			const blobs: Blob[] = [];
+			step = 'image';
 			for (const item of items) {
+				item.types.forEach((type) => types.add(type));
 				const type = item.types.find((t) => t.startsWith('image/'));
 				if (type) blobs.push(await item.getType(type));
 			}
-			if (!blobs.length) throw new Error("Aucune image dans le presse-papiers : copiez d'abord une image.");
+			if (!blobs.length)
+				throw new Error(
+					types.size
+						? `Aucune image dans le presse-papiers (il contient : ${[...types].join(', ')}) : copiez d'abord une image.`
+						: "Presse-papiers vide pour ce bouton : copiez d'abord une image, ou " + fallback
+				);
 			addImages(blobs);
 		} catch (e) {
 			if (e instanceof DOMException) {
-				loadError = 'Presse-papiers inaccessible depuis ce bouton : appuyez longuement dans la zone en pointillés, puis « Coller ».';
+				const detail = `${step} : ${e.name}${e.message ? `, ${e.message}` : ''}`;
+				loadError = `Presse-papiers inaccessible depuis ce bouton (${detail}) : ${fallback}`;
 				pasteZone?.focus();
 			} else loadError = errorMessage(e);
 		}

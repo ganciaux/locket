@@ -544,6 +544,20 @@ test('images : collées par le bouton « Coller », par Ctrl+V ou dans la zone d
 	const cover = page.getByAltText('Couverture', { exact: true });
 	await expect.poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(400);
 
+	// Lecture refusée (cas de l'iPhone) : l'étape et l'erreur exactes, puis la zone de collage prête.
+	await page.evaluate(() => {
+		const clipboard = navigator.clipboard as Clipboard & { realRead?: Clipboard['read'] };
+		clipboard.realRead = clipboard.read.bind(clipboard);
+		clipboard.read = () => Promise.reject(new DOMException('Refusé', 'NotAllowedError'));
+	});
+	await page.getByRole('button', { name: 'Coller', exact: true }).click();
+	await expect(page.getByText(/Presse-papiers inaccessible depuis ce bouton \(lecture : NotAllowedError, Refusé\)/)).toBeVisible();
+	await expect(page.getByLabel('Zone de collage des images')).toBeFocused();
+	await page.evaluate(() => {
+		const clipboard = navigator.clipboard as Clipboard & { realRead?: Clipboard['read'] };
+		clipboard.read = clipboard.realRead!;
+	});
+
 	// Bouton « Coller » : l'image du presse-papiers, à la suite.
 	await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
 	await page.evaluate(async () => {
