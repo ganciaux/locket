@@ -212,8 +212,10 @@
 					<span class="text-primary text-7xl font-bold" aria-hidden="true">{entry.name.charAt(0).toUpperCase()}</span>
 				{/if}
 				{#if position && position.count > 1}
+					<!-- Plusieurs images : le milieu revient aux flèches du carrousel, celles des fiches descendent en bas. -->
+					{@const place = entry.gallery?.length ? 'bottom-1' : 'top-1/2 -translate-y-1/2'}
 					<button
-						class="btn btn-circle btn-sm bg-base-100/80 absolute top-1/2 left-2 -translate-y-1/2"
+						class="btn btn-circle btn-sm bg-base-100/80 absolute left-2 {place}"
 						disabled={!position.previous}
 						aria-label="Fiche précédente"
 						onclick={() => show(position.previous)}
@@ -221,7 +223,7 @@
 						<Icon name="back" class="size-4" />
 					</button>
 					<button
-						class="btn btn-circle btn-sm bg-base-100/80 absolute top-1/2 right-2 -translate-y-1/2"
+						class="btn btn-circle btn-sm bg-base-100/80 absolute right-2 {place}"
 						disabled={!position.next}
 						aria-label="Fiche suivante"
 						onclick={() => show(position.next)}

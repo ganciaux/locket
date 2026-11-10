@@ -12,11 +12,12 @@
 	import Rating from '$lib/components/Rating.svelte';
 	import TagPicker from '$lib/components/TagPicker.svelte';
 	import { prepareGalleryImage, prepareImage, prepareMiniThumb } from '$lib/entries/images';
-	import { FRAMING_CENTER, FRAMING_STEP, type GalleryItem, type Link, MAX_GALLERY, MAX_IMAGES, MAX_NAME_LENGTH, framingClass, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
+	import { FRAMING_CENTER, FRAMING_STEP, type GalleryItem, type Link, MAX_GALLERY, MAX_IMAGES, MAX_NAME_LENGTH, framingClass, MAX_REMARKS_LENGTH, MIN_BIRTH_YEAR, moveTo, type Site, parseLinkUrl, searchKey, siteShown, withSiteVisibility } from '$lib/entries/model';
 	import { getGalleryImages, getImage, saveEntry } from '$lib/entries/repository';
 	import { type ListItem, entries, loadEntries, upsertEntry } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 	import { formAction } from '$lib/form.svelte';
+	import { sortable } from '$lib/sortable';
 
 	let {
 		entry,
@@ -276,6 +277,19 @@
 		galleryTouched = true;
 	}
 
+	/**
+	 * Glisser-déposer : `from` et `to` comptent la couverture (0) puis les autres images. La couverture change par
+	 * `makeCover` (échange), puis l'image échangée est replacée : on obtient l'ordre voulu, les autres décalées.
+	 */
+	async function reorder(from: number, to: number) {
+		if (from > 0 && to > 0) {
+			gallery = moveTo(gallery, from - 1, to - 1);
+			galleryTouched = true;
+		} else if (to === 0) {
+			if (await makeCover(from - 1)) gallery = moveTo(gallery, from - 1, 0);
+		} else if (await makeCover(0)) gallery = moveTo(gallery, 0, to - 1);
+	}
+
 	function removeFromGallery(index: number) {
 		URL.revokeObjectURL(gallery[index].url);
 		gallery = gallery.filter((_, i) => i !== index);
@@ -284,9 +298,9 @@
 
 	/** L'image choisie devient la couverture ; l'ancienne couverture prend sa place parmi les autres. */
 	let promoting = $state(false);
-	async function makeCover(index: number) {
+	async function makeCover(index: number): Promise<boolean> {
 		const { user, dek } = session;
-		if (!user || !dek) return;
+		if (!user || !dek) return false;
 		promoting = true;
 		loadError = '';
 		try {
@@ -302,8 +316,10 @@
 			galleryTouched = true;
 			setCover(chosen.blob);
 			URL.revokeObjectURL(chosen.url);
+			return true;
 		} catch (e) {
 			loadError = errorMessage(e);
+			return false;
 		} finally {
 			promoting = false;
 		}
@@ -530,8 +546,12 @@
 				<ImageEditor source={editing} onapply={applyEdit} oncancel={() => (editing = null)} />
 			{:else}
 				{#if preview}
-					<ul class="flex flex-wrap items-start gap-3" aria-label="Images">
-						<li class="flex flex-col items-center gap-1">
+					<ul
+						class="flex flex-wrap items-start gap-3"
+						aria-label="Images"
+						use:sortable={{ onmove: reorder, disabled: galleryLocked || promoting }}
+					>
+						<li class="flex flex-col items-center gap-1" data-sort-index={0}>
 							<img
 								src={preview}
 								alt="Couverture"
@@ -550,7 +570,7 @@
 							<li class="flex size-20 items-center justify-center"><span class="loading loading-dots loading-sm"></span></li>
 						{/if}
 						{#each gallery as item, i (item.url)}
-							<li class="flex flex-col items-center gap-1">
+							<li class="flex flex-col items-center gap-1" data-sort-index={i + 1}>
 								<img src={item.url} alt="Image {i + 2}" class="rounded-box size-20 object-cover shadow-sm" />
 								{@render controls(i + 2, {
 									back: () => (i === 0 ? makeCover(0) : moveInGallery(i, i - 1)),
@@ -627,7 +647,7 @@
 					/>
 				{/if}
 				<p class="text-base-content/60 text-xs">
-					{#if preview}Ajoutées à la suite (fichiers, glisser-déposer ou Ctrl+V) ; les flèches changent l'ordre, la première sert de couverture.
+					{#if preview}Ajoutées à la suite (fichiers, glisser-déposer ou Ctrl+V) ; glissez une image (appui long au doigt) ou utilisez les flèches pour changer l'ordre ; la première sert de couverture.
 					{:else}Choisissez, glissez ou collez une ou plusieurs images : la première sert de couverture.{/if}
 					Redimensionnées et chiffrées sur cet appareil avant l'envoi.
 				</p>

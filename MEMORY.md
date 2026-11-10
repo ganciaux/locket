@@ -254,6 +254,10 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
   pour une image copiée depuis une page web Safari ne lui donne que son lien (`text/uri-list`) ; le collage natif
   (appui long, « Coller ») reçoit le fichier : d'où la zone en pointillés, vers laquelle le bouton renvoie. Bouton
   gardé (ordinateur, Android, captures). Télécharger le lien écarté (CSP ouverte à tout site, CORS, site tiers contacté).
+  Ordre des images au glisser-déposer (2026-11-10, `sortable.ts`, sans bibliothèque) : souris dès 5 px, doigt après
+  un appui immobile de 300 ms (sinon la page défile) ; déposée sur la couverture, une image la remplace (`makeCover`
+  puis `moveTo`). Les flèches ← → restent pour le clavier. Carrousel : flèches rondes grises translucides sur l'image
+  (`.carousel-arrow`) ; dans la fiche agrandie, les flèches de fiche descendent alors dans les coins du bas.
 - Retour vers l'index ou le classement après un verrouillage (2026-11-10) : `onLock` efface les ids de `entryNav` mais
   garde le retour (page, libellé) pour la fiche ouverte et ses voisines ; flèches par nom jusqu'au retour à la liste.
   Les remises à zéro de `onLock` tournent hors suivi (`untrack`) : lire son propre état n'y boucle plus.

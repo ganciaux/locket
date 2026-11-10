@@ -7,6 +7,7 @@
 		back: 'M15 18l-6-6 6-6',
 		forward: 'M9 18l6-6-6-6',
 		chevronDown: 'M6 9l6 6 6-6',
+		chevronLeft: 'M15 6l-6 6 6 6',
 		chevronRight: 'M9 6l6 6-6 6',
 		chevronUp: 'M6 15l6-6 6 6',
 		// Rosette avec une coche : fiche validée.

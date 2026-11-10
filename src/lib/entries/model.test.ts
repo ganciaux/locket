@@ -46,6 +46,7 @@ import {
 	notValidated,
 	MAX_REMARKS_LENGTH,
 	moveItem,
+	moveTo,
 	neighbours,
 	findSameName,
 	siteMode,
@@ -288,6 +289,22 @@ describe('tags', () => {
 		expect(parseLabel('  Vie   pratique ', existing)).toBe('Vie pratique');
 		expect(() => parseLabel('   ', existing)).toThrow();
 		expect(() => parseLabel('administratif', existing)).toThrow();
+	});
+});
+
+describe('moveTo', () => {
+	it('insère à la place visée, les autres se décalent', () => {
+		const list = ['a', 'b', 'c', 'd'];
+		expect(moveTo(list, 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+		expect(moveTo(list, 3, 1)).toEqual(['a', 'd', 'b', 'c']);
+		expect(list).toEqual(['a', 'b', 'c', 'd']);
+	});
+
+	it('rend la même liste sur place ou hors limites', () => {
+		const list = ['a', 'b'];
+		expect(moveTo(list, 1, 1)).toBe(list);
+		expect(moveTo(list, 0, 2)).toBe(list);
+		expect(moveTo(list, -1, 0)).toBe(list);
 	});
 });
 

@@ -40,6 +40,14 @@ export function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
 	return next;
 }
 
+/** Déplace l'élément `from` à la place `to` (glisser-déposer), les autres se décalent ; inchangé hors limites. */
+export function moveTo<T>(list: T[], from: number, to: number): T[] {
+	if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
+	const next = [...list];
+	next.splice(to, 0, ...next.splice(from, 1));
+	return next;
+}
+
 export const byName = (a: { name: string }, b: { name: string }): number =>
 	a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
 

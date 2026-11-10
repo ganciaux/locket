@@ -1,4 +1,5 @@
 /** Fiches : formulaire, image, liens, sites, nom unique, note, pays, naissance. */
+import type { Locator } from '@playwright/test';
 import { addFirstCollection, expect, goHome, signUp, test } from './fixtures';
 import { addSite, createEntry, createEntryWithImage, goIndex, lockAndUnlock, newEntryForm, openEntry, openIndex, swipeOn } from './helpers';
 
@@ -487,12 +488,57 @@ test('autres images : ajoutées, réordonnées, une passe en couverture, affich�
 	await expect.poll(sizes).toEqual([400, 200]);
 	await page.getByRole('button', { name: "Reculer l'image 2" }).click();
 	await expect.poll(sizes).toEqual([200, 400]);
+
+	// Glisser-déposer : une image posée sur la couverture la remplace (les autres se décalent), et inversement.
+	// Au doigt, seulement après un appui immobile : un doigt qui bouge tout de suite fait défiler la page.
+	const coverWidth = () => preview.evaluate((img: HTMLImageElement) => img.naturalWidth);
+	const drag = async (from: Locator, to: Locator, pointerType: 'mouse' | 'touch', holdMs = 400) =>
+		from.evaluate(
+			async (source, [target, type, hold]) => {
+				const center = (el: Element) => {
+					const box = el.getBoundingClientRect();
+					return { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+				};
+				const send = (el: EventTarget, name: string, at: { clientX: number; clientY: number }) =>
+					el.dispatchEvent(new PointerEvent(name, { bubbles: true, isPrimary: true, pointerId: 7, pointerType: type, button: 0, ...at }));
+				const start = center(source);
+				const end = center(target as Element);
+				send(source, 'pointerdown', start);
+				if (type === 'touch') {
+					if (hold < 100) send(document, 'pointermove', { clientX: start.clientX, clientY: start.clientY + 20 });
+					await new Promise((resolve) => setTimeout(resolve, hold as number));
+				}
+				send(document, 'pointermove', { clientX: start.clientX + 10, clientY: start.clientY });
+				send(document, 'pointermove', end);
+				send(document, 'pointerup', end);
+			},
+			[await to.elementHandle(), pointerType, holdMs] as const
+		);
+	const image = (n: number) => page.getByRole('img', { name: `Image ${n}`, exact: true });
+	await drag(image(3), preview, 'mouse');
+	await expect.poll(coverWidth).toBe(400);
+	await expect.poll(sizes).toEqual([500, 200]);
+	await drag(image(2), image(3), 'touch', 20);
+	await expect.poll(sizes).toEqual([500, 200]);
+	await drag(preview, image(3), 'touch');
+	await expect.poll(coverWidth).toBe(500);
+	await expect.poll(sizes).toEqual([200, 400]);
 	await page.getByRole('button', { name: 'Enregistrer' }).click();
 	await expect(page.getByRole('heading', { name: 'Album' })).toBeVisible();
 
 	// Sur la fiche : carrousel de la couverture et des deux autres ; un point amène à son image, chargée en entier.
+	// Flèches sur l'image, absentes aux extrémités.
 	const strip = page.getByRole('list', { name: 'Images de la fiche' });
 	await expect(strip.getByRole('button')).toHaveCount(3);
+	await expect(page.getByRole('button', { name: 'Image précédente de Album' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Image suivante de Album' }).click();
+	await expect(strip.getByRole('button', { name: "Afficher l'image 2 de Album" })).toHaveAttribute('aria-pressed', 'true');
+	await page.getByRole('button', { name: 'Image suivante de Album' }).click();
+	await expect(strip.getByRole('button', { name: "Afficher l'image 3 de Album" })).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByRole('button', { name: 'Image suivante de Album' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Image précédente de Album' }).click();
+	await page.getByRole('button', { name: 'Image précédente de Album' }).click();
+	await expect(strip.getByRole('button', { name: "Afficher l'image 1 de Album" })).toHaveAttribute('aria-pressed', 'true');
 	await strip.getByRole('button', { name: "Afficher l'image 2 de Album" }).click();
 	await expect(strip.getByRole('button', { name: "Afficher l'image 2 de Album" })).toHaveAttribute('aria-pressed', 'true');
 	await expect.poll(() => page.getByRole('img', { name: 'Album, image 2' }).evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(200);

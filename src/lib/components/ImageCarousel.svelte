@@ -5,6 +5,7 @@
 	// à l'approche. Tout est déchiffré ici et libéré au démontage : à monter dans un `{#key}` par fiche.
 	import { onDestroy, type Snippet, untrack } from 'svelte';
 	import { session } from '$lib/auth/session.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import { bytesToUrl } from '$lib/entries/images';
 	import { galleryImageId } from '$lib/entries/gallery';
 	import { getGalleryThumbs, getImage } from '$lib/entries/repository';
@@ -56,6 +57,7 @@
 
 	onDestroy(() => {
 		alive = false;
+		clearTimeout(settle);
 		created.forEach((url) => URL.revokeObjectURL(url));
 	});
 
@@ -83,11 +85,22 @@
 		});
 	});
 
+	// Image visée par une flèche ou un point, le temps du défilement animé : deux appuis rapides avancent de deux images.
+	// Oubliée une fois arrivé, ou dès que le défilement s'arrête ailleurs (doigt qui reprend la main).
+	let goal = $state<number | null>(null);
+	const current = $derived(goal ?? active);
+	let settle: ReturnType<typeof setTimeout> | undefined;
+
 	function onScroll() {
-		if (track) active = Math.round(track.scrollLeft / track.clientWidth);
+		if (!track) return;
+		active = Math.round(track.scrollLeft / track.clientWidth);
+		if (active === goal) goal = null;
+		clearTimeout(settle);
+		settle = setTimeout(() => (goal = null), 200);
 	}
 
 	function go(index: number) {
+		goal = index;
 		track?.scrollTo({ left: index * track.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 	}
 </script>
@@ -96,23 +109,36 @@
 	{@render cover()}
 {:else}
 	<div class="flex w-full flex-col">
-		<div
-			bind:this={track}
-			class="flex snap-x snap-mandatory items-center overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
-			data-no-swipe
-			onscroll={onScroll}
-		>
-			<div class="flex w-full shrink-0 snap-center snap-always justify-center">{@render cover()}</div>
-			{#each types as _, i (i)}
-				{@const url = full[i + 1] ?? thumbs[i]}
-				<div class="flex w-full shrink-0 snap-center snap-always justify-center">
-					{#if url}
-						<img src={url} alt="{name}, image {i + 2}" data-border={border} class={imageClass} />
-					{:else}
-						<span class="loading loading-spinner text-primary my-16"></span>
-					{/if}
-				</div>
-			{/each}
+		<div class="relative">
+			<div
+				bind:this={track}
+				class="flex snap-x snap-mandatory items-center overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
+				data-no-swipe
+				onscroll={onScroll}
+			>
+				<div class="flex w-full shrink-0 snap-center snap-always justify-center">{@render cover()}</div>
+				{#each types as _, i (i)}
+					{@const url = full[i + 1] ?? thumbs[i]}
+					<div class="flex w-full shrink-0 snap-center snap-always justify-center">
+						{#if url}
+							<img src={url} alt="{name}, image {i + 2}" data-border={border} class={imageClass} />
+						{:else}
+							<span class="loading loading-spinner text-primary my-16"></span>
+						{/if}
+					</div>
+				{/each}
+			</div>
+			<!-- Flèches sombres et translucides, au bord de l'image : on voit la photo au travers ; absentes aux extrémités. -->
+			{#if current > 0}
+				<button type="button" class="carousel-arrow left-2" aria-label="Image précédente de {name}" onclick={() => go(current - 1)}>
+					<Icon name="chevronLeft" class="size-5" />
+				</button>
+			{/if}
+			{#if current < count - 1}
+				<button type="button" class="carousel-arrow right-2" aria-label="Image suivante de {name}" onclick={() => go(current + 1)}>
+					<Icon name="chevronRight" class="size-5" />
+				</button>
+			{/if}
 		</div>
 		<ul class="flex justify-center pt-1" aria-label="Images de la fiche">
 			{#each { length: count }, i (i)}
