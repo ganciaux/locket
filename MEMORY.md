@@ -250,6 +250,10 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
   Le 2026-11-10 : un seul champ « Images » dans le formulaire (la première = couverture, ajout toujours à la suite).
   Le 2026-11-10 aussi : carrousel dans l'image (fiche et zoom) à la place de la bande de vignettes ; glisser sur
   l'image change d'image, ailleurs de fiche (`data-no-swipe` ne bloque plus que l'horizontal). Similaires : plus tard.
+  Collage sur iPhone (2026-11-10) : le bouton « Coller » (`clipboard.read`) marche pour une capture d'écran, mais
+  pour une image copiée depuis une page web Safari ne lui donne que son lien (`text/uri-list`) ; le collage natif
+  (appui long, « Coller ») reçoit le fichier : d'où la zone en pointillés, vers laquelle le bouton renvoie. Bouton
+  gardé (ordinateur, Android, captures). Télécharger le lien écarté (CSP ouverte à tout site, CORS, site tiers contacté).
 - Retour vers l'index ou le classement après un verrouillage (2026-11-10) : `onLock` efface les ids de `entryNav` mais
   garde le retour (page, libellé) pour la fiche ouverte et ses voisines ; flèches par nom jusqu'au retour à la liste.
   Les remises à zéro de `onLock` tournent hors suivi (`untrack`) : lire son propre état n'y boucle plus.
