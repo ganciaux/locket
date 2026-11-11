@@ -74,6 +74,32 @@ Mesurer d'abord : poids du cache (`navigator.storage.estimate()`), temps d'un re
 - Écarté pour l'instant : une deuxième miniature 200 px pour les listes (migration de toutes les fiches, et les
   cartes moyennes ou grandes ont besoin des 640 px).
 
+**Piste à 10 000 fiches** (discutée le 2026-11-11, rien de décidé). *Avancé* : le plus gros chantier depuis la crypto.
+- **Le stockage casse avant la performance.** Firestore Spark est limité à 1 Gio. À 10 000 fiches, il faudra passer
+  à Blaze et mettre les images dans Cloud Storage, ou les réduire fortement. Ce sera le moment de refaire le stockage
+  d'un coup.
+- **Partitions fixes**, connues de l'application, avec seulement certaines chargées au départ. Deux critères possibles :
+  - les étoiles : les fiches sans note (donc les nouvelles) vont dans le bloc chargé, et changer une note déplace
+    la fiche ;
+  - « Actives / Archivées », recommandé : un bouton « Archiver », une règle automatique en option, et un
+    interrupteur « Charger les archives ».
+  Changer de partition est obligatoire : la fiche passe d'un bloc à l'autre dans la même transaction.
+- **Partitions trouvables sans fuite.** Un catalogue chiffré `meta/blocks` associe chaque bloc à sa partition, sa
+  version et son type (données ou miniatures). Firebase ne voit que des ids opaques, le nombre de blocs, leur taille
+  et leur fréquence d'écriture. À noter dans SECURITY.md si on le fait. Jamais de partition en clair (champ ou id) :
+  ce serait la note en clair.
+- **Blocs de données** : environ 200 fiches chiffrées ensemble par document, coupé en sous-blocs au-delà de 900 Ko.
+  Au démarrage : le catalogue, puis les blocs des partitions voulues. Le cache ne relit que les blocs dont la version
+  a changé.
+- **Blocs de miniatures** : 15 à 20 miniatures par document, chargés avec leur partition. Une lecture par
+  miniature ferait trop d'accès.
+- **Fonctions** : recherche, dé, statistiques, index, classement et album travaillent sur ce qui est chargé, avec une
+  mention « archives non chargées ».
+  - « Déjà pris » ne verrait pas les doublons des partitions non chargées : accepter, ou garder un index chiffré
+    des noms dans le catalogue.
+  - Sauvegarde, purge de la corbeille et suppression totale chargent tout.
+- Images complètes : inchangées, chargées à la demande.
+
 ## 4. Retours d'usage (2026-10-30)
 
 Liste reçue le 2026-10-30, fusionnée avec les points notés la veille dans MEMORY.md. Par thème, du plus simple au plus long.
