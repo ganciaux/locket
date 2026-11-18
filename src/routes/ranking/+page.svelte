@@ -9,9 +9,9 @@
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import UnrankConfirm from '$lib/components/UnrankConfirm.svelte';
 	import { rememberEntryNav, restoreEntryNavScroll } from '$lib/entries/entryNav.svelte';
-	import { framingClass, isRankable } from '$lib/entries/model';
+	import { framingClass, insertionDuels, isRankable } from '$lib/entries/model';
 	import { selectCollection } from '$lib/entries/collections';
-	import { abandonNewRanking, deleteRanking, finishNewRanking, startNewRanking } from '$lib/entries/ranking';
+	import { abandonNewRanking, deleteRanking, finishNewRanking, startNewRanking, startSliceRanking } from '$lib/entries/ranking';
 	import { type ListItem, entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
@@ -23,8 +23,11 @@
 	const fromSettings = $derived(page.url.searchParams.get('from') === 'settings');
 
 	let confirmId = $state<string | null>(null);
-	// Action en attente de confirmation : supprimer le classement, ou abandonner le nouveau.
-	let confirmAction = $state<'delete' | 'abandon' | null>(null);
+	// Action en attente de confirmation : supprimer le classement, abandonner le nouveau, ou choisir une tranche à affiner.
+	let confirmAction = $state<'delete' | 'abandon' | 'slice' | null>(null);
+	// Tranche à affiner : rangs de 1 à n, compris.
+	let sliceFrom = $state(1);
+	let sliceTo = $state(50);
 
 	loadEntries().catch((e) => (error = errorMessage(e)));
 
@@ -32,6 +35,26 @@
 	const ranked = $derived(collection ? entries.ranking(collection.id).flatMap((id) => entries.find(id) ?? []) : []);
 	const unranked = $derived(collection ? entries.unranked(collection.id) : []);
 	const draft = $derived(collection ? entries.rankingDraft(collection.id) : null);
+	const slice = $derived(collection ? entries.rankingSlice(collection.id) : null);
+	const sliceSize = $derived(sliceTo - sliceFrom + 1);
+	const sliceValid = $derived(
+		Number.isInteger(sliceFrom) && Number.isInteger(sliceTo) && sliceFrom >= 1 && sliceTo <= ranked.length && sliceSize >= 2
+	);
+	// Raccourcis : le haut du classement, puis la tranche suivante de même taille.
+	const slicePresets = $derived.by(() => {
+		const presets = [10, 50, 100].filter((n) => n < ranked.length).map((n) => ({ label: `Top ${n}`, from: 1, to: n }));
+		if (sliceValid && sliceTo < ranked.length) {
+			const to = Math.min(sliceTo + sliceSize, ranked.length);
+			presets.push({ label: `Rangs ${sliceTo + 1} à ${to}`, from: sliceTo + 1, to });
+		}
+		return presets;
+	});
+
+	function openSlice() {
+		sliceFrom = 1;
+		sliceTo = Math.min(50, ranked.length);
+		confirmAction = 'slice';
+	}
 	const withoutImage = $derived((entries.activeItems ?? []).filter((item) => !isRankable(item)).length);
 
 	// La fiche ouverte navigue dans le classement, puis les fiches à classer.
@@ -133,22 +156,28 @@
 	{#if draft}
 		<div role="status" class="alert alert-info alert-soft mb-4 flex flex-col items-stretch gap-2">
 			<p class="text-sm">
-				<strong>Nouveau classement en cours :</strong>
-				{draft.length} classée{draft.length > 1 ? 's' : ''}, {unranked.length} à classer. Le classement actuel reste
-				affiché jusqu'à la fin.
+				{#if slice}
+					<strong>Affinage des rangs {slice.start + 1} à {slice.start + slice.ids.length} en cours :</strong>
+					{slice.ids.length - unranked.length} / {slice.ids.length} replacées. Le classement actuel reste affiché jusqu'à la fin ;
+					terminer maintenant laisse les autres dans leur ordre.
+				{:else}
+					<strong>Nouveau classement en cours :</strong>
+					{draft.length} classée{draft.length > 1 ? 's' : ''}, {unranked.length} à classer. Le classement actuel reste
+					affiché jusqu'à la fin.
+				{/if}
 			</p>
 			{#if confirmAction === 'abandon'}
 				<ConfirmInline
 					tone="warning"
 					confirmLabel="Abandonner"
-					message="Abandonner ce nouveau classement ? Ses duels seront perdus, le classement actuel ne change pas."
+					message="Abandonner {slice ? 'cet affinage' : 'ce nouveau classement'} ? Ses duels seront perdus, le classement actuel ne change pas."
 					onconfirm={async () => (await abandonNewRanking(collection.id), (confirmAction = null))}
 					oncancel={() => (confirmAction = null)}
 				/>
 			{:else}
 				<div class="flex flex-wrap gap-2">
 					<a class="btn btn-primary btn-sm" href="/ranking/duel"><Icon name="podium" class="size-4" /> Continuer</a>
-					{#if draft.length}
+					{#if draft.length || slice}
 						<button class="btn btn-outline btn-primary btn-sm" disabled={busy} onclick={() => run(() => finishNewRanking(collection.id))}>
 							Terminer maintenant
 						</button>
@@ -174,6 +203,46 @@
 					onconfirm={async () => (await deleteRanking(collection.id), (confirmAction = null))}
 					oncancel={() => (confirmAction = null)}
 				/>
+			{:else if confirmAction === 'slice'}
+				<div class="bg-base-100 rounded-box mb-4 flex flex-col gap-3 p-3 shadow-sm" role="group" aria-label="Affiner une tranche">
+					<p class="text-sm">Refaire les duels entre les fiches de ces rangs seulement : le reste du classement ne bouge pas.</p>
+					{#if slicePresets.length}
+						<div class="flex flex-wrap gap-1">
+							{#each slicePresets as preset (preset.label)}
+								<button
+									type="button"
+									class="badge badge-outline cursor-pointer"
+									onclick={() => ((sliceFrom = preset.from), (sliceTo = preset.to))}
+								>
+									{preset.label}
+								</button>
+							{/each}
+						</div>
+					{/if}
+					<div class="flex items-center gap-2 text-sm">
+						Rangs
+						<input type="number" class="input input-sm w-20" min="1" max={ranked.length} aria-label="Premier rang" bind:value={sliceFrom} />
+						à
+						<input type="number" class="input input-sm w-20" min="1" max={ranked.length} aria-label="Dernier rang" bind:value={sliceTo} />
+					</div>
+					<p class="text-base-content/60 text-xs" role="status">
+						{#if sliceValid}
+							{sliceSize} fiches, {insertionDuels(sliceSize)} duel{insertionDuels(sliceSize) > 1 ? 's' : ''} au plus.
+						{:else}
+							Au moins deux rangs, entre 1 et {ranked.length}.
+						{/if}
+					</p>
+					<div class="flex gap-2">
+						<button
+							class="btn btn-primary btn-sm"
+							disabled={!sliceValid || busy}
+							onclick={() => run(async () => (await startSliceRanking(collection.id, sliceFrom, sliceTo), await goto('/ranking/duel')))}
+						>
+							<Icon name="podium" class="size-4" /> Lancer les duels
+						</button>
+						<button class="btn btn-ghost btn-sm" onclick={() => (confirmAction = null)}>Annuler</button>
+					</div>
+				</div>
 			{:else}
 				<div class="mb-4 flex flex-wrap gap-2">
 					<button
@@ -183,6 +252,9 @@
 					>
 						Relancer le classement
 					</button>
+					{#if ranked.length > 2}
+						<button class="btn btn-outline btn-primary btn-sm" onclick={openSlice}>Affiner une tranche</button>
+					{/if}
 					<button class="btn btn-outline btn-error btn-sm" onclick={() => (confirmAction = 'delete')}>Supprimer le classement</button>
 				</div>
 			{/if}

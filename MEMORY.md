@@ -258,6 +258,12 @@ Laissés de côté pour le moment (2026-11-05) : scans en ligne, lecture hors li
   un appui immobile de 300 ms (sinon la page défile) ; déposée sur la couverture, une image la remplace (`makeCover`
   puis `moveTo`). Les flèches ← → restent pour le clavier. Carrousel : flèches rondes grises translucides sur l'image
   (`.carousel-arrow`) ; dans la fiche agrandie, les flèches de fiche descendent alors dans les coins du bas.
+- Classement (2026-11-18) : **affiner une tranche** (rangs 1 à 50, 51 à 100…) : `Collection.rankingSlice = { ids, start }`
+  avec `rankingDraft` = classement actuel sans ces fiches, replacées par dichotomie seulement entre elles (`sliceZone`),
+  le reste ne bouge pas ; l'actuel reste affiché jusqu'à la fin ; « Terminer maintenant » laisse les non replacées dans
+  leur ancien ordre (`withSliceRest`). Raccourcis Top 10 / 50 / 100 puis « tranche suivante », duels au plus affichés
+  (`insertionDuels`). Duels : bouton « Voir les n images » sur une carte qui en a plusieurs, carrousel en fenêtre, d'où
+  l'on peut aussi la préférer.
 - Retour vers l'index ou le classement après un verrouillage (2026-11-10) : `onLock` efface les ids de `entryNav` mais
   garde le retour (page, libellé) pour la fiche ouverte et ses voisines ; flèches par nom jusqu'au retour à la liste.
   Les remises à zéro de `onLock` tournent hors suivi (`untrack`) : lire son propre état n'y boucle plus.

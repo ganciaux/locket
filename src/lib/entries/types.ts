@@ -46,6 +46,9 @@ export type EntryData = {
 
 export type Entry = EntryData & { id: string };
 
+/** Tranche en cours d'affinage : ses fiches, dans leur ancien ordre, et son premier rang (0 = la meilleure). */
+export type RankingSlice = { ids: string[]; start: number };
+
 /** Regroupement exclusif des fiches (Manga, Chanteurs…) ; l'ordre du catalogue est l'ordre d'affichage. */
 export type Collection = {
 	id: string;
@@ -55,6 +58,8 @@ export type Collection = {
 	ranking?: string[];
 	/** Nouveau classement en cours : reçoit les duels, puis remplace `ranking` une fois terminé. */
 	rankingDraft?: string[];
+	/** Affinage d'une tranche (rangs 1 à 50…) : le nouveau classement est l'actuel sans ces fiches, replacées entre elles. */
+	rankingSlice?: RankingSlice;
 	/** Album : fiches déjà découvertes (tirées), dans l'ordre des tirages ; absent ou vide, tout est face cachée. */
 	discovered?: string[];
 	/** Catégories de tags, dans l'ordre d'affichage choisi. */

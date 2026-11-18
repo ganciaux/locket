@@ -28,8 +28,11 @@ import {
 	groupByInitial,
 	groupTags,
 	insertionDone,
+	insertionDuels,
 	opponentIndex,
 	rankedIds,
+	sliceZone,
+	withSliceRest,
 	startInsertion,
 	withRanked,
 	encodeUnderLimit,
@@ -589,6 +592,32 @@ describe('classement', () => {
 		expect(withRanked(undefined, [], 'n', 0, known)).toEqual(['n']);
 		// Reclasser : la fiche quitte son ancienne place.
 		expect(withRanked(['a', 'b', 'c'], ['b', 'c'], 'a', 2, known)).toEqual(['b', 'c', 'a']);
+	});
+
+	it('affine une tranche : chaque fiche replacée entre celles de la tranche déjà replacées, le reste ne bouge pas', () => {
+		// Classement a b c d e f, tranche des rangs 2 à 4 (b c d) : le nouveau classement part de a e f.
+		const slice = { ids: ['b', 'c', 'd'], start: 1 };
+		const all = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, imageType: 'image/webp' }));
+		const known = new Set(all.map((item) => item.id));
+		expect(sliceZone(['a', 'e', 'f'], slice)).toEqual({ lo: 1, hi: 1 });
+		// « d » d'abord (aucun duel), puis « b » : la plage ne couvre que « d ».
+		let draft = withRanked(['a', 'e', 'f'], ['a', 'e', 'f'], 'd', 1, known);
+		expect(draft).toEqual(['a', 'd', 'e', 'f']);
+		expect(sliceZone(draft, slice)).toEqual({ lo: 1, hi: 2 });
+		draft = withRanked(draft, draft, 'b', 2, known);
+		expect(sliceZone(['a', 'd', 'b', 'e', 'f'], slice)).toEqual({ lo: 1, hi: 3 });
+		// Rang de départ au-delà de la fin (fiches parties à la corbeille) : à la fin.
+		expect(sliceZone(['a'], { ids: ['x'], start: 4 })).toEqual({ lo: 1, hi: 1 });
+		// Fin anticipée : « c », pas encore replacée, se met à la suite de la tranche ; une fiche supprimée est oubliée.
+		expect(withSliceRest(draft, slice, all, known)).toEqual(['a', 'd', 'b', 'c', 'e', 'f']);
+		expect(withSliceRest(['a', 'e'], { ids: ['b', 'gone', 'c'], start: 1 }, all, known)).toEqual(['a', 'b', 'c', 'e']);
+	});
+
+	it('compte les duels au plus pour replacer une tranche', () => {
+		expect(insertionDuels(1)).toBe(0);
+		// 1 + 2 + 2 : la 2e fiche contre une, les 3e et 4e contre deux ou trois.
+		expect(insertionDuels(4)).toBe(5);
+		expect(insertionDuels(50)).toBeLessThan(50 * Math.log2(50));
 	});
 
 	it('trie par classement, non classées à la fin par nom', () => {

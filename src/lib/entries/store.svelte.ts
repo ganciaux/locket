@@ -13,6 +13,7 @@ import { bytesToUrl, isFullSizeThumb, rebuildThumb } from './images';
 import {
 	NO_TAG_FILTER,
 	type Collection,
+	type RankingSlice,
 	type EntryData,
 	type Link,
 	type Site,
@@ -225,6 +226,11 @@ export const entries = {
 	ranking: rankingOf,
 	/** Nouveau classement en cours, sans rapport avec les rangs affichés ; null s'il n'y en a pas. */
 	rankingDraft: draftOf,
+	/** Tranche en cours d'affinage, avec le nouveau classement ; null s'il n'y en a pas. */
+	rankingSlice(collectionId: string): RankingSlice | null {
+		const collection = data.collections?.find((c) => c.id === collectionId);
+		return (collection?.rankingDraft && collection.rankingSlice) || null;
+	},
 	/** Classement qui reçoit les duels : le nouveau s'il y en a un, sinon le classement actuel. */
 	rankingTarget(collectionId: string): string[] {
 		return draftOf(collectionId) ?? rankingOf(collectionId);
@@ -235,10 +241,17 @@ export const entries = {
 		const rank = rankingOf(item.collectionId).indexOf(item.id) + 1;
 		return rank || undefined;
 	},
-	/** Fiches avec image pas encore classées, dans le classement qui reçoit les duels. */
+	/**
+	 * Fiches avec image que les duels doivent placer : pas encore classées dans le classement qui les reçoit, ou, pendant
+	 * l'affinage d'une tranche, ses fiches pas encore replacées (les non classées attendent la fin).
+	 */
 	unranked(collectionId: string): ListItem[] {
 		const ranked = new Set(entries.rankingTarget(collectionId));
-		return inCollection(collectionId).filter((item) => isRankable(item) && !ranked.has(item.id));
+		const slice = entries.rankingSlice(collectionId);
+		const members = slice && new Set(slice.ids);
+		return inCollection(collectionId).filter(
+			(item) => isRankable(item) && !ranked.has(item.id) && (!members || members.has(item.id))
+		);
 	},
 	/** Fiche de la collection déjà nommée ainsi ; undefined si le nom est libre ou si rien n'est chargé. */
 	sameName(collectionId: string, name: string, exceptId?: string): ListItem | undefined {

@@ -130,3 +130,54 @@ test('classement par duels : rangs sur les cartes, décalés par la corbeille, r
 	await page.getByRole('button', { name: 'Retirer', exact: true }).click();
 	await expect(page.getByText('Pas encore classée')).toBeVisible();
 });
+
+test('affiner une tranche : duels seulement entre ses fiches, le reste ne bouge pas ; toutes les images d’une fiche', async ({ page }) => {
+	await signUp(page);
+	await addFirstCollection(page);
+	for (const name of ['Alpha', 'Bravo', 'Charlie', 'Delta']) await createEntryWithImage(page, name);
+	// Alpha a une deuxième image.
+	await openEntry(page, 'Alpha');
+	await page.getByRole('link', { name: 'Modifier' }).click();
+	const png = await page.evaluate(() => Object.assign(document.createElement('canvas'), { width: 300, height: 200 }).toDataURL('image/png').split(',')[1]);
+	await page.getByLabel('Ajouter des images').setInputFiles({ name: 'b.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+	await page.getByRole('button', { name: 'Enregistrer' }).click();
+	await expect(page.getByRole('heading', { name: 'Alpha' })).toBeVisible();
+
+	await goHome(page);
+	await page.getByLabel('Trier par').selectOption('rank');
+	await page.getByRole('link', { name: 'Classer (4)' }).click();
+	await runDuels(page, page.getByText('Toutes les fiches avec image sont classées.'), (names) => names[0]);
+	await page.getByRole('link', { name: 'Voir le classement' }).click();
+	const rows = page.locator('ol li');
+	await expect(rows).toHaveText([/Alpha/, /Bravo/, /Charlie/, /Delta/]);
+
+	// Rangs 1 à 2 : un seul duel, Alpha contre Bravo ; Charlie et Delta ne bougent pas.
+	await page.getByRole('button', { name: 'Affiner une tranche' }).click();
+	const picker = page.getByRole('group', { name: 'Affiner une tranche' });
+	await expect(picker.getByRole('button', { name: 'Top 10' })).toHaveCount(0);
+	await picker.getByLabel('Premier rang').fill('1');
+	await picker.getByLabel('Dernier rang').fill('5');
+	await expect(picker.getByText('Au moins deux rangs, entre 1 et 4.')).toBeVisible();
+	await expect(picker.getByRole('button', { name: 'Lancer les duels' })).toBeDisabled();
+	await picker.getByLabel('Dernier rang').fill('2');
+	await expect(picker.getByText('2 fiches, 1 duel au plus.')).toBeVisible();
+	await picker.getByRole('button', { name: 'Lancer les duels' }).click();
+	await expect(page.getByRole('heading', { name: 'Affiner les rangs 1 à 2' })).toBeVisible();
+
+	// Plusieurs images : on les regarde avant de choisir, puis on referme.
+	await expect(page.getByRole('button', { name: 'Préférer Alpha', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Préférer Bravo', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Voir les 2 images de Bravo' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'Voir les 2 images de Alpha' }).click();
+	const viewer = page.getByRole('dialog', { name: 'Images de Alpha' });
+	await expect(viewer.getByRole('list', { name: 'Images de la fiche' }).getByRole('button')).toHaveCount(2);
+	await viewer.getByRole('button', { name: 'Image suivante de Alpha' }).click();
+	await expect(viewer.getByRole('button', { name: "Afficher l'image 2 de Alpha" })).toHaveAttribute('aria-pressed', 'true');
+	await viewer.getByRole('button', { name: 'Fermer', exact: true }).click();
+	await expect(viewer).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Préférer Bravo', exact: true }).click();
+	await expect(page.getByText('Nouveau classement terminé : il remplace le précédent.')).toBeVisible();
+	await page.getByRole('link', { name: 'Voir le classement' }).click();
+	await expect(rows).toHaveText([/Bravo/, /Alpha/, /Charlie/, /Delta/]);
+});

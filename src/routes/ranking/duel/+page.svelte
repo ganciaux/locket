@@ -5,6 +5,7 @@
 	import ErrorAlert from '$lib/components/ErrorAlert.svelte';
 	import FullImage from '$lib/components/FullImage.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import ImageCarousel from '$lib/components/ImageCarousel.svelte';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import {
 		type Insertion,
@@ -13,10 +14,11 @@
 		insertionDone,
 		isRankable,
 		opponentIndex,
+		sliceZone,
 		startInsertion
 	} from '$lib/entries/model';
 	import { finishNewRanking, placeInRanking } from '$lib/entries/ranking';
-	import { entries, loadEntries } from '$lib/entries/store.svelte';
+	import { type ListItem, entries, loadEntries } from '$lib/entries/store.svelte';
 	import { errorMessage } from '$lib/errors';
 
 	// `?id=` : reclasser cette fiche, puis repartir ; sinon, les fiches non classées l'une après l'autre.
@@ -47,6 +49,9 @@
 	const rankedCount = $derived(collectionId ? entries.rankingTarget(collectionId).length : 0);
 	const pending = $derived(collectionId ? entries.unranked(collectionId) : []);
 	const inDraft = $derived(!!collectionId && !!entries.rankingDraft(collectionId));
+	const slice = $derived(collectionId ? entries.rankingSlice(collectionId) : null);
+	// Fiche dont on regarde toutes les images, avant de choisir : une seule ne suffit pas toujours.
+	let viewing = $state<ListItem | null>(null);
 
 	loadEntries().then(
 		() => {
@@ -66,7 +71,9 @@
 	function start(id: string) {
 		candidateId = id;
 		ranked = entries.rankingTarget(collectionId).filter((other) => other !== id);
-		insertion = startInsertion(ranked.length);
+		// Affinage d'une tranche : seulement entre ses fiches déjà replacées.
+		const zone = slice?.ids.includes(id) ? slice : null;
+		insertion = zone ? sliceZone(ranked, zone) : startInsertion(ranked.length);
 		history = [];
 		swap = Math.random() < 0.5;
 		// La toute première fiche classée n'a pas d'adversaire.
@@ -98,6 +105,7 @@
 	}
 
 	function choose(candidateWins: boolean) {
+		viewing = null;
 		history = [...history, insertion];
 		insertion = chooseInsertion(insertion, candidateWins);
 		swap = Math.random() < 0.5;
@@ -113,6 +121,8 @@
 		if (candidateId) skipped = [...skipped, candidateId];
 		next();
 	}
+
+	const openModal = (node: HTMLDialogElement) => node.showModal();
 
 	async function save() {
 		if (!candidateId) return;
@@ -132,10 +142,16 @@
 
 <a href={backHref} class="btn btn-ghost btn-sm mb-4 -ml-2"><Icon name="back" class="size-4" /> Retour</a>
 
-<h1 class="text-2xl font-bold">{inDraft ? 'Nouveau classement' : 'Classement'}</h1>
+<h1 class="text-2xl font-bold">
+	{slice ? `Affiner les rangs ${slice.start + 1} à ${slice.start + slice.ids.length}` : inDraft ? 'Nouveau classement' : 'Classement'}
+</h1>
 {#if collection}
 	<p class="text-base-content/60 mb-4 text-sm">
-		{collection.name} · {rankedCount} classée{rankedCount > 1 ? 's' : ''}, {pending.length} à classer
+		{#if slice}
+			{collection.name} · {slice.ids.length - pending.length} / {slice.ids.length} replacées
+		{:else}
+			{collection.name} · {rankedCount} classée{rankedCount > 1 ? 's' : ''}, {pending.length} à classer
+		{/if}
 	</p>
 {/if}
 
@@ -147,29 +163,74 @@
 	<p class="mb-3 font-semibold">Laquelle préférez-vous ?</p>
 	<div class="grid grid-cols-2 gap-3">
 		{#each swap ? [opponent, candidate] : [candidate, opponent] as item (item.id)}
-			<button
-				type="button"
-				data-border={entries.borderOf(item)}
-				class="card bg-base-100 cursor-pointer overflow-hidden text-left shadow-sm transition hover:shadow-md disabled:opacity-60"
-				disabled={saving}
-				aria-label="Préférer {item.name}"
-				onclick={() => choose(item.id === candidate.id)}
-			>
-				<!-- Image entière, pas recadrée : on compare ce qu'on verrait sur la fiche. -->
-				<figure class="bg-base-200 relative aspect-[3/4]">
-					<FullImage
-						id={item.id}
-						type={item.imageType}
-						thumbUrl={item.thumbUrl}
-						alt=""
-						class="size-full object-contain"
-						onfail={(e) => (error = errorMessage(e))}
-					/>
-				</figure>
-				<span class="truncate px-3 py-2 text-sm font-semibold">{item.name}</span>
-			</button>
+			<!-- Le bouton des images passe au-dessus de la carte : deux boutons ne peuvent pas s'imbriquer. -->
+			<div class="relative">
+				<button
+					type="button"
+					data-border={entries.borderOf(item)}
+					class="card bg-base-100 w-full cursor-pointer overflow-hidden text-left shadow-sm transition hover:shadow-md disabled:opacity-60"
+					disabled={saving}
+					aria-label="Préférer {item.name}"
+					onclick={() => choose(item.id === candidate.id)}
+				>
+					<!-- Image entière, pas recadrée : on compare ce qu'on verrait sur la fiche. -->
+					<figure class="bg-base-200 relative aspect-[3/4]">
+						<FullImage
+							id={item.id}
+							type={item.imageType}
+							thumbUrl={item.thumbUrl}
+							alt=""
+							class="size-full object-contain"
+							onfail={(e) => (error = errorMessage(e))}
+						/>
+					</figure>
+					<span class="truncate px-3 py-2 text-sm font-semibold">{item.name}</span>
+				</button>
+				{#if item.gallery?.length}
+					<button
+						type="button"
+						class="badge bg-base-100/80 absolute top-2 right-2 h-7 cursor-pointer gap-1 border-0 shadow-sm"
+						aria-label="Voir les {item.gallery.length + 1} images de {item.name}"
+						onclick={() => (viewing = item)}
+					>
+						<Icon name="images" class="size-3.5" />{item.gallery.length + 1}
+					</button>
+				{/if}
+			</div>
 		{/each}
 	</div>
+	{#if viewing}
+		{@const shown = viewing}
+		<!-- Toutes les images d'une des deux fiches ; on peut la préférer d'ici. Échap ou le fond ferment. -->
+		<dialog class="modal bg-black/60" aria-label="Images de {shown.name}" use:openModal onclose={() => (viewing = null)}>
+			<div class="modal-box flex w-[calc(100%-2rem)] max-w-md flex-col gap-3 p-0 pb-4">
+				<h2 class="px-4 pt-4 font-semibold">{shown.name}</h2>
+				<div class="bg-base-200">
+					{#key shown.id}
+						<ImageCarousel entry={shown} imageClass="max-h-[60dvh] w-full object-contain" onfail={(e) => (error = errorMessage(e))}>
+							{#snippet cover()}
+								<FullImage
+									id={shown.id}
+									type={shown.imageType}
+									thumbUrl={shown.thumbUrl}
+									alt="{shown.name}, image 1"
+									class="max-h-[60dvh] w-full object-contain"
+									onfail={(e) => (error = errorMessage(e))}
+								/>
+							{/snippet}
+						</ImageCarousel>
+					{/key}
+				</div>
+				<div class="flex justify-end gap-2 px-4">
+					<button type="button" class="btn btn-ghost btn-sm" onclick={() => (viewing = null)}>Fermer</button>
+					<button type="button" class="btn btn-primary btn-sm" disabled={saving} onclick={() => choose(shown.id === candidate.id)}>
+						Préférer {shown.name}
+					</button>
+				</div>
+			</div>
+			<form method="dialog" class="modal-backdrop"><button tabindex="-1" aria-hidden="true">Fermer</button></form>
+		</dialog>
+	{/if}
 	<p class="text-base-content/60 mt-3 text-xs" role="status">
 		Encore {duelsLeft(insertion)} duel{duelsLeft(insertion) > 1 ? 's' : ''} au plus pour « {candidate.name} ».
 	</p>
